@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<ProjectReference Include="..\TwitchStreamDownloader\TwitchStreamDownloader\TwitchStreamDownloader.csproj"/>
+	</ItemGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="DigitalOcean.API" Version="5.2.0"/>
+		<PackageReference Include="Google.Apis.YouTube.v3" Version="1.55.0.2449"/>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
+		<PackageReference Include="TwitchLib.Api" Version="3.4.1"/>
+		<PackageReference Include="TwitchLib.Api.Helix" Version="3.4.1"/>
+		<PackageReference Include="TwitchLib.PubSub" Version="3.2.3"/>
+	</ItemGroup>
+</Project>

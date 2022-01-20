@@ -1,0 +1,3 @@
+[submodule "TwitchStreamDownloader"]
+	path = TwitchStreamDownloader
+	url = https://github.com/Urantij/TwitchStreamDownloader.git
