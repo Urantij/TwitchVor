@@ -1,5 +1,7 @@
 using System.Linq;
+using System.Net.Http;
 using TwitchStreamDownloader.Download;
+using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
 using TwitchStreamDownloader.Queues;
 using TwitchStreamDownloader.Resources;
@@ -327,7 +329,7 @@ namespace TwitchVor.Twitch.Downloader
         #region Logs
         private void QueueException(object? sender, Exception e)
         {
-            Log($"Download Exception\n{e}");
+            LogException($"Download Exception", e);
         }
 
         private void UnknownPlaylistLineFound(object? sender, LineEventArgs e)
@@ -342,22 +344,38 @@ namespace TwitchVor.Twitch.Downloader
 
         private void MasterPlaylistExceptionOccured(object? sender, Exception e)
         {
-            Log($"Master Exception\n{e}");
+            LogException($"Master Exception", e);
         }
 
         private void MediaPlaylistExceptionOccured(object? sender, Exception e)
         {
-            Log($"Media Exception\n{e}");
+            LogException($"Media Exception", e);
         }
 
         private void SegmentDownloadExceptionOccured(object? sender, Exception e)
         {
-            Log($"Segment Exception\n{e}");
+            LogException($"Segment Exception", e);
         }
 
         private void PlaylistEnded(object? sender, EventArgs e)
         {
             Log("Playlist End");
+        }
+
+        private void LogException(string message, Exception e)
+        {
+            if (e is BadCodeException be)
+            {
+                LogError($"{message} Bad Code ({be.statusCode})");
+            }
+            else if (e is HttpRequestException re)
+            {
+                LogError($"{message} HttpException {re.Message} ({re.StatusCode})");
+            }
+            else
+            {
+                LogError($"{message}\n{e}");
+            }
         }
         #endregion
     }
