@@ -57,5 +57,15 @@ namespace TwitchVor.Vvideo
         {
             this.FileName = fileName;
         }
+
+        public static string AddTempPrefix(string name)
+        {
+            return "temp_" + name;
+        }
+
+        public static string RemoveTempPrefix(string name)
+        {
+            return name["temp_".Length..];
+        }
     }
 }

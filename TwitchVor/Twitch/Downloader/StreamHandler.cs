@@ -246,7 +246,8 @@ namespace TwitchVor.Twitch.Downloader
                     foreach (var moving in toMove)
                     {
                         //Точно не нулл
-                        string newMovingPath = Path.Combine($"/mnt/{volumeOperator.volumeName}", moving.linkedThing.FileName);
+                        string newFileName = FileThing.RemoveTempPrefix(moving.linkedThing.FileName);
+                        string newMovingPath = Path.Combine($"/mnt/{volumeOperator.volumeName}", newFileName);
 
                         Log($"Moving {moving.linkedThing.FileName}");
 
@@ -256,12 +257,11 @@ namespace TwitchVor.Twitch.Downloader
                         File.Move(moving.linkedThing.FilePath, newMovingPath);
 
                         moving.linkedThing.SetPath(newMovingPath);
+                        moving.linkedThing.SetName(newFileName);
                         moving.temp = false;
 
                         if (moving == currentVideoWriter)
                             moving.OpenFileStream();
-                        //впадлу. для этого нужно дату в видос класть и перегенерить.
-                        //moving.linkedThing.SetName(..);
                     }
                 }
 
@@ -286,7 +286,7 @@ namespace TwitchVor.Twitch.Downloader
                         }
                         else
                         {
-                            fileName = "temp_" + VideoWriter.GenerateFileName(date);
+                            fileName = FileThing.AddTempPrefix(VideoWriter.GenerateFileName(date));
                             path = Path.Combine(Program.config.VideosDirectoryName, fileName);
 
                             isTemp = true;
