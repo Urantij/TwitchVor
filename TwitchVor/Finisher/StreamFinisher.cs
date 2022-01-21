@@ -53,7 +53,7 @@ namespace TwitchVor.Finisher
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video.linkedThing.firstSegmentDate.Value, video.skipInfos);
+                    string description = FormDescription(video.linkedThing.firstSegmentDate.Value, video.skipInfos, stream.advertismentSeconds);
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
 
@@ -122,7 +122,7 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        private string FormDescription(DateTimeOffset videoStartTime, List<SkipInfo> skips)
+        private string FormDescription(DateTimeOffset videoStartTime, List<SkipInfo> skips, float advertismentSeconds)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -139,6 +139,8 @@ namespace TwitchVor.Finisher
                     builder.AppendLine(status);
                 }
             }
+
+            builder.AppendLine($"Пропущено секунд из-за рекламы: {(int)advertismentSeconds}");
 
             return builder.ToString();
         }

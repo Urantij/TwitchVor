@@ -37,6 +37,12 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal readonly DateTime handlerCreationDate;
 
+        /// <summary>
+        /// Сколько секунд рекламы поели.
+        /// Не точное время, так как не по миссинг сегментам, а ожидаемому времени.
+        /// </summary>
+        internal float advertismentSeconds = 0f;
+
         public StreamHandler(Timestamper timestamper)
         {
             this.timestamper = timestamper;
@@ -163,8 +169,10 @@ namespace TwitchVor.Twitch.Downloader
 
                 segmentsDownloader.SegmentArrived += SegmentArrived;
 
-                segmentsDownloader.UpdateAccess(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
+                segmentsDownloader.Update(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
                                   .ContinueWith((task) => SegmentsTokenContinuation(task, segmentsDownloader));
+                /*segmentsDownloader.UpdateAccess(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
+                                  .ContinueWith((task) => SegmentsTokenContinuation(task, segmentsDownloader));*/
             }
         }
 
@@ -183,7 +191,7 @@ namespace TwitchVor.Twitch.Downloader
                 if (thatSegments != segmentsDownloader || thatSegments.Disposed)
                     return;
 
-                _ = thatSegments.UpdateAccess(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
+                _ = thatSegments.Update(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
                                 .ContinueWith((task) => SegmentsTokenContinuation(task, thatSegments));
             }
             else if (task.IsCanceled)
@@ -207,7 +215,10 @@ namespace TwitchVor.Twitch.Downloader
                 return;
 
             if (!e.IsLive)
+            {
+                advertismentSeconds += e.duration;
                 return;
+            }
 
             _ = thatQueue.Download(e, thatSegments, new MemoryStream(), Program.config.SegmentDownloaderTimeout);
             thatQueue.Queue(e);
