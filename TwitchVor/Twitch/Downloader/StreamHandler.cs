@@ -239,11 +239,16 @@ namespace TwitchVor.Twitch.Downloader
 
                         Log($"Moving {moving.linkedThing.FileName}");
 
+                        if (moving == currentVideoWriter)
+                            moving.CloseFileStream();
                         //понадеюсь, что тут не нужно ждать его закрытия. Я просто хочу верить.
                         File.Move(moving.linkedThing.FilePath, newMovingPath);
 
                         moving.linkedThing.SetPath(newMovingPath);
                         moving.temp = false;
+
+                        if (moving == currentVideoWriter)
+                            moving.OpenFileStream();
                         //впадлу. для этого нужно дату в видос класть и перегенерить.
                         //moving.linkedThing.SetName(..);
                     }

@@ -10,7 +10,7 @@ namespace TwitchVor.Vvideo
     {
         public readonly FileThing linkedThing;
 
-        private readonly FileStream fileStream;
+        private FileStream fileStream;
 
         private readonly Queue<QueueItem> writeQueue = new();
         public readonly List<SkipInfo> skipInfos = new();
@@ -94,6 +94,16 @@ namespace TwitchVor.Vvideo
             }
 
             await workTask;
+        }
+
+        public void OpenFileStream()
+        {
+            fileStream = new FileStream(linkedThing.FilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        }
+
+        public void CloseFileStream()
+        {
+            fileStream.Dispose();
         }
 
         /// <summary>
