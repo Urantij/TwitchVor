@@ -89,6 +89,16 @@ namespace TwitchVor
                 ColorLog.Log("No youtube");
             }
 
+            //do
+            if (config.Ocean != null)
+            {
+                ColorLog.Log("Ocean added");
+            }
+            else
+            {
+                ColorLog.Log("No ocean");
+            }
+
             statuser = new TwitchStatuser();
 
             streamsManager = new();
