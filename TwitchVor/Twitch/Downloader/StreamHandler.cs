@@ -155,13 +155,16 @@ namespace TwitchVor.Twitch.Downloader
                     takeOnlyPreferredQuality = true,
                 };
 
-                var thatSegments = segmentsDownloader = new SegmentsDownloader(settings, Program.config.Channel!);
+                var thatSegments = segmentsDownloader = new SegmentsDownloader(settings, Program.config.Channel!, Program.config.DownloaderClientId, Program.config.DownloaderOAuth);
                 segmentsDownloader.UnknownPlaylistLineFound += UnknownPlaylistLineFound;
                 segmentsDownloader.CommentPlaylistLineFound += CommentPlaylistLineFound;
 
                 segmentsDownloader.MasterPlaylistExceptionOccured += MasterPlaylistExceptionOccured;
                 segmentsDownloader.MediaPlaylistExceptionOccured += MediaPlaylistExceptionOccured;
                 segmentsDownloader.SegmentDownloadExceptionOccured += SegmentDownloadExceptionOccured;
+
+                segmentsDownloader.TokenAcquired += TokenAcquired;
+                segmentsDownloader.TokenAcquiringException += TokenAcquiringException;
 
                 segmentsDownloader.PlaylistEnded += PlaylistEnded;
 
@@ -171,40 +174,7 @@ namespace TwitchVor.Twitch.Downloader
 
                 segmentsDownloader.SegmentArrived += SegmentArrived;
 
-                segmentsDownloader.Update(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
-                                  .ContinueWith((task) => SegmentsTokenContinuation(task, segmentsDownloader));
-                /*segmentsDownloader.UpdateAccess(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
-                                  .ContinueWith((task) => SegmentsTokenContinuation(task, segmentsDownloader));*/
-            }
-        }
-
-        private async void SegmentsTokenContinuation(Task task, SegmentsDownloader thatSegments)
-        {
-            //ложку локов бы
-            if (thatSegments != segmentsDownloader || thatSegments.Disposed)
-                return;
-
-            if (task.IsFaulted)
-            {
-                Log($"Could not update access token\n{task.Exception}");
-
-                await Task.Delay(Program.config.SegmentAccessReupdateDelay);
-
-                if (thatSegments != segmentsDownloader || thatSegments.Disposed)
-                    return;
-
-                _ = thatSegments.Update(Program.config.DownloaderClientId, Program.config.DownloaderOAuth)
-                                .ContinueWith((task) => SegmentsTokenContinuation(task, thatSegments));
-            }
-            else if (task.IsCanceled)
-            {
-                Log($"Could not update access token: cancelled");
-            }
-            else
-            {
-                Log($"Updated access token");
-
-                thatSegments.Start();
+                segmentsDownloader.Start();
             }
         }
 
@@ -357,6 +327,33 @@ namespace TwitchVor.Twitch.Downloader
             LogException($"Segment Exception", e);
         }
 
+        private void TokenAcquired(object? sender, AccessToken e)
+        {
+            //да не может он быть нулл.
+            var downloader = (SegmentsDownloader)sender!;
+
+            string fails = $" ({downloader.TokenAcquiranceFailedAttempts} failed)";
+
+            if (e.parsedValue.expires == null)
+            {
+                Log($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
+            }
+            else
+            {
+                var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
+
+                Log($"Got playback token! left {left.TotalMinutes} minutes" + fails);
+            }
+        }
+
+        private void TokenAcquiringException(object? sender, Exception e)
+        {
+            //да не может он быть нулл.
+            var downloader = (SegmentsDownloader)sender!;
+            
+            LogException($"TokenAcq Failed ({downloader.TokenAcquiranceFailedAttempts})", e);
+        }
+
         private void PlaylistEnded(object? sender, EventArgs e)
         {
             Log("Playlist End");
@@ -366,11 +363,11 @@ namespace TwitchVor.Twitch.Downloader
         {
             if (e is BadCodeException be)
             {
-                LogError($"{message} Bad Code ({be.statusCode})");
+                LogError($"{message} Bad Code ({be.statusCode})\n{be.responseContent}");
             }
             else if (e is HttpRequestException re)
             {
-                LogError($"{message} HttpException {re.Message} ({re.StatusCode})");
+                LogError($"{message} HttpException \"{re.Message}\" ({re.StatusCode})");
             }
             else
             {
