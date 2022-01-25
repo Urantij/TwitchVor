@@ -79,6 +79,9 @@ namespace TwitchVor
                 ColorLog.Log($"Updated channel id");
             }
 
+            //q
+            ColorLog.Log($"Quality {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
+
             //youtube
             if (config.YouTube != null)
             {

@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Net.Http;
+using PlaylistParser.Models;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
@@ -170,6 +171,7 @@ namespace TwitchVor.Twitch.Downloader
                 segmentsDownloader.TokenAcquired += TokenAcquired;
                 segmentsDownloader.TokenAcquiringException += TokenAcquiringException;
 
+                segmentsDownloader.MediaQualitySelected += MediaQualitySelected;
                 segmentsDownloader.PlaylistEnded += PlaylistEnded;
 
                 var thatQueue = downloadQueue = new();
@@ -365,6 +367,17 @@ namespace TwitchVor.Twitch.Downloader
             var downloader = (SegmentsDownloader)sender!;
             
             LogException($"TokenAcq Failed ({downloader.TokenAcquiranceFailedAttempts})", e);
+        }
+
+        private void MediaQualitySelected(object? sender, VariantStream e)
+        {
+            //да не может он быть нулл.
+            var downloader = (SegmentsDownloader)sender!;
+
+            if (downloader.LastVideo == e.streamInfTag.video)
+                return;
+
+            Log($"New quality selected: {e.streamInfTag.video} ({downloader.LastVideo ?? "null"})");
         }
 
         private void PlaylistEnded(object? sender, EventArgs e)
