@@ -42,7 +42,7 @@ namespace TwitchVor.Twitch.Downloader
                 }
                 else
                 {
-                    currentStream = new StreamHandler(currentStamper);
+                    currentStream = new StreamHandler(currentStamper, Program.config.Ocean);
                     currentStream.Start();
                 }
             }
