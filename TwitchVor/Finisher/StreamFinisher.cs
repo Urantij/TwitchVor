@@ -82,10 +82,10 @@ namespace TwitchVor.Finisher
             }
 
             end:;
-            if (stream.volumeOperator != null && deleteVolume)
+            if (stream.volumeOperator2 != null && deleteVolume)
             {
                 Log("Removing volume...");
-                _ = stream.volumeOperator.DeleteAsync();
+                await stream.volumeOperator2.DeleteAsync();
                 Log("Removed volume.");
             }
         }

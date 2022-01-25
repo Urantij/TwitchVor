@@ -32,7 +32,10 @@ namespace TwitchVor.Twitch.Downloader
         /// <summary>
         /// нул, если не облачный
         /// </summary>
-        internal readonly DigitalOceanVolumeOperator? volumeOperator;
+        readonly OceanCreds? oceanCreds;
+        internal DigitalOceanVolumeOperator? volumeOperator2;
+
+        bool IsCloud => oceanCreds != null;
 
         /// <summary>
         /// UTC
@@ -45,17 +48,12 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal float advertismentSeconds = 0f;
 
-        public StreamHandler(Timestamper timestamper)
+        public StreamHandler(Timestamper timestamper, OceanCreds? oceanCreds)
         {
             this.timestamper = timestamper;
+            this.oceanCreds = oceanCreds;
 
             handlerCreationDate = DateTime.UtcNow;
-
-            if (Program.config.Ocean != null)
-            {
-                string volumename = DigitalOceanVolumeOperator.GenerateVolumeName(handlerCreationDate);
-                volumeOperator = new DigitalOceanVolumeOperator(Program.config.Ocean, volumename);
-            }
         }
 
         void Log(string message)
@@ -74,10 +72,13 @@ namespace TwitchVor.Twitch.Downloader
         {
             Log("Starting...");
 
-            //TODO UseTempVideoWriter
-            if (volumeOperator != null)
+            if (IsCloud)
             {
-                _ = volumeOperator.CreateAsync();
+                string volumename = DigitalOceanVolumeCreator.GenerateVolumeName(handlerCreationDate);
+                //не знает, что IsCloud это проверка на нулл
+                var creator = new DigitalOceanVolumeCreator(oceanCreds!, volumename);
+
+                creator.CreateAsync().ContinueWith(VolumeAttachedHandler);
             }
 
             LaunchSegmentsDownloader();
@@ -119,11 +120,14 @@ namespace TwitchVor.Twitch.Downloader
 
             Finished = true;
 
-            if (volumeOperator?.Ready == false)
+            if (IsCloud && volumeOperator2 == null)
             {
                 //Какой шанс?
                 LogError("Какого хуя вольюм не готов?");
-                volumeOperator.GetCreationTask!.GetAwaiter().GetResult();
+                while (volumeOperator2 == null)
+                {
+                    await Task.Delay(5000);
+                }
                 LogError("Пиздец.");
             }
 
@@ -207,7 +211,8 @@ namespace TwitchVor.Twitch.Downloader
             {
                 e.bufferWriteStream.Position = 0;
 
-                if (volumeOperator?.Ready == true && currentVideoWriter?.temp == true)
+                //Оператор стал доступен, нужно перенест хуйню
+                if (volumeOperator2 != null && currentVideoWriter?.temp == true)
                 {
                     //переносим кал
                     Log("Volume created, moving file to new home");
@@ -219,7 +224,7 @@ namespace TwitchVor.Twitch.Downloader
                     {
                         //Точно не нулл
                         string newFileName = FileThing.RemoveTempPrefix(moving.linkedThing.FileName);
-                        string newMovingPath = Path.Combine($"/mnt/{volumeOperator.volumeName}", newFileName);
+                        string newMovingPath = Path.Combine($"/mnt/{volumeOperator2.volumeName}", newFileName);
 
                         Log($"Moving {moving.linkedThing.FileName}");
 
@@ -246,13 +251,13 @@ namespace TwitchVor.Twitch.Downloader
                     string fileName;
                     string path;
                     bool isTemp;
-                    if (volumeOperator != null)
+                    if (IsCloud)
                     {
-                        if (volumeOperator.Ready)
+                        if (volumeOperator2 != null)
                         {
                             fileName = VideoWriter.GenerateFileName(date);
                             //TODO странно, что часть пути через комбайн, часть руками
-                            path = Path.Combine($"/mnt/{volumeOperator.volumeName}", fileName);
+                            path = Path.Combine($"/mnt/{volumeOperator2.volumeName}", fileName);
 
                             isTemp = false;
                         }
@@ -294,6 +299,14 @@ namespace TwitchVor.Twitch.Downloader
 
                 Log($"Missing downloading segment {e.segment.title}");
             }
+        }
+
+        private void VolumeAttachedHandler(Task<DigitalOceanVolumeOperator> task)
+        {
+            //как то впадлу думать что делать, если выпала ошибка
+            //TODO подумать
+
+            volumeOperator2 = task.Result;
         }
 
         #region Logs
