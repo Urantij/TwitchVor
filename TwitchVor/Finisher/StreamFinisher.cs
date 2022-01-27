@@ -85,8 +85,15 @@ namespace TwitchVor.Finisher
             if (stream.volumeOperator2 != null && deleteVolume)
             {
                 Log("Removing volume...");
-                await stream.volumeOperator2.DeleteAsync();
-                Log("Removed volume.");
+                try
+                {
+                    await stream.volumeOperator2.DeleteAsync();
+                    Log("Removed volume.");
+                }
+                catch (Exception e)
+                {
+                    Log($"Could not remove volume:\n{e}");
+                }
             }
         }
 

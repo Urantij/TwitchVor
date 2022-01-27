@@ -389,11 +389,11 @@ namespace TwitchVor.Twitch.Downloader
         {
             if (e is BadCodeException be)
             {
-                LogError($"{message} Bad Code ({be.statusCode})\n{be.responseContent}");
+                LogError($"{message} Bad Code ({be.statusCode})");
             }
             else if (e is HttpRequestException re)
             {
-                LogError($"{message} HttpException \"{re.Message}\" ({re.StatusCode})");
+                LogError($"{message} HttpException\n{re}");
             }
             else
             {

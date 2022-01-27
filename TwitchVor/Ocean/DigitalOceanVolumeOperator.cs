@@ -32,10 +32,11 @@ namespace TwitchVor.Ocean
 
         public async Task DeleteAsync()
         {
-            Log("Detaching...");
+            Log($"Detaching {volumeId}...");
             await client.VolumeActions.Detach(volumeId, dropletId, region);
-            Log("Deleting...");
-            await client.Volumes.Delete(volumeId);
+            Log($"Deleting {volumeId}...");
+            await client.Volumes.DeleteByName(volumeName, region);
+            //await client.Volumes.Delete(volumeId);
         }
     }
 }
