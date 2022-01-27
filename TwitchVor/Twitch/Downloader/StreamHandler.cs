@@ -63,6 +63,12 @@ namespace TwitchVor.Twitch.Downloader
             ColorLog.Log(message, $"StreamHandler{handlerCreationDate:ss}");
         }
 
+        void LogWarning(string message)
+        {
+            //TODO сделать норм идентификатор
+            ColorLog.LogWarning(message, $"StreamHandler{handlerCreationDate:ss}");
+        }
+
         void LogError(string message)
         {
             //TODO сделать норм идентификатор
@@ -311,6 +317,52 @@ namespace TwitchVor.Twitch.Downloader
             volumeOperator2 = task.Result;
         }
 
+        private void TokenAcquired(object? sender, AccessToken e)
+        {
+            //да не может он быть нулл.
+            var downloader = (SegmentsDownloader)sender!;
+
+            string fails = $" ({downloader.TokenAcquiranceFailedAttempts} failed)";
+
+            if (e.parsedValue.expires == null)
+            {
+                if (Program.config.DownloaderForceTokenChange)
+                {
+                    LogError($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
+                }
+                else
+                {
+                    LogWarning($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
+                }
+
+                return;
+            }
+
+            var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
+
+            Log($"Got playback token! left {left.TotalMinutes} minutes" + fails);
+
+            if (!Program.config.DownloaderForceTokenChange)
+                return;
+
+            Task.Run(async () =>
+            {
+                /* в тевории стрим может уже закончится, кстати.
+                 * но один лишний таск это похуй, я думаю
+                 * TODO Добавить локов, чтобы исключить околоневозможный шанс пересечения интересов */
+                await Task.Delay(left - TimeSpan.FromSeconds(5));
+
+                //по факту лишние проверки, ну да ладно
+                if (segmentsDownloader?.Disposed != false || Suspended || Finished)
+                {
+                    return;
+                }
+
+                Log("Dropping access token on schedule...");
+                segmentsDownloader.DropToken();
+            });
+        }
+
         #region Logs
         private void QueueException(object? sender, Exception e)
         {
@@ -342,30 +394,11 @@ namespace TwitchVor.Twitch.Downloader
             LogException($"Segment Exception", e);
         }
 
-        private void TokenAcquired(object? sender, AccessToken e)
-        {
-            //да не может он быть нулл.
-            var downloader = (SegmentsDownloader)sender!;
-
-            string fails = $" ({downloader.TokenAcquiranceFailedAttempts} failed)";
-
-            if (e.parsedValue.expires == null)
-            {
-                Log($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
-            }
-            else
-            {
-                var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
-
-                Log($"Got playback token! left {left.TotalMinutes} minutes" + fails);
-            }
-        }
-
         private void TokenAcquiringException(object? sender, Exception e)
         {
             //да не может он быть нулл.
             var downloader = (SegmentsDownloader)sender!;
-            
+
             LogException($"TokenAcq Failed ({downloader.TokenAcquiranceFailedAttempts})", e);
         }
 
@@ -393,7 +426,14 @@ namespace TwitchVor.Twitch.Downloader
             }
             else if (e is HttpRequestException re)
             {
-                LogError($"{message} HttpException\n{re}");
+                if (re.InnerException is IOException io)
+                {
+                    LogError($"{message} HttpRequestException.IOException: \"{io.Message}\"");
+                }
+                else
+                {
+                    LogError($"{message} HttpRequestException\n{re}");
+                }
             }
             else
             {

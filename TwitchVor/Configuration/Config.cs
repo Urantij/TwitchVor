@@ -40,6 +40,12 @@ namespace TwitchVor.Configuration
 
         public string? DownloaderClientId { get; set; } = null;
         public string? DownloaderOAuth { get; set; } = null;
+        /// <summary>
+        /// У токена срока жизни 20 минут, но пользоваться им можно час, почему то.
+        /// Тру - форсить смену токена через 20 минут (ну или когда он истечёт(?))
+        /// Юзлес, если юзается токен без oauth, так как такой токен хоть тыщу лет юзать можно (наверное)
+        /// </summary>
+        public bool DownloaderForceTokenChange { get; set; } = false;
 
         /// <summary>
         /// Как долго считать офнутый стрим не офнутым

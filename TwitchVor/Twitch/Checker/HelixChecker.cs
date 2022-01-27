@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
@@ -106,6 +107,12 @@ namespace TwitchVor.Twitch.Checker
             catch (TwitchLib.Api.Core.Exceptions.InternalServerErrorException)
             {
                 Log($"CheckChannel exception опять InternalServerErrorException");
+
+                return null;
+            }
+            catch (HttpRequestException e) when (e.InnerException is IOException io)
+            {
+                LogError($"CheckChannel HttpRequestException.IOException: \"{io.Message}\"");
 
                 return null;
             }
