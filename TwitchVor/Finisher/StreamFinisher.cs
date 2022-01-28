@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text;
+using TwitchVor.Ocean;
 using TwitchVor.TubeYou;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
@@ -29,17 +31,44 @@ namespace TwitchVor.Finisher
         {
             bool deleteVolume = true;
 
+            DigitalOceanVolumeOperator? secondVolumeOperator;
+
+            if (stream.currentVideoWriter == null)
+            {
+                Log("Охуенный стрим без видео.");
+                secondVolumeOperator = null;
+                goto end;
+            }
+
+            List<VideoWriter> videoWriters = new();
+            videoWriters.AddRange(stream.pastVideoWriters);
+            videoWriters.Add(stream.currentVideoWriter);
+
             if (Program.config.YouTube != null)
             {
-                if (stream.currentVideoWriter == null)
+                if (Program.config.ConvertToMp4 && Program.config.Ocean != null)
                 {
-                    Log("Охуенный стрим без видео.");
-                    goto end;
-                }
+                    var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
 
-                List<VideoWriter> videoWriters = new();
-                videoWriters.AddRange(stream.pastVideoWriters);
-                videoWriters.Add(stream.currentVideoWriter);
+                    //Можете кибербулить меня, но я хуй знает, че там у до на уме.
+                    //var maxSizeGB = (int)(maxSizeBytes / 1024d / 1024d / 1024d * 1.1d);
+                    var maxSizeGB = (int)(maxSizeBytes / 1000d / 1000d / 1000d * 1.1d);
+
+                    string volumeName = DigitalOceanVolumeCreator.GenerateVolumeName(DateTime.UtcNow);
+
+                    Log($"Creating second volume, size ({maxSizeGB})...");
+                    DigitalOceanVolumeCreator creator = new(Program.config.Ocean, volumeName);
+
+                    secondVolumeOperator = await creator.CreateAsync();
+
+                    Log($"Created second volume.");
+
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
+                else
+                {
+                    secondVolumeOperator = null;
+                }
 
                 bool allUploaded = true;
                 for (int videoIndex = 0; videoIndex < videoWriters.Count; videoIndex++)
@@ -50,6 +79,54 @@ namespace TwitchVor.Finisher
                     {
                         Log($"Охуенное видео без сегментов. {videoIndex}");
                         continue;
+                    }
+
+                    string originalPath = video.linkedThing.FilePath;
+
+                    if (Program.config.ConvertToMp4)
+                    {
+                        Log($"Converting {video.linkedThing.FileName}...");
+
+                        string newName = Path.ChangeExtension(video.linkedThing.FileName, ".mp4");
+                        string newPath;
+
+                        if (secondVolumeOperator != null)
+                        {
+                            newPath = Path.Combine($"/mnt/{secondVolumeOperator.volumeName}", newName);
+                        }
+                        else
+                        {
+                            newPath = Path.ChangeExtension(video.linkedThing.FilePath, ".mp4");
+                        }
+
+                        DateTime startTime = DateTime.UtcNow;
+
+                        bool converted = Ffmpeg.Convert(originalPath, newPath);
+
+                        var passed = DateTime.UtcNow - startTime;
+
+                        if (converted)
+                        {
+                            Log($"Converted. Took {passed.TotalMinutes} minutes.");
+
+                            video.linkedThing.SetPath(newPath);
+                            video.linkedThing.SetName(newName);
+                        }
+                        else
+                        {
+                            Log($"Could not convert. Took {passed.TotalMinutes} minutes.");
+
+                            try
+                            {
+                                File.Delete(newPath);
+
+                                Log("Deleted converted file");
+                            }
+                            catch (Exception e)
+                            {
+                                Log($"Could not delete converted file: {e.Message}");
+                            }
+                        }
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
@@ -74,15 +151,89 @@ namespace TwitchVor.Finisher
                         Log($"Could not upload video! {video.linkedThing.FilePath}");
                         allUploaded = false;
 
-                        File.WriteAllText(Path.ChangeExtension(video.linkedThing.FilePath, "description.txt"), description);
+                        File.WriteAllText(Path.ChangeExtension(originalPath, "description.txt"), description);
+                    }
+
+                    if (Program.config.ConvertToMp4)
+                    {
+                        //Если успешно загрузилось, удаляем и новый и старый файл. Если не успешно, только новый
+                        //А если успешно, оно новый само удаляет.
+                        if (uploaded)
+                        {
+                            File.Delete(originalPath);
+                            Log($"Uploaded, then removing non converted file {originalPath}");
+                        }
+                        else
+                        {
+                            File.Delete(video.linkedThing.FilePath);
+                            Log($"Could not upload, removed converted file {video.linkedThing.FilePath}");
+                        }
                     }
                 }
 
                 Log($"Finished. Uploaded all: {allUploaded}");
                 deleteVolume = allUploaded;
             }
+            else if (Program.config.ConvertToMp4)
+            {
+                //это не клауд
+                secondVolumeOperator = null;
+
+                foreach (var video in videoWriters)
+                {
+                    Log($"Converting {video.linkedThing.FileName}...");
+
+                    string newName = Path.ChangeExtension(video.linkedThing.FileName, ".mp4");
+
+                    string oldPath = video.linkedThing.FilePath;
+                    string newPath = Path.ChangeExtension(video.linkedThing.FilePath, ".mp4");
+
+                    DateTime startTime = DateTime.UtcNow;
+
+                    bool converted = Ffmpeg.Convert(oldPath, newPath);
+
+                    var passed = DateTime.UtcNow - startTime;
+
+                    if (converted)
+                    {
+                        Log($"Converted. Took {passed.TotalMinutes} minutes.");
+
+                        File.Delete(oldPath);
+                        Log("Removed old file.");
+
+                        video.linkedThing.SetPath(newPath);
+                        video.linkedThing.SetName(newName);
+                    }
+                    else
+                    {
+                        Log($"Could not convert. Took {passed.TotalMinutes} minutes.");
+                    }
+                }
+            }
+            else secondVolumeOperator = null;
 
             end:;
+
+            if (secondVolumeOperator != null)
+            {
+                Log("Detaching second volume...");
+                await secondVolumeOperator.DetachAsync();
+
+                //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
+                await Task.Delay(TimeSpan.FromSeconds(10));
+
+                Log("Removing second volume...");
+                try
+                {
+                    await secondVolumeOperator.DeleteAsync();
+                    Log("Removed second volume.");
+                }
+                catch (Exception e)
+                {
+                    Log($"Could not remove second volume:\n{e}");
+                }
+            }
+
             if (stream.volumeOperator2 != null && deleteVolume)
             {
                 Log("Detaching volume...");

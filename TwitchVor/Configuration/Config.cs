@@ -25,6 +25,8 @@ namespace TwitchVor.Configuration
         [JsonProperty(Required = Required.AllowNull)]
         public OceanCreds? Ocean { get; set; } = null;
 
+        public bool ConvertToMp4 { get; set; } = false;
+
         //Checker
 
         /// <summary>

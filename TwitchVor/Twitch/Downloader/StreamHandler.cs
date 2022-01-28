@@ -36,7 +36,7 @@ namespace TwitchVor.Twitch.Downloader
         readonly OceanCreds? oceanCreds;
         internal DigitalOceanVolumeOperator? volumeOperator2;
 
-        bool IsCloud => oceanCreds != null;
+        public bool IsCloud => oceanCreds != null;
 
         /// <summary>
         /// UTC
@@ -309,10 +309,13 @@ namespace TwitchVor.Twitch.Downloader
             }
         }
 
-        private void VolumeAttachedHandler(Task<DigitalOceanVolumeOperator> task)
+        private async void VolumeAttachedHandler(Task<DigitalOceanVolumeOperator> task)
         {
             //как то впадлу думать что делать, если выпала ошибка
             //TODO подумать
+
+            //Кстати, можно подождать, мало ли
+            await Task.Delay(TimeSpan.FromSeconds(5));
 
             volumeOperator2 = task.Result;
         }

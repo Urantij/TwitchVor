@@ -4,6 +4,7 @@ using System.IO;
 using Newtonsoft.Json;
 using TwitchLib.Api;
 using TwitchVor.Configuration;
+using TwitchVor.Finisher;
 using TwitchVor.TubeYou;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
@@ -15,7 +16,7 @@ namespace TwitchVor
     {
         const string configPath = "config.json";
 
-        #nullable disable
+#nullable disable
         public static TwitchAPI twitchAPI;
 
         public static TwitchStatuser statuser;
@@ -23,7 +24,7 @@ namespace TwitchVor
         public static StreamsManager streamsManager;
 
         public static Config config;
-        #nullable enable
+#nullable enable
 
         public static bool debug = false;
 
@@ -100,6 +101,29 @@ namespace TwitchVor
             else
             {
                 ColorLog.Log("No ocean");
+            }
+
+            if (config.ConvertToMp4)
+            {
+                ColorLog.Log("Convert...");
+
+                string ffmpegPath = Ffmpeg.MakeFfmpegPath();
+
+                if (!File.Exists(ffmpegPath))
+                {
+                    ColorLog.Log("Cant find ffmpeg");
+                    return;
+                }
+            }
+            else
+            {
+                ColorLog.Log("No convert");
+            }
+
+            if (config.Ocean != null && config.YouTube == null)
+            {
+                ColorLog.Log("Чего блять?");
+                return;
             }
 
             statuser = new TwitchStatuser();
