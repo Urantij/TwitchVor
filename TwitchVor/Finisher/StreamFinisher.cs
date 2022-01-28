@@ -100,6 +100,18 @@ namespace TwitchVor.Finisher
                 catch (Exception e)
                 {
                     Log($"Could not remove volume:\n{e}");
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(10));
+                try
+                {
+                    Directory.Delete($"/mnt/{stream.volumeOperator2.volumeName}");
+                    Log("Directory deleted");
+                }
+                catch (Exception e)
+                {
+                    Log($"Could not delete directory: {e.Message}");
                 }
             }
         }
