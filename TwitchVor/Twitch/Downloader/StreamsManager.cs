@@ -1,4 +1,5 @@
 using TwitchVor.Twitch.Checker;
+using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 
 namespace TwitchVor.Twitch.Downloader
@@ -22,6 +23,55 @@ namespace TwitchVor.Twitch.Downloader
             Program.statuser.ChannelWentOffline += StatuserOffline;
         }
 
+        static void Log(string message)
+        {
+            ColorLog.Log(message, "SM");
+        }
+
+        public void EndStream()
+        {
+            lock (locker)
+            {
+                if (currentStream == null)
+                {
+                    Log("There is no stream.");
+                    return;
+                }
+
+                if (!currentStream.Suspended)
+                {
+                    Log("Stream isnt suspended.");
+                    return;
+                }
+
+                StartStreamFinishing();
+            }
+        }
+
+        /// <summary>
+        /// Текущий стрим заменяется на нул и у него вызвыается финиш
+        /// </summary>
+        private void StartStreamFinishing()
+        {
+            StreamHandler finishingStream;
+            lock (locker)
+            {
+                //не может быть нул
+                finishingStream = currentStream!;
+
+                currentStream = null;
+                ClearCurrentCancellationSource();
+
+                currentStamper.Stop();
+                currentStamper = new(Program.statuser.helixChecker);
+            }
+
+            _ = Task.Run(async () =>
+            {
+                await finishingStream.FinishAsync();
+            });
+        }
+
         private void StatuserOnline(object? sender, EventArgs e)
         {
             lock (locker)
@@ -32,8 +82,7 @@ namespace TwitchVor.Twitch.Downloader
                      * Чтобы снова сработал онлайн, нужно, чтобы сработал офлаин.
                      * Который всегда ставит сурс.
                      * Я ставлю краш программы на то, что тут всегда не нулл. */
-                    currentStreamOfflineCancelSource!.Cancel();
-                    currentStreamOfflineCancelSource = null;
+                    ClearCurrentCancellationSource();
 
                     if (currentStream.Suspended)
                     {
@@ -63,11 +112,7 @@ namespace TwitchVor.Twitch.Downloader
             {
                 await Task.Delay(Program.config.StreamContinuationCheckTime, thatSource.Token);
             }
-            catch
-            {
-                thatSource.Dispose();
-                return;
-            }
+            catch { return; }
 
             lock (locker)
             {
@@ -81,34 +126,26 @@ namespace TwitchVor.Twitch.Downloader
             {
                 await Task.Delay(Program.config.StreamRestartCheckTime, thatSource.Token);
             }
-            catch
-            {
-                thatSource.Dispose();
-                return;
-            }
+            catch { return; }
 
-            StreamHandler finishingStream;
             lock (locker)
             {
                 if (thatSource.IsCancellationRequested)
                     return;
 
-                finishingStream = currentStream;
-
-                currentStream = null;
-                currentStreamOfflineCancelSource = null;
-
-                currentStamper.Stop();
-                currentStamper = new(Program.statuser.helixChecker);
+                StartStreamFinishing();
             }
+        }
 
-            _ = Task.Run(async () =>
-            {
-                await finishingStream.FinishAsync();
-            });
+        private void ClearCurrentCancellationSource()
+        {
+            //этого не должно быть, чтобы иде не ныла
+            if (currentStreamOfflineCancelSource == null)
+                return;
 
-
-            thatSource.Dispose();
+            try { currentStreamOfflineCancelSource.Cancel(); } catch {};
+            currentStreamOfflineCancelSource.Dispose();
+            currentStreamOfflineCancelSource = null;
         }
     }
 }

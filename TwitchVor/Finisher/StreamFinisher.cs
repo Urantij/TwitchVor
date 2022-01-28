@@ -57,6 +57,7 @@ namespace TwitchVor.Finisher
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
 
+                    Log($"Uploading {video.linkedThing.FilePath}...");
                     bool uploaded;
                     using (var fileStream = new FileStream(video.linkedThing.FilePath, FileMode.Open))
                     {
@@ -84,6 +85,12 @@ namespace TwitchVor.Finisher
             end:;
             if (stream.volumeOperator2 != null && deleteVolume)
             {
+                Log("Detaching volume...");
+                await stream.volumeOperator2.DetachAsync();
+
+                //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
+                await Task.Delay(TimeSpan.FromSeconds(10));
+
                 Log("Removing volume...");
                 try
                 {

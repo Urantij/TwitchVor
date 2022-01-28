@@ -39,6 +39,7 @@ namespace TwitchVor.Twitch.Checker
 
             client.ListenToVideoPlayback(Program.config.ChannelId);
 
+            Log("Connecting...");
             client.Connect();
         }
 
@@ -49,7 +50,7 @@ namespace TwitchVor.Twitch.Checker
                 return;
 
             Log("Connected. Sending topics.");
-            client.SendTopics();
+            senderClient!.SendTopics(); //не может быть нул, сверху проверка
         }
 
         private void ListenResponse(object? sender, OnListenResponseArgs e)
@@ -71,12 +72,17 @@ namespace TwitchVor.Twitch.Checker
                 return;
 
             Log($"Closed.");
-            client.Disconnect();
             client = null;
+            senderClient!.Disconnect(); //не может быть нул. Сверху проверка
 
             Task.Run(async () =>
             {
                 await Task.Delay(Program.config.PubsubReconnectDelay);
+
+                //Такого не должно быть, но я ебал эту либу
+                if (client != null)
+                    return;
+
                 Start();
             });
         }

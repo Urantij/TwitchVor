@@ -116,7 +116,7 @@ namespace TwitchVor
 
             while (true)
             {
-                Console.WriteLine("Пошёл нахуй. debug pubsub");
+                Console.WriteLine("Пошёл нахуй. debug pubsub finish");
                 string? line = Console.ReadLine();
                 if (line == null)
                 {
@@ -140,6 +140,11 @@ namespace TwitchVor
                     var passed = DateTime.UtcNow - statuser.pubsubChecker.debug_LastStreamEvent.Value;
 
                     ColorLog.Log($"{statuser.pubsubChecker.debug_LastStreamEvent} - {passed}");
+                }
+                else if (line == "finish")
+                {
+                    streamsManager.EndStream();
+                    ColorLog.Log("ok");
                 }
             }
         }

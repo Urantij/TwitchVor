@@ -30,13 +30,18 @@ namespace TwitchVor.Ocean
             ColorLog.Log(message, "OceanOperator", ConsoleColor.Blue);
         }
 
-        public async Task DeleteAsync()
+        public async Task DetachAsync()
         {
             Log($"Detaching {volumeId}...");
             await client.VolumeActions.Detach(volumeId, dropletId, region);
+            Log($"Detached {volumeId}.");
+        }
+
+        public async Task DeleteAsync()
+        {
             Log($"Deleting {volumeId}...");
-            await client.Volumes.DeleteByName(volumeName, region);
-            //await client.Volumes.Delete(volumeId);
+            await client.Volumes.Delete(volumeId);
+            Log($"Deleted {volumeId}.");
         }
     }
 }
