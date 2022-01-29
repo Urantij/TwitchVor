@@ -52,7 +52,7 @@ namespace TwitchVor.Finisher
 
                     //Можете кибербулить меня, но я хуй знает, че там у до на уме.
                     //var maxSizeGB = (int)(maxSizeBytes / 1024d / 1024d / 1024d * 1.1d);
-                    var maxSizeGB = (int)(maxSizeBytes / 1000d / 1000d / 1000d * 1.1d);
+                    var maxSizeGB = (int)Math.Ceiling(maxSizeBytes / 1000d / 1000d / 1000d * 1.1d);
 
                     string volumeName = DigitalOceanVolumeCreator.GenerateVolumeName(DateTime.UtcNow);
 
