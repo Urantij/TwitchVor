@@ -5,6 +5,7 @@ using TwitchVor.TubeYou;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
+using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
 {
@@ -46,6 +47,9 @@ namespace TwitchVor.Finisher
 
             if (Program.config.YouTube != null)
             {
+                int totalLost = (int)videoWriters.Sum(video => video.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
+                int advertLost = (int)stream.advertismentSeconds;
+
                 if (Program.config.ConvertToMp4 && Program.config.Ocean != null)
                 {
                     var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
@@ -130,7 +134,7 @@ namespace TwitchVor.Finisher
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video.linkedThing.firstSegmentDate.Value, video.skipInfos, stream.advertismentSeconds);
+                    string description = FormDescription(video.linkedThing.firstSegmentDate.Value, video.skipInfos, totalLost, advertLost);
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
 
@@ -161,7 +165,7 @@ namespace TwitchVor.Finisher
                         if (uploaded)
                         {
                             File.Delete(originalPath);
-                            Log($"Uploaded, then removing non converted file {originalPath}");
+                            Log($"Uploaded, removed original file {originalPath}");
                         }
                         else
                         {
@@ -214,62 +218,65 @@ namespace TwitchVor.Finisher
 
             end:;
 
+            List<DigitalOceanVolumeOperator> operators = new();
+
             if (secondVolumeOperator != null)
+                operators.Add(secondVolumeOperator);
+
+            //не может быть нул если второй не нул, ну да ладно
+            if (stream.volumeOperator2 != null)
+                operators.Add(stream.volumeOperator2);
+
+            if (operators.Count == 0)
+                return;
+
+            //расправа
+
+            foreach (var op in operators)
             {
-                Log("Detaching second volume...");
-                await secondVolumeOperator.DetachAsync();
+                Log($"Detaching volume {op.volumeName}...");
+
+                await op.DetachAsync();
 
                 //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
-                await Task.Delay(TimeSpan.FromSeconds(10));
+                //алсо не знаю, стоит ли их в один момент детачить, так что лучше подожду
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
 
-                Log("Removing second volume...");
+            foreach (var op in operators)
+            {
+                Log($"Deleting volume {op.volumeName}...");
                 try
                 {
-                    await secondVolumeOperator.DeleteAsync();
-                    Log("Removed second volume.");
+                    await op.DeleteAsync();
+                    Log($"Deleted volume {op.volumeName}.");
                 }
                 catch (Exception e)
                 {
-                    Log($"Could not remove second volume:\n{e}");
+                    Log($"Could not delete volume {op.volumeName}:\n{e}");
                 }
             }
 
-            if (stream.volumeOperator2 != null && deleteVolume)
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
+            foreach (var op in operators)
             {
-                Log("Detaching volume...");
-                await stream.volumeOperator2.DetachAsync();
-
-                //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
-                await Task.Delay(TimeSpan.FromSeconds(10));
-
-                Log("Removing volume...");
                 try
                 {
-                    await stream.volumeOperator2.DeleteAsync();
-                    Log("Removed volume.");
+                    Directory.Delete($"/mnt/{op.volumeName}");
+                    Log($"Directory {op.volumeName} deleted");
                 }
                 catch (Exception e)
                 {
-                    Log($"Could not remove volume:\n{e}");
-                    return;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(10));
-                try
-                {
-                    Directory.Delete($"/mnt/{stream.volumeOperator2.volumeName}");
-                    Log("Directory deleted");
-                }
-                catch (Exception e)
-                {
-                    Log($"Could not delete directory: {e.Message}");
+                    Log($"Could not delete directory {op.volumeName}: {e.Message}");
                 }
             }
         }
 
         private string FormName(DateTimeOffset date, int? videoNumber)
         {
-            const int limit = 70;
+            const int limit = 100;
 
             StringBuilder builder = new();
 
@@ -281,25 +288,45 @@ namespace TwitchVor.Finisher
                 builder.Append(videoNumber.Value);
             }
 
-            if (stream.timestamper.games.Count > 0)
+            string[] games = stream.timestamper.timestamps.Where(timeS => timeS is GameTimestamp)
+                                                          .Select(timeS => ((GameTimestamp)timeS).gameName ?? "???")
+                                                          .Distinct()
+                                                          .ToArray();
+
+            if (games.Length > 0)
             {
                 builder.Append(" // ");
 
-                string gamesStr = string.Join(", ", stream.timestamper.games);
-                if (builder.Length + gamesStr.Length <= limit)
+                for (int i = 0; i < games.Length; i++)
                 {
-                    builder.Append(gamesStr);
-                }
-                else
-                {
-                    builder.Append("...");
+                    string game = games[i];
+                    string? nextGame = (i + 1) < games.Length ? games[i + 1] : null;
+
+                    int length = game.Length;
+                    if (nextGame != null)
+                    {
+                        length += " ".Length + nextGame.Length;
+                    }
+
+                    if (builder.Length + length <= limit)
+                    {
+                        builder.Append(game);
+
+                        if (nextGame != null)
+                            builder.Append(' ');
+                    }
+                    else if (builder.Length + "...".Length <= limit)
+                    {
+                        builder.Append("...");
+                        break;
+                    }
                 }
             }
 
             return builder.ToString();
         }
 
-        private string FormDescription(DateTimeOffset videoStartTime, List<SkipInfo> skips, float advertismentSeconds)
+        private string FormDescription(DateTimeOffset videoStartTime, List<SkipInfo> skips, int totalLostTimeSeconds, int advertismentSeconds)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -309,20 +336,35 @@ namespace TwitchVor.Finisher
             }
             else
             {
-                foreach (var stamps in stream.timestamper.timestamps)
+                bool first = true;
+                foreach (var stamp in stream.timestamper.timestamps)
                 {
-                    string status = GetCheckStatusString(stamps, videoStartTime, skips);
+                    if (stamp is OfflineTimestamp)
+                        continue;
+
+                    string status;
+                    if (first)
+                    {
+                        first = false;
+
+                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), stamp.ToString());
+                    }
+                    else
+                    {
+                        status = GetCheckStatusString(stamp, videoStartTime, skips);
+                    }
 
                     builder.AppendLine(status);
                 }
             }
 
-            builder.AppendLine($"Пропущено секунд из-за рекламы: {(int)advertismentSeconds}");
+            builder.AppendLine($"Пропущено секунд всего: {totalLostTimeSeconds}");
+            builder.AppendLine($"Пропущено секунд из-за рекламы: {advertismentSeconds}");
 
             return builder.ToString();
         }
 
-        private string GetCheckStatusString(Timestamp timestamp, DateTimeOffset videoStartTime, List<SkipInfo> skips)
+        private string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartTime, List<SkipInfo> skips)
         {
             TimeSpan onVideoTime = GetOnVideoTime(videoStartTime, timestamp.timestamp, skips);
 
@@ -332,9 +374,14 @@ namespace TwitchVor.Finisher
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
+            return MakeTimestampStr(onVideoTime, timestamp.ToString());
+        }
+
+        private static string MakeTimestampStr(TimeSpan onVideoTime, string content)
+        {
             string timeStr = new DateTime(onVideoTime.Ticks).ToString("HH:mm:ss");
 
-            return $"{timeStr} - {timestamp.content}";
+            return $"{timeStr} - {content}";
         }
 
         private static TimeSpan GetOnVideoTime(DateTimeOffset videoStartTime, DateTimeOffset absoluteDate, List<SkipInfo> skips)

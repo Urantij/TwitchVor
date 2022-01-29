@@ -1,22 +1,8 @@
 using TwitchVor.Twitch.Checker;
+using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Vvideo
 {
-    class Timestamp
-    {
-        public readonly string content;
-        /// <summary>
-        /// Абсолютный. UTC пожалуйста.
-        /// </summary>
-        public readonly DateTime timestamp;
-
-        public Timestamp(string content, DateTime timestamp)
-        {
-            this.content = content;
-            this.timestamp = timestamp;
-        }
-    }
-
     /// <summary>
     /// Под видеороликом нужно писать, когда меняется категория/тайтл
     /// Мб ещё что-нибудь в будущем
@@ -25,9 +11,7 @@ namespace TwitchVor.Vvideo
     {
         readonly HelixChecker helixChecker;
 
-        public readonly List<Timestamp> timestamps = new();
-        //этого не должно быть тут но панк
-        public readonly List<string> games = new();
+        public readonly List<BaseTimestamp> timestamps = new();
 
         HelixCheck? lastHelixCheck;
 
@@ -42,16 +26,11 @@ namespace TwitchVor.Vvideo
             helixChecker.ChannelChecked -= HelixChecker_ChannelChecked;
         }
 
-        /// <summary>
-        /// Время абсолютное
-        /// </summary>
-        /// <param name="date">ютс пожалуйста</param>
-        /// <param name="content"></param>
-        public void AddTimestampAbsolute(string content, DateTime date)
+        private void AddTimestamp(BaseTimestamp timestamp)
         {
             lock (timestamps)
             {
-                timestamps.Add(new Timestamp(content, date));
+                timestamps.Add(timestamp);
             }
         }
 
@@ -63,47 +42,30 @@ namespace TwitchVor.Vvideo
                 {
                     if (e.check.online)
                     {
-                        AddTimestampAbsolute(FormOnlineStr(e.info!), e.check.checkTime);
+                        //если онлайн, то всегда есть инфо
+                        AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
                     }
                     else
                     {
-                        AddTimestampAbsolute(FormOfflineStr(), e.check.checkTime);
+                        AddTimestamp(new OfflineTimestamp(e.check.checkTime));
                     }
                 }
                 else if (e.check.online && (e.info!.title != lastHelixCheck.info!.title || e.info.gameId != lastHelixCheck.info.gameId))
                 {
-                    AddTimestampAbsolute(FormOnlineStr(e.info), e.check.checkTime);
+                    AddTimestamp(new GameTimestamp(e.info.title, e.info.gameName, e.info.gameId, e.check.checkTime));
                 }
             }
             else
             {
                 if (e.check.online)
                 {
-                    AddTimestampAbsolute(FormOnlineStr(e.info!), e.check.checkTime);
-                }
-            }
-
-            if (e.info != null)
-            {
-                string game = e.info.gameName ?? "???";
-
-                if (!games.Contains(game))
-                {
-                    games.Add(game);
+                    //если онлайн, то всегда есть инфо
+                    //TODO сделать раздельные классы для офлаин и онлайн чеков? заебало как то
+                    AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
                 }
             }
 
             lastHelixCheck = e;
-        }
-
-        private static string FormOnlineStr(TwitchChannelInfo info)
-        {
-            return $"{info.title} // {info.gameName ?? "???"} ({info.gameId})";
-        }
-
-        private static string FormOfflineStr()
-        {
-            return $"Offline";
         }
     }
 }
