@@ -97,6 +97,14 @@ namespace TwitchVor
             if (config.Ocean != null)
             {
                 ColorLog.Log("Ocean added");
+
+                var do_client = new DigitalOcean.API.DigitalOceanClient(config.Ocean.ApiToken);
+
+                var droplet = do_client.Droplets.Get(config.Ocean.DropletId).GetAwaiter().GetResult();
+
+                config.Ocean.Region = droplet.Region.Slug;
+
+                ColorLog.Log($"Droplet region: {config.Ocean.Region}");
             }
             else
             {

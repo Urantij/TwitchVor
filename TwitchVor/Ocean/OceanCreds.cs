@@ -8,8 +8,6 @@ namespace TwitchVor.Ocean
         public string ApiToken { get; set; } = "";
         [JsonProperty(Required = Required.Always)]
         public long DropletId { get; set; }
-        [JsonProperty(Required = Required.Always)]
-        public string Region { get; set; } = "";
 
         [JsonProperty(Required = Required.Always)]
         public int SizeGigabytes { get; set; }
@@ -19,5 +17,9 @@ namespace TwitchVor.Ocean
         /// А Я НЕ СДЕЛАЛ))
         /// </summary>
         public bool UseTempVideoWriter { get; set; } = false;
+
+        //В рантайме достану по дроплету
+        [JsonIgnore]
+        public string Region { get; set; } = "";
     }
 }
