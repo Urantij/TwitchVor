@@ -363,6 +363,12 @@ namespace TwitchVor.Finisher
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
             builder.AppendLine();
 
+            if (stream.subGifter != null)
+            {
+                builder.AppendLine();
+                builder.AppendLine($"Спасибо за подписку: {stream.subGifter}");
+            }
+
             if (stream.timestamper.timestamps.Count == 0)
             {
                 builder.AppendLine("Инфы нет, потому что я клоун");

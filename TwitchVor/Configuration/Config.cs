@@ -40,8 +40,7 @@ namespace TwitchVor.Configuration
 
         //Stream
 
-        public string? DownloaderClientId { get; set; } = null;
-        public string? DownloaderOAuth { get; set; } = null;
+        public DownloaderConfig? Downloader { get; set; } = null;
         /// <summary>
         /// У токена срока жизни 20 минут, но пользоваться им можно час, почему то.
         /// Тру - форсить смену токена через 20 минут (ну или когда он истечёт(?))

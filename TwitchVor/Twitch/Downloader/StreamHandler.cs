@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Net.Http;
 using PlaylistParser.Models;
+using TwitchLib.Api;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
@@ -8,6 +9,7 @@ using TwitchStreamDownloader.Queues;
 using TwitchStreamDownloader.Resources;
 using TwitchVor.Finisher;
 using TwitchVor.Ocean;
+using TwitchVor.Twitch.Checker;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 
@@ -30,6 +32,7 @@ namespace TwitchVor.Twitch.Downloader
 
         internal readonly Timestamper timestamper;
         internal readonly Pricer pricer;
+        internal string? subGifter;
 
         /// <summary>
         /// нул, если не облачный
@@ -92,6 +95,15 @@ namespace TwitchVor.Twitch.Downloader
             }
 
             LaunchSegmentsDownloader();
+
+            if (Program.config.Downloader?.SubCheck != null)
+            {
+                Task.Run(async () =>
+                {
+                    //никак не нулл
+                    subGifter = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
+                });
+            }
         }
 
         /// <summary>
@@ -169,7 +181,7 @@ namespace TwitchVor.Twitch.Downloader
                     takeOnlyPreferredQuality = true,
                 };
 
-                var thatSegments = segmentsDownloader = new SegmentsDownloader(settings, Program.config.Channel!, Program.config.DownloaderClientId, Program.config.DownloaderOAuth);
+                var thatSegments = segmentsDownloader = new SegmentsDownloader(settings, Program.config.Channel!, Program.config.Downloader?.ClientId, Program.config.Downloader?.OAuth);
                 segmentsDownloader.UnknownPlaylistLineFound += UnknownPlaylistLineFound;
                 segmentsDownloader.CommentPlaylistLineFound += CommentPlaylistLineFound;
 

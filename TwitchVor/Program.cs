@@ -134,6 +134,16 @@ namespace TwitchVor
                 return;
             }
 
+            if (config.Downloader?.SubCheck != null)
+            {
+                ColorLog.Log($"SubCheck!");
+
+                if (config.Downloader.SubCheck.CheckSubOnStart)
+                {
+                    SubChecker.GetSub(config.ChannelId!, config.Downloader.SubCheck.AppSecret, config.Downloader.SubCheck.AppClientId, config.Downloader.SubCheck.UserId, config.Downloader.SubCheck.RefreshToken).GetAwaiter().GetResult();
+                }
+            }
+
             statuser = new TwitchStatuser();
 
             streamsManager = new();
