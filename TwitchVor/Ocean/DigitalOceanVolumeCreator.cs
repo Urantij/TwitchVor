@@ -14,11 +14,13 @@ namespace TwitchVor.Ocean
         readonly DigitalOceanClient client;
 
         public readonly string volumeName;
+        public readonly int dropletSizeGB;
 
-        public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName)
+        public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName, int dropletSizeGB)
         {
             this.oceanCreds = oceanCreds;
             this.volumeName = volumeName;
+            this.dropletSizeGB = dropletSizeGB;
 
             client = new DigitalOceanClient(oceanCreds.ApiToken);
         }
@@ -39,7 +41,7 @@ namespace TwitchVor.Ocean
             {
                 Name = volumeName,
                 Description = $"Created by vorishka {DateTime.Now:HH:mm:ss dd.MM}",
-                SizeGigabytes = oceanCreds.SizeGigabytes,
+                SizeGigabytes = dropletSizeGB,
                 FilesystemType = "ext4",
                 Region = oceanCreds.Region,
             };

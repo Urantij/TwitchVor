@@ -29,6 +29,7 @@ namespace TwitchVor.Twitch.Downloader
         internal readonly List<VideoWriter> pastVideoWriters = new();
 
         internal readonly Timestamper timestamper;
+        internal readonly Pricer pricer;
 
         /// <summary>
         /// нул, если не облачный
@@ -55,6 +56,8 @@ namespace TwitchVor.Twitch.Downloader
             this.oceanCreds = oceanCreds;
 
             handlerCreationDate = DateTime.UtcNow;
+
+            pricer = new(handlerCreationDate);
         }
 
         void Log(string message)
@@ -83,7 +86,7 @@ namespace TwitchVor.Twitch.Downloader
             {
                 string volumename = DigitalOceanVolumeCreator.GenerateVolumeName(handlerCreationDate);
                 //не знает, что IsCloud это проверка на нулл
-                var creator = new DigitalOceanVolumeCreator(oceanCreds!, volumename);
+                var creator = new DigitalOceanVolumeCreator(oceanCreds!, volumename, oceanCreds!.SizeGigabytes);
 
                 creator.CreateAsync().ContinueWith(VolumeAttachedHandler);
             }
@@ -313,6 +316,9 @@ namespace TwitchVor.Twitch.Downloader
         {
             //как то впадлу думать что делать, если выпала ошибка
             //TODO подумать
+
+            //никак не нул
+            pricer.AddVolume(DateTime.UtcNow, oceanCreds!.SizeGigabytes);
 
             //Кстати, можно подождать, мало ли
             await Task.Delay(TimeSpan.FromSeconds(5));

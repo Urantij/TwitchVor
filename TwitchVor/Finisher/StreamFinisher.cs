@@ -47,24 +47,29 @@ namespace TwitchVor.Finisher
 
             if (Program.config.YouTube != null)
             {
-                int totalLost = (int)videoWriters.Sum(video => video.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
-                int advertLost = (int)stream.advertismentSeconds;
-
                 if (Program.config.ConvertToMp4 && Program.config.Ocean != null)
                 {
                     var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
 
                     //Можете кибербулить меня, но я хуй знает, че там у до на уме.
                     //var maxSizeGB = (int)(maxSizeBytes / 1024d / 1024d / 1024d * 1.1d);
-                    var maxSizeGB = (int)Math.Ceiling(maxSizeBytes / 1000d / 1000d / 1000d * 1.1d);
+                    int maxSizeGB = (int)Math.Ceiling(maxSizeBytes / 1000M / 1000M / 1000M * 1.1M);
+
+                    Log($"Creating second volume, size ({maxSizeGB})...");
+
+                    if (maxSizeBytes < 10)
+                    {
+                        maxSizeBytes = 10;
+                        Log("Volume is too small, set size to 10GB");
+                    }
 
                     string volumeName = DigitalOceanVolumeCreator.GenerateVolumeName(DateTime.UtcNow);
 
-                    Log($"Creating second volume, size ({maxSizeGB})...");
-                    DigitalOceanVolumeCreator creator = new(Program.config.Ocean, volumeName);
+                    DigitalOceanVolumeCreator creator = new(Program.config.Ocean, volumeName, maxSizeGB);
 
                     secondVolumeOperator = await creator.CreateAsync();
 
+                    stream.pricer.AddVolume(DateTime.UtcNow, maxSizeGB);
                     Log($"Created second volume.");
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
@@ -73,6 +78,16 @@ namespace TwitchVor.Finisher
                 {
                     secondVolumeOperator = null;
                 }
+
+                int totalLost = (int)videoWriters.Sum(video => video.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
+                int advertLost = (int)stream.advertismentSeconds;
+                //пока что описание не обновляется после загрузки, так что я предполагаю, что грузить будет минут 20
+                //и обрабатывать минут 10
+                DateTime estimatedUploadDate = DateTime.UtcNow + TimeSpan.FromMinutes(20);
+                if (secondVolumeOperator != null)
+                    estimatedUploadDate += TimeSpan.FromMinutes(10);
+
+                decimal streamCost = stream.pricer.EstimateAll(estimatedUploadDate);
 
                 bool allUploaded = true;
                 for (int videoIndex = 0; videoIndex < videoWriters.Count; videoIndex++)
@@ -86,6 +101,7 @@ namespace TwitchVor.Finisher
                     }
 
                     string originalPath = video.linkedThing.FilePath;
+                    TimeSpan? conversionTime;
 
                     if (Program.config.ConvertToMp4)
                     {
@@ -107,18 +123,18 @@ namespace TwitchVor.Finisher
 
                         bool converted = Ffmpeg.Convert(originalPath, newPath);
 
-                        var passed = DateTime.UtcNow - startTime;
+                        conversionTime = DateTime.UtcNow - startTime;
 
                         if (converted)
                         {
-                            Log($"Converted. Took {passed.TotalMinutes} minutes.");
+                            Log($"Converted. Took {conversionTime.Value.TotalMinutes} minutes.");
 
                             video.linkedThing.SetPath(newPath);
                             video.linkedThing.SetName(newName);
                         }
                         else
                         {
-                            Log($"Could not convert. Took {passed.TotalMinutes} minutes.");
+                            Log($"Could not convert. Took {conversionTime.Value.TotalMinutes} minutes.");
 
                             try
                             {
@@ -130,29 +146,41 @@ namespace TwitchVor.Finisher
                             {
                                 Log($"Could not delete converted file: {e.Message}");
                             }
+
+                            conversionTime = null;
                         }
+                    }
+                    else
+                    {
+                        conversionTime = null;
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video.linkedThing.firstSegmentDate.Value, video.skipInfos, totalLost, advertLost);
+                    string description = FormDescription(video, totalLost, advertLost, conversionTime, streamCost);
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
+
+                    TimeSpan uploadTime;
 
                     Log($"Uploading {video.linkedThing.FilePath}...");
                     bool uploaded;
                     using (var fileStream = new FileStream(video.linkedThing.FilePath, FileMode.Open))
                     {
+                        var uploadStartDate = DateTime.UtcNow;
                         uploaded = await uploader.UploadAsync(videoName, description, Program.config.YouTube.VideoTags, fileStream, "public");
+
+                        uploadTime = DateTime.UtcNow - uploadStartDate;
                     }
 
                     if (uploaded)
                     {
-                        Log($"Finished uploading {video.linkedThing.FilePath}. Removing from disk...");
+                        Log($"Finished uploading {video.linkedThing.FilePath}. Took {uploadTime.TotalMinutes} minutes.");
                         File.Delete(video.linkedThing.FilePath);
+                        Log("Deleted file from disk.");
                     }
                     else
                     {
-                        Log($"Could not upload video! {video.linkedThing.FilePath}");
+                        Log($"Could not upload video! {video.linkedThing.FilePath}. Took {uploadTime.TotalMinutes} minutes.");
                         allUploaded = false;
 
                         File.WriteAllText(Path.ChangeExtension(originalPath, "description.txt"), description);
@@ -326,10 +354,15 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        private string FormDescription(DateTimeOffset videoStartTime, List<SkipInfo> skips, int totalLostTimeSeconds, int advertismentSeconds)
+        private string FormDescription(VideoWriter video, int totalLostTimeSeconds, int advertismentSeconds, TimeSpan? conversionTime, decimal streamCost)
         {
+            var videoStartTime = video.linkedThing.firstSegmentDate!.Value;
+            var skips = video.skipInfos;
+
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
+            builder.AppendLine();
+
             if (stream.timestamper.timestamps.Count == 0)
             {
                 builder.AppendLine("Инфы нет, потому что я клоун");
@@ -358,8 +391,25 @@ namespace TwitchVor.Finisher
                 }
             }
 
+            builder.AppendLine();
+
             builder.AppendLine($"Пропущено секунд всего: {totalLostTimeSeconds}");
             builder.AppendLine($"Пропущено секунд из-за рекламы: {advertismentSeconds}");
+
+            builder.AppendLine();
+
+            if (conversionTime != null)
+            {
+                builder.AppendLine($"Обработка этого видеоролика заняла: {conversionTime.Value.TotalMinutes} минут.");
+            }
+            builder.AppendLine($"Время загрузки слишком впадлу делать.");
+
+            if (stream.IsCloud)
+            {
+                builder.AppendLine();
+
+                builder.AppendLine($"Примерная стоимость стрима: ${streamCost}");
+            }
 
             return builder.ToString();
         }
