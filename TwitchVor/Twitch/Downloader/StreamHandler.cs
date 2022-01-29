@@ -437,7 +437,14 @@ namespace TwitchVor.Twitch.Downloader
             {
                 if (re.InnerException is IOException io)
                 {
-                    LogError($"{message} HttpRequestException.IOException: \"{io.Message}\"");
+                    if (io.Message == "Unable to read data from the transport connection: Connection reset by peer.")
+                    {
+                        LogError($"{message} Connection reset by peer.");
+                    }
+                    else
+                    {
+                        LogError($"{message} HttpRequestException.IOException: \"{io.Message}\"");
+                    }
                 }
                 else
                 {
