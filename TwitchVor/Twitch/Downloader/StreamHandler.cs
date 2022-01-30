@@ -32,7 +32,7 @@ namespace TwitchVor.Twitch.Downloader
 
         internal readonly Timestamper timestamper;
         internal readonly Pricer pricer;
-        internal string? subGifter;
+        internal SubCheck? subCheck;
 
         /// <summary>
         /// нул, если не облачный
@@ -100,8 +100,23 @@ namespace TwitchVor.Twitch.Downloader
             {
                 Task.Run(async () =>
                 {
-                    //никак не нулл
-                    subGifter = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
+                    SubCheck? subCheck = null;
+
+                    while (subCheck == null && !Finished)
+                    {
+                        //никак не нулл
+                        subCheck = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
+
+                        if (subCheck != null)
+                        {
+                            this.subCheck = subCheck;
+                            return;
+                        }
+                        else
+                        {
+                            await Task.Delay(TimeSpan.FromMinutes(30));
+                        }
+                    }
                 });
             }
         }

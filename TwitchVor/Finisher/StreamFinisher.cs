@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using TwitchVor.Ocean;
 using TwitchVor.TubeYou;
+using TwitchVor.Twitch;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
@@ -36,6 +37,22 @@ namespace TwitchVor.Finisher
             DigitalOceanVolumeOperator? secondVolumeOperator;
 
             List<UploadedVideo>? uploadedVideos;
+
+            //че то такие унылые решения уже, но у меня рука пиздец болит
+            SubCheck[] subChecks;
+            {
+                List<SubCheck?> tempList = new();
+                tempList.Add(stream.subCheck);
+
+                if (Program.config.Downloader?.SubCheck != null)
+                {
+                    var postStreamSubCheck = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
+
+                    tempList.Add(postStreamSubCheck);
+                }
+
+                subChecks = tempList.Where(s => s != null).ToArray()!;
+            }
 
             if (stream.currentVideoWriter == null)
             {
@@ -154,7 +171,7 @@ namespace TwitchVor.Finisher
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video, totalLost, advertLost, null, null, null, null, null, null);
+                    string description = FormDescription(video, subChecks, totalLost, advertLost, null, null, null, null, null, null);
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
 
@@ -318,7 +335,7 @@ namespace TwitchVor.Finisher
             }
         }
 
-        private async void ContinueVideoninining(List<UploadedVideo> upVideos)
+        private async void ContinueVideoninining(List<UploadedVideo> upVideos, SubCheck[] subChecks)
         {
             DateTime end = DateTime.UtcNow;
 
@@ -385,7 +402,8 @@ namespace TwitchVor.Finisher
             //Обновляем первый раз
             foreach (var up in upVideos)
             {
-                string description = FormDescription(up.writer, totalLost, advertLost,
+                string description = FormDescription(up.writer, subChecks,
+                                                        totalLost, advertLost,
                                                         up.processingTime, totalProcessingTime,
                                                         up.uploadingTime, totalUploadingTime,
                                                         null,
@@ -460,7 +478,8 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        private string FormDescription(VideoWriter video, int totalLostTimeSeconds, int advertismentSeconds,
+        private string FormDescription(VideoWriter video, SubCheck[] subChecks,
+            int totalLostTimeSeconds, int advertismentSeconds,
             TimeSpan? processingTime, TimeSpan? totalProcessingTime,
             TimeSpan? uploadTime, TimeSpan? totalUploadTime,
             TimeSpan? youtubeProcessingTime,
@@ -471,20 +490,36 @@ namespace TwitchVor.Finisher
 
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
-            builder.AppendLine();
 
-            if (stream.subGifter != null)
+            var validSubChecks = subChecks.Where(s => s.sub).ToArray();
+            if (validSubChecks.Length > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine($"Спасибо за подписку: {stream.subGifter}");
+
+                validSubChecks = validSubChecks.Reverse().DistinctBy(sc => sc.subInfo?.GiftertId).ToArray();
+
+                foreach (var sc in validSubChecks)
+                {
+                    string who = sc.subInfo == null ? "???" : sc.subInfo.GifterName.Equals(sc.subInfo.GifterLogin, StringComparison.OrdinalIgnoreCase) ? sc.subInfo.GifterName : $"{sc.subInfo.GifterName} ({sc.subInfo.GifterLogin})";
+
+                    builder.AppendLine($"Спасибо за подписку: {who}");
+                }
+            }
+            if (stream.subCheck != null)
+            {
+
+                builder.AppendLine($"Спасибо за подписку: {stream.subChecksdsd}");
             }
 
             if (stream.timestamper.timestamps.Count == 0)
             {
+                builder.AppendLine();
                 builder.AppendLine("Инфы нет, потому что я клоун");
             }
             else
             {
+                builder.AppendLine();
+
                 bool first = true;
                 foreach (var stamp in stream.timestamper.timestamps)
                 {
