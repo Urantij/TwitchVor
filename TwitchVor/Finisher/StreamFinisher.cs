@@ -586,7 +586,10 @@ namespace TwitchVor.Finisher
         {
             if (localTime != null && globalTime != null)
             {
-                return $"{prefix} {globalTime.Value.TotalMinutes:n2} ({localTime.Value.TotalMinutes:n2}) минут.";
+                if (localTime.Value.Ticks != globalTime.Value.Ticks)
+                    return $"{prefix} {globalTime.Value.TotalMinutes:n2} ({localTime.Value.TotalMinutes:n2}) минут.";
+                else
+                    return $"{prefix} {globalTime.Value.TotalMinutes:n2} минут.";
             }
             else if (localTime != null)
             {
