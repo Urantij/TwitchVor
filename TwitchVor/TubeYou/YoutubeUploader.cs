@@ -16,19 +16,21 @@ namespace TwitchVor.TubeYou
 
         private const string mimeType = "video/MP2T";
 
+        public string? videoId;
+
         public YoutubeUploader(YoutubeCreds creds)
         {
             this.creds = creds;
         }
 
-        /*static void Log(string message)
+        static void Log(string message)
         {
-            Utility.ColorLog.Log(message, "Youtube", ConsoleColor.Red, ConsoleColor.White);
-        }*/
+            Utility.ColorLog.Log(message, "YouUp", ConsoleColor.Red, ConsoleColor.White);
+        }
 
         static void LogError(string message)
         {
-            Utility.ColorLog.LogError(message, "Youtube");
+            Utility.ColorLog.LogError(message, "YouUp");
         }
 
         public void Stop()
@@ -82,6 +84,7 @@ namespace TwitchVor.TubeYou
             videosInsertRequest.ChunkSize = ResumableUpload.DefaultChunkSize;
 
             videosInsertRequest.UploadSessionData += VideosInsertRequest_UploadSessionData;
+            videosInsertRequest.ResponseReceived += VideosInsertRequest_ResponseReceived;
 
             var progress = await videosInsertRequest.UploadAsync(cancellationTokenSource.Token);
 
@@ -103,6 +106,12 @@ namespace TwitchVor.TubeYou
             }
 
             return progress.Status == UploadStatus.Completed;
+        }
+
+        private void VideosInsertRequest_ResponseReceived(Video obj)
+        {
+            videoId = obj.Id;
+            Log($"Video id is {videoId}");
         }
 
         private void VideosInsertRequest_UploadSessionData(IUploadSessionData obj)

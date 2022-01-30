@@ -14,5 +14,17 @@ namespace TwitchVor.TubeYou
 
         [JsonProperty(Required = Required.Always)]
         public string[] VideoTags { get; private set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Сколько ждём, прежде чем начнём дудосить ютуб
+        /// </summary>
+        [JsonProperty(Required = Required.Default)]
+        public TimeSpan VideoDescriptionUpdateDelay = TimeSpan.FromMinutes(30);
+
+        /// <summary>
+        /// Как часто проверять
+        /// </summary>
+        [JsonProperty(Required = Required.Default)]
+        public TimeSpan VideoProcessingCheckDelay = TimeSpan.FromMinutes(5);
     }
 }

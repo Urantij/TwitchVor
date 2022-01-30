@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Text;
 using TwitchVor.Ocean;
@@ -34,10 +35,12 @@ namespace TwitchVor.Finisher
 
             DigitalOceanVolumeOperator? secondVolumeOperator;
 
+            List<UploadedVideo>? uploadedVideos;
+
             if (stream.currentVideoWriter == null)
             {
                 Log("Охуенный стрим без видео.");
-                secondVolumeOperator = null;
+                secondVolumeOperator = null; uploadedVideos = null;
                 goto end;
             }
 
@@ -47,6 +50,8 @@ namespace TwitchVor.Finisher
 
             if (Program.config.YouTube != null)
             {
+                uploadedVideos = new();
+
                 if (Program.config.ConvertToMp4 && Program.config.Ocean != null)
                 {
                     var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
@@ -81,13 +86,6 @@ namespace TwitchVor.Finisher
 
                 int totalLost = (int)videoWriters.Sum(video => video.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
                 int advertLost = (int)stream.advertismentSeconds;
-                //пока что описание не обновляется после загрузки, так что я предполагаю, что грузить будет минут 20
-                //и обрабатывать минут 10
-                DateTime estimatedUploadDate = DateTime.UtcNow + TimeSpan.FromMinutes(20);
-                if (secondVolumeOperator != null)
-                    estimatedUploadDate += TimeSpan.FromMinutes(10);
-
-                decimal streamCost = stream.pricer.EstimateAll(estimatedUploadDate);
 
                 bool allUploaded = true;
                 for (int videoIndex = 0; videoIndex < videoWriters.Count; videoIndex++)
@@ -156,7 +154,7 @@ namespace TwitchVor.Finisher
                     }
 
                     string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video, totalLost, advertLost, conversionTime, streamCost);
+                    string description = FormDescription(video, totalLost, advertLost, null, null, null, null, null, null);
 
                     YoutubeUploader uploader = new(Program.config.YouTube);
 
@@ -177,6 +175,15 @@ namespace TwitchVor.Finisher
                         Log($"Finished uploading {video.linkedThing.FilePath}. Took {uploadTime.TotalMinutes} minutes.");
                         File.Delete(video.linkedThing.FilePath);
                         Log("Deleted file from disk.");
+
+                        if (uploader.videoId != null)
+                        {
+                            uploadedVideos.Add(new UploadedVideo(video, uploader.videoId, conversionTime, uploadTime));
+                        }
+                        else
+                        {
+                            Log($"{nameof(uploader.videoId)} id is null");
+                        }
                     }
                     else
                     {
@@ -210,6 +217,7 @@ namespace TwitchVor.Finisher
             {
                 //это не клауд
                 secondVolumeOperator = null;
+                uploadedVideos = null;
 
                 foreach (var video in videoWriters)
                 {
@@ -242,9 +250,12 @@ namespace TwitchVor.Finisher
                     }
                 }
             }
-            else secondVolumeOperator = null;
+            else
+            {
+                secondVolumeOperator = null; uploadedVideos = null;
+            }
 
-            end:;
+        end:;
 
             List<DigitalOceanVolumeOperator> operators = new();
 
@@ -300,6 +311,101 @@ namespace TwitchVor.Finisher
                     Log($"Could not delete directory {op.volumeName}: {e.Message}");
                 }
             }
+
+            if (uploadedVideos?.Count > 0)
+            {
+                ContinueVideoninining(uploadedVideos);
+            }
+        }
+
+        private async void ContinueVideoninining(List<UploadedVideo> upVideos)
+        {
+            DateTime end = DateTime.UtcNow;
+
+            //повторно вычичляю потому что я панк
+            int totalLost = (int)upVideos.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
+            int advertLost = (int)stream.advertismentSeconds;
+
+            decimal streamCost = stream.pricer.EstimateAll(end);
+
+            string[] videosIds = upVideos.Select(v => v.videoId).ToArray();
+            //какой нул
+            YoutubeDescriptor you = new(Program.config.YouTube!, videosIds);
+
+            TimeSpan? totalProcessingTime;
+            {
+                var allConversions = upVideos.Where(v => v.processingTime != null)
+                                             .Select(v => v.processingTime!.Value)
+                                             .ToArray();
+
+                if (allConversions.Length > 0)
+                {
+                    totalProcessingTime = TimeSpan.FromSeconds(0);
+
+                    foreach (var time in allConversions)
+                        totalProcessingTime = totalProcessingTime.Value + time;
+                }
+                else
+                {
+                    totalProcessingTime = null;
+                }
+            }
+
+            TimeSpan totalUploadingTime = TimeSpan.FromSeconds(0);
+            foreach (var up in upVideos)
+                totalUploadingTime += up.uploadingTime;
+
+            //на всякий подождём
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            IList<Google.Apis.YouTube.v3.Data.Video> videos;
+            try
+            {
+                Log("Making first list...");
+                videos = await you.CheckProcessing();
+
+                foreach (var video in videos)
+                    LogList(video);
+            }
+            catch (Exception e)
+            {
+                Log($"Could not list videos.\n{e}");
+                return;
+            }
+
+            //супер дурка, я хз
+            foreach (var up in upVideos.ToArray())
+            {
+                if (!you.Check(up.videoId))
+                {
+                    Log($"no video {up.videoId}");
+                    upVideos.Remove(up);
+                }
+            }
+
+            //Обновляем первый раз
+            foreach (var up in upVideos)
+            {
+                string description = FormDescription(up.writer, totalLost, advertLost,
+                                                        up.processingTime, totalProcessingTime,
+                                                        up.uploadingTime, totalUploadingTime,
+                                                        null,
+                                                        streamCost);
+
+                try
+                {
+                    Log($"Updating video {up.videoId}...");
+                    await you.UpdateDescription(up.videoId, description);
+                }
+                catch (Exception e)
+                {
+                    Log($"Could not update video {up.videoId}.\n{e}");
+                    continue;
+                }
+            }
+
+            //ну всё, начинается цирк
+            //TODO доделать
+            //await Task.Delay(Program.config.YouTube!.VideoDescriptionUpdateDelay);
         }
 
         private string FormName(DateTimeOffset date, int? videoNumber)
@@ -354,7 +460,11 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        private string FormDescription(VideoWriter video, int totalLostTimeSeconds, int advertismentSeconds, TimeSpan? conversionTime, decimal streamCost)
+        private string FormDescription(VideoWriter video, int totalLostTimeSeconds, int advertismentSeconds,
+            TimeSpan? processingTime, TimeSpan? totalProcessingTime,
+            TimeSpan? uploadTime, TimeSpan? totalUploadTime,
+            TimeSpan? youtubeProcessingTime,
+            decimal? streamCost)
         {
             var videoStartTime = video.linkedThing.firstSegmentDate!.Value;
             var skips = video.skipInfos;
@@ -397,20 +507,26 @@ namespace TwitchVor.Finisher
                 }
             }
 
+            string? conversionStr = MakeSomeString("Обработка заняла:", processingTime, totalProcessingTime);
+            string? uploadStr = MakeSomeString("Загрузка заняла:", uploadTime, totalUploadTime);
+            if (conversionStr != null || uploadStr != null || youtubeProcessingTime != null)
+            {
+                builder.AppendLine();
+
+                if (conversionStr != null)
+                    builder.AppendLine(conversionStr);
+                if (uploadStr != null)
+                    builder.AppendLine(uploadStr);
+                if (youtubeProcessingTime != null) //временно так то, если не впадлу будет
+                    builder.AppendLine($"Ютуб обрабатывал видео {youtubeProcessingTime.Value.TotalMinutes:n2} минут.");
+            }
+
             builder.AppendLine();
 
             builder.AppendLine($"Пропущено секунд всего: {totalLostTimeSeconds}");
             builder.AppendLine($"Пропущено секунд из-за рекламы: {advertismentSeconds}");
 
-            builder.AppendLine();
-
-            if (conversionTime != null)
-            {
-                builder.AppendLine($"Обработка этого видеоролика заняла: {conversionTime.Value.TotalMinutes} минут.");
-            }
-            builder.AppendLine($"Время загрузки слишком впадлу делать.");
-
-            if (stream.IsCloud)
+            if (streamCost != null)
             {
                 builder.AppendLine();
 
@@ -463,6 +579,65 @@ namespace TwitchVor.Finisher
             }
 
             return result - videoStartTime;
+        }
+
+        //не могу придумать как назвать
+        private static string? MakeSomeString(string prefix, TimeSpan? localTime, TimeSpan? globalTime)
+        {
+            if (localTime != null && globalTime != null)
+            {
+                return $"{prefix} {globalTime.Value.TotalMinutes:n2} ({localTime.Value.TotalMinutes:n2}) минут.";
+            }
+            else if (localTime != null)
+            {
+                return $"{prefix} ... ({localTime.Value.TotalMinutes:n2}) минут.";
+            }
+            else if (globalTime != null)
+            {
+                return $"{prefix} {globalTime.Value.TotalMinutes:n2} минут.";
+            }
+
+            return null;
+        }
+
+        private void LogList(Google.Apis.YouTube.v3.Data.Video video)
+        {
+            //video.Status;
+            //video.ProcessingDetails;
+            //video.Suggestions;
+
+            Log("Video");
+            Log($"Status: {video.Status.UploadStatus}");
+            if (video.Status.FailureReason != null)
+                Log($"FailureReason: {video.Status.FailureReason}");
+            if (video.Status.RejectionReason != null)
+                Log($"RejectionReason: {video.Status.RejectionReason}");
+
+            Log($"Processing: {video.ProcessingDetails.ProcessingStatus}");
+            if (video.ProcessingDetails.ProcessingProgress != null)
+            {
+                Log($"Parts: {video.ProcessingDetails.ProcessingProgress.PartsProcessed}/{video.ProcessingDetails.ProcessingProgress.PartsTotal}");
+                Log($"MS left: {video.ProcessingDetails.ProcessingProgress.TimeLeftMs}");
+            }
+            if (video.ProcessingDetails.ProcessingFailureReason != null)
+                Log($"ProcessingFailureReason: {video.ProcessingDetails.ProcessingFailureReason}");
+
+            if (video.ProcessingDetails.ProcessingIssuesAvailability != null)
+                Log($"ProcessingIssuesAvailability: {video.ProcessingDetails.ProcessingIssuesAvailability}");
+
+            if (video.ProcessingDetails.TagSuggestionsAvailability != null)
+                Log($"TagSuggestionsAvailability: {video.ProcessingDetails.TagSuggestionsAvailability}");
+
+            if (video.ProcessingDetails.EditorSuggestionsAvailability != null)
+                Log($"EditorSuggestionsAvailability: {video.ProcessingDetails.EditorSuggestionsAvailability}");
+
+            Log("Suggestions");
+            if (video.Suggestions.ProcessingErrors != null)
+                Log($"ProcessingErrors: {video.Suggestions.ProcessingErrors}");
+            if (video.Suggestions.ProcessingWarnings != null)
+                Log($"ProcessingWarnings: {video.Suggestions.ProcessingWarnings}");
+            if (video.Suggestions.ProcessingHints != null)
+                Log($"ProcessingHints: {video.Suggestions.ProcessingHints}");
         }
     }
 }
