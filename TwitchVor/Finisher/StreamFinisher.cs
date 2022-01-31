@@ -290,8 +290,6 @@ namespace TwitchVor.Finisher
 
             foreach (var op in operators)
             {
-                Log($"Detaching volume {op.volumeName}...");
-
                 await op.DetachAsync();
 
                 //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
@@ -301,11 +299,9 @@ namespace TwitchVor.Finisher
 
             foreach (var op in operators)
             {
-                Log($"Deleting volume {op.volumeName}...");
                 try
                 {
                     await op.DeleteAsync();
-                    Log($"Deleted volume {op.volumeName}.");
                 }
                 catch (Exception e)
                 {
@@ -413,6 +409,7 @@ namespace TwitchVor.Finisher
                 {
                     Log($"Updating video {up.videoId}...");
                     await you.UpdateDescription(up.videoId, description);
+                    Log($"Updated video {up.videoId}...");
                 }
                 catch (Exception e)
                 {
@@ -666,11 +663,30 @@ namespace TwitchVor.Finisher
 
             Log("Suggestions");
             if (video.Suggestions.ProcessingErrors != null)
-                Log($"ProcessingErrors: {video.Suggestions.ProcessingErrors}");
+            {
+                Log($"ProcessingErrors:");
+                foreach (var error in video.Suggestions.ProcessingErrors)
+                {
+                    Log(error);
+                }
+            }
             if (video.Suggestions.ProcessingWarnings != null)
-                Log($"ProcessingWarnings: {video.Suggestions.ProcessingWarnings}");
+            {
+                Log($"ProcessingWarnings:");
+                foreach (var warning in video.Suggestions.ProcessingWarnings)
+                {
+                    Log(warning);
+                }
+            }
+
             if (video.Suggestions.ProcessingHints != null)
-                Log($"ProcessingHints: {video.Suggestions.ProcessingHints}");
+            {
+                Log($"ProcessingHints:");
+                foreach (var hint in video.Suggestions.ProcessingHints)
+                {
+                    Log(hint);
+                }
+            }
         }
     }
 }
