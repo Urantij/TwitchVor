@@ -331,7 +331,7 @@ namespace TwitchVor.Finisher
 
             if (uploadedVideos?.Count > 0)
             {
-                ContinueVideoninining(uploadedVideos);
+                ContinueVideoninining(uploadedVideos, subChecks);
             }
         }
 
@@ -504,11 +504,6 @@ namespace TwitchVor.Finisher
 
                     builder.AppendLine($"Спасибо за подписку: {who}");
                 }
-            }
-            if (stream.subCheck != null)
-            {
-
-                builder.AppendLine($"Спасибо за подписку: {stream.subChecksdsd}");
             }
 
             if (stream.timestamper.timestamps.Count == 0)

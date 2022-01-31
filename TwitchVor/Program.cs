@@ -6,6 +6,7 @@ using TwitchLib.Api;
 using TwitchVor.Configuration;
 using TwitchVor.Finisher;
 using TwitchVor.TubeYou;
+using TwitchVor.Twitch;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
