@@ -11,7 +11,8 @@ namespace TwitchVor.Finisher
             using Process pr = new();
 
             pr.StartInfo.FileName = ffmpegPath;
-            pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -c copy \"{newFilePath}\"";
+            //pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -c copy \"{newFilePath}\"";
+            pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -c copy -movflags faststart \"{newFilePath}\"";
             pr.StartInfo.UseShellExecute = false;
             pr.StartInfo.RedirectStandardOutput = true;
             pr.StartInfo.RedirectStandardError = true;
