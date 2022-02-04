@@ -580,7 +580,7 @@ namespace TwitchVor.Finisher
         {
             string timeStr = new DateTime(onVideoTime.Ticks).ToString("HH:mm:ss");
 
-            return $"{timeStr} - {content}";
+            return $"{timeStr} {content}";
         }
 
         private static TimeSpan GetOnVideoTime(DateTimeOffset videoStartTime, DateTimeOffset absoluteDate, List<SkipInfo> skips)
