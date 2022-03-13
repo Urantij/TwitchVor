@@ -229,6 +229,21 @@ namespace TwitchVor.Finisher
 
                 Log($"Finished. Uploaded all: {allUploaded}");
                 deleteVolume = allUploaded;
+
+                if (allUploaded)
+                {
+                    if (Program.emailer != null && Program.config.Email!.NotifyOnVideoUpload)
+                    {
+                        await Program.emailer.SendAsync("Twitch Vor Fine", ":)");
+                    }
+                }
+                else
+                {
+                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
+                    {
+                        await Program.emailer.SendAsync("Twitch Vor Very Bad", "Could not upload all videos");
+                    }
+                }
             }
             else if (Program.config.ConvertToMp4)
             {
@@ -327,11 +342,11 @@ namespace TwitchVor.Finisher
 
             if (uploadedVideos?.Count > 0)
             {
-                ContinueVideoninining(uploadedVideos, subChecks);
+                await ContinueVideoninining(uploadedVideos, subChecks);
             }
         }
 
-        private async void ContinueVideoninining(List<UploadedVideo> upVideos, SubCheck[] subChecks)
+        private async Task ContinueVideoninining(List<UploadedVideo> upVideos, SubCheck[] subChecks)
         {
             DateTime end = DateTime.UtcNow;
 

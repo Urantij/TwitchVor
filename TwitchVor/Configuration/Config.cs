@@ -6,9 +6,9 @@ namespace TwitchVor.Configuration
 {
     class Config
     {
-        [JsonProperty(Required = Required.AllowNull)]
+        [JsonProperty(Required = Required.Always)]
         public string? Channel { get; set; } = null;
-        [JsonProperty(Required = Required.AllowNull)]
+        [JsonProperty(Required = Required.Default)]
         public string? ChannelId { get; set; } = null;
 
         [JsonProperty(Required = Required.AllowNull)]
@@ -19,13 +19,18 @@ namespace TwitchVor.Configuration
         public string PreferedVideoQuality { get; set; } = "720p";
         public string PreferedVideoFps { get; set; } = "p60";
 
-        [JsonProperty(Required = Required.AllowNull)]
+        [JsonProperty(Required = Required.Default)]
         public YoutubeCreds? YouTube { get; set; } = null;
 
-        [JsonProperty(Required = Required.AllowNull)]
+        [JsonProperty(Required = Required.Default)]
         public OceanCreds? Ocean { get; set; } = null;
 
         public bool ConvertToMp4 { get; set; } = false;
+
+        //huh
+
+        [JsonProperty(Required = Required.Default)]
+        public EmailConfig? Email { get; set; }
 
         //Checker
 

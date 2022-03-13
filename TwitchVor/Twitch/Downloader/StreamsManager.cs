@@ -28,6 +28,11 @@ namespace TwitchVor.Twitch.Downloader
             ColorLog.Log(message, "SM");
         }
 
+        static void LogError(string message)
+        {
+            ColorLog.LogError(message, "SM");
+        }
+
         public void EndStream()
         {
             lock (locker)
@@ -68,7 +73,19 @@ namespace TwitchVor.Twitch.Downloader
 
             _ = Task.Run(async () =>
             {
-                await finishingStream.FinishAsync();
+                try
+                {
+                    await finishingStream.FinishAsync();
+                }
+                catch (Exception e)
+                {
+                    LogError($"Could not finish stream:\n{e}");
+
+                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
+                    {
+                        await Program.emailer.SendAsync("TwitchVor Very Bad", $"Could not finish stream");
+                    }
+                }
             });
         }
 

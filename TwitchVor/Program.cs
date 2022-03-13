@@ -27,6 +27,8 @@ namespace TwitchVor
         public static Config config;
 #nullable enable
 
+        public static Emailer? emailer;
+
         public static bool debug = false;
 
         static void Main(string[] appArgs)
@@ -153,6 +155,14 @@ namespace TwitchVor
             {
                 Directory.CreateDirectory(config.VideosDirectoryName);
                 ColorLog.Log("Created video directory.");
+            }
+
+            if (config.Email != null)
+            {
+                emailer = new Emailer(config.Email.Name, config.Email.Email, config.Email.Password);
+                emailer.ValidateAsync().GetAwaiter().GetResult();
+
+                ColorLog.Log("Email is ok");
             }
 
             statuser.Init();

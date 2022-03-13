@@ -30,6 +30,11 @@ namespace TwitchVor.Ocean
             ColorLog.Log(message, "OceanCreator", ConsoleColor.Blue);
         }
 
+        static void LogError(string message)
+        {
+            ColorLog.LogError(message, "OceanCreator");
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -46,12 +51,68 @@ namespace TwitchVor.Ocean
                 Region = oceanCreds.Region,
             };
 
-            var responseVolume = await client.Volumes.Create(requestVolume);
+            DigitalOcean.API.Models.Responses.Volume? responseVolume = null;
+            while (responseVolume == null)
+            {
+                bool sentEmail = false;
+
+                try
+                {
+                    responseVolume = await client.Volumes.Create(requestVolume);
+                }
+                catch (Exception e)
+                {
+                    LogError($"Exception on volume creation.\n{e}");
+
+                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
+                    {
+                        await Program.emailer.SendAsync("TwitchVor Very Bad", "Exception on volume creation.");
+
+                        sentEmail = true;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(10));
+                }
+            }
+
             string volumeId = responseVolume.Id;
 
             Log($"Created volume {volumeId}");
 
-            var attachAction = await client.VolumeActions.Attach(responseVolume.Id, oceanCreds.DropletId, oceanCreds.Region);
+            DigitalOcean.API.Models.Responses.Action? attachAction = null;
+
+            while (attachAction == null)
+            {
+                bool sentEmail = false;
+
+                try
+                {
+                    attachAction = await client.VolumeActions.Attach(responseVolume.Id, oceanCreds.DropletId, oceanCreds.Region);
+                }
+                catch (Exception e)
+                {
+                    LogError($"Exception on volume attachment.\n{e}");
+
+                    if (CheckVolumeExtremeCreation())
+                    {
+                        goto end;
+                    }
+                    else
+                    {
+                        Log($"To continue, create /mnt/{volumeName}/ok file");
+                    }
+
+                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
+                    {
+                        await Program.emailer.SendAsync("TwitchVor Very Bad", "Exception on volume attachment.");
+
+                        sentEmail = true;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(10));
+                }
+            }
+
             var attachActionId = attachAction.Id;
 
             Log($"Attaching... {attachAction.Id}");
@@ -77,6 +138,8 @@ namespace TwitchVor.Ocean
                 }
             }
 
+            end:;
+
             Log($"Attached!");
 
             return new DigitalOceanVolumeOperator(client, oceanCreds.DropletId, volumeId, oceanCreds.Region, volumeName);
@@ -85,6 +148,11 @@ namespace TwitchVor.Ocean
         async Task<DigitalOcean.API.Models.Responses.Action> CheckActionAsync(string volumeId, long actionId)
         {
             return await client.VolumeActions.GetAction(volumeId, actionId);
+        }
+
+        bool CheckVolumeExtremeCreation()
+        {
+            return File.Exists($"/mnt/{volumeName}/ok");
         }
 
         public static string GenerateVolumeName(DateTime date)
