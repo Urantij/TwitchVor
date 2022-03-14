@@ -114,13 +114,11 @@ namespace TwitchVor
                 ColorLog.Log("No ocean");
             }
 
-            if (config.ConvertToMp4)
+            if (config.Conversion is ConversionConfig conversion)
             {
-                ColorLog.Log("Convert...");
+                ColorLog.Log($"Conversion to {conversion.TargetFormat} with \"{conversion.Arguments}\" args ({conversion.FfmpegPath})");
 
-                string ffmpegPath = Ffmpeg.MakeFfmpegPath();
-
-                if (!File.Exists(ffmpegPath))
+                if (!File.Exists(conversion.FfmpegPath))
                 {
                     ColorLog.Log("Cant find ffmpeg");
                     return;
@@ -128,7 +126,7 @@ namespace TwitchVor
             }
             else
             {
-                ColorLog.Log("No convert");
+                ColorLog.Log("No conversion");
             }
 
             if (config.Ocean != null && config.YouTube == null)

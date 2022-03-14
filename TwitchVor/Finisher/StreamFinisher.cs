@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using TwitchVor.Configuration;
 using TwitchVor.Ocean;
 using TwitchVor.TubeYou;
 using TwitchVor.Twitch;
@@ -69,7 +70,7 @@ namespace TwitchVor.Finisher
             {
                 uploadedVideos = new();
 
-                if (Program.config.ConvertToMp4 && Program.config.Ocean != null)
+                if (Program.config.Conversion != null && Program.config.Ocean != null)
                 {
                     var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
 
@@ -118,11 +119,11 @@ namespace TwitchVor.Finisher
                     string originalPath = video.linkedThing.FilePath;
                     TimeSpan? conversionTime;
 
-                    if (Program.config.ConvertToMp4)
+                    if (Program.config.Conversion is ConversionConfig conversion)
                     {
                         Log($"Converting {video.linkedThing.FileName}...");
 
-                        string newName = Path.ChangeExtension(video.linkedThing.FileName, ".mp4");
+                        string newName = Path.ChangeExtension(video.linkedThing.FileName, conversion.TargetFormat);
                         string newPath;
 
                         if (secondVolumeOperator != null)
@@ -131,7 +132,7 @@ namespace TwitchVor.Finisher
                         }
                         else
                         {
-                            newPath = Path.ChangeExtension(video.linkedThing.FilePath, ".mp4");
+                            newPath = Path.ChangeExtension(video.linkedThing.FilePath, conversion.TargetFormat);
                         }
 
                         DateTime startTime = DateTime.UtcNow;
@@ -199,7 +200,7 @@ namespace TwitchVor.Finisher
                         }
                         else
                         {
-                            Log($"{nameof(uploader.videoId)} id is null");
+                            Log($"{nameof(uploader.videoId)} is null");
                         }
                     }
                     else
@@ -210,7 +211,7 @@ namespace TwitchVor.Finisher
                         File.WriteAllText(Path.ChangeExtension(originalPath, "description.txt"), description);
                     }
 
-                    if (Program.config.ConvertToMp4)
+                    if (Program.config.Conversion != null)
                     {
                         //Если успешно загрузилось, удаляем и новый и старый файл. Если не успешно, только новый
                         //А если успешно, оно новый само удаляет.
@@ -245,9 +246,9 @@ namespace TwitchVor.Finisher
                     }
                 }
             }
-            else if (Program.config.ConvertToMp4)
+            else if (Program.config.Conversion is ConversionConfig conversion)
             {
-                //это не клауд
+                //Раз грузить на ютуб не надо, нужно просто сконвертировать и хранить
                 secondVolumeOperator = null;
                 uploadedVideos = null;
 
@@ -255,10 +256,10 @@ namespace TwitchVor.Finisher
                 {
                     Log($"Converting {video.linkedThing.FileName}...");
 
-                    string newName = Path.ChangeExtension(video.linkedThing.FileName, ".mp4");
+                    string newName = Path.ChangeExtension(video.linkedThing.FileName, conversion.TargetFormat);
 
                     string oldPath = video.linkedThing.FilePath;
-                    string newPath = Path.ChangeExtension(video.linkedThing.FilePath, ".mp4");
+                    string newPath = Path.ChangeExtension(video.linkedThing.FilePath, conversion.TargetFormat);
 
                     DateTime startTime = DateTime.UtcNow;
 
@@ -298,45 +299,45 @@ namespace TwitchVor.Finisher
             if (stream.volumeOperator2 != null)
                 operators.Add(stream.volumeOperator2);
 
-            if (operators.Count == 0)
-                return;
-
-            //расправа
-
-            foreach (var op in operators)
+            if (operators.Count > 0)
             {
-                await op.DetachAsync();
+                //расправа
 
-                //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
-                //алсо не знаю, стоит ли их в один момент детачить, так что лучше подожду
-                await Task.Delay(TimeSpan.FromSeconds(5));
-            }
-
-            foreach (var op in operators)
-            {
-                try
+                foreach (var op in operators)
                 {
-                    await op.DeleteAsync();
+                    await op.DetachAsync();
+
+                    //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
+                    //алсо не знаю, стоит ли их в один момент детачить, так что лучше подожду
+                    await Task.Delay(TimeSpan.FromSeconds(5));
                 }
-                catch (Exception e)
-                {
-                    Log($"Could not delete volume {op.volumeName}:\n{e}");
-                }
-            }
 
-            await Task.Delay(TimeSpan.FromSeconds(10));
-
-            //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
-            foreach (var op in operators)
-            {
-                try
+                foreach (var op in operators)
                 {
-                    Directory.Delete($"/mnt/{op.volumeName}");
-                    Log($"Directory {op.volumeName} deleted");
+                    try
+                    {
+                        await op.DeleteAsync();
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"Could not delete volume {op.volumeName}:\n{e}");
+                    }
                 }
-                catch (Exception e)
+
+                await Task.Delay(TimeSpan.FromSeconds(10));
+
+                //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
+                foreach (var op in operators)
                 {
-                    Log($"Could not delete directory {op.volumeName}: {e.Message}");
+                    try
+                    {
+                        Directory.Delete($"/mnt/{op.volumeName}");
+                        Log($"Directory {op.volumeName} deleted");
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"Could not delete directory {op.volumeName}: {e.Message}");
+                    }
                 }
             }
 

@@ -6,14 +6,21 @@ namespace TwitchVor.Finisher
     {
         public static bool Convert(string oldFilePath, string newFilePath)
         {
-            string ffmpegPath = MakeFfmpegPath();
-
             using Process pr = new();
 
-            pr.StartInfo.FileName = ffmpegPath;
+            pr.StartInfo.FileName = Program.config.Conversion!.FfmpegPath;
             //pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -c copy \"{newFilePath}\"";
             //pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -c copy -movflags faststart \"{newFilePath}\"";
-            pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" -movflags isml+frag_keyframe -c copy \"{newFilePath}\"";
+
+            if (Program.config.Conversion.Arguments != null)
+            {
+                pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" {Program.config.Conversion.Arguments} \"{newFilePath}\"";
+            }
+            else
+            {
+                pr.StartInfo.Arguments = $"-i \"{oldFilePath}\" \"{newFilePath}\"";
+            }
+            
             pr.StartInfo.UseShellExecute = false;
             pr.StartInfo.RedirectStandardOutput = true;
             pr.StartInfo.RedirectStandardError = true;
@@ -30,11 +37,6 @@ namespace TwitchVor.Finisher
             pr.WaitForExit();
 
             return pr.ExitCode == 0;
-        }
-
-        public static string MakeFfmpegPath()
-        {
-            return Path.Combine("./ffmpeg", "ffmpeg");
         }
     }
 }
