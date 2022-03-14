@@ -470,7 +470,7 @@ namespace TwitchVor.Finisher
                     int length = game.Length;
                     if (nextGame != null)
                     {
-                        length += " ".Length + nextGame.Length;
+                        length += ", ".Length + nextGame.Length;
                     }
 
                     if (builder.Length + length <= limit)
@@ -478,7 +478,7 @@ namespace TwitchVor.Finisher
                         builder.Append(game);
 
                         if (nextGame != null)
-                            builder.Append(' ');
+                            builder.Append(", ");
                     }
                     else if (builder.Length + "...".Length <= limit)
                     {
@@ -573,7 +573,7 @@ namespace TwitchVor.Finisher
             {
                 builder.AppendLine();
 
-                builder.AppendLine($"Примерная стоимость стрима: ${streamCost}");
+                builder.AppendLine($"Примерная стоимость создания записи стрима: ${streamCost}");
             }
 
             return builder.ToString();
