@@ -157,7 +157,7 @@ namespace TwitchVor
 
             if (config.Email != null)
             {
-                emailer = new Emailer(config.Email.Name, config.Email.Email, config.Email.Password);
+                emailer = new Emailer(config.Email);
                 if (emailer.ValidateAsync().GetAwaiter().GetResult())
                 {
                     ColorLog.Log("Email is ok");

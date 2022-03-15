@@ -4,20 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using MimeKit;
+using TwitchVor.Configuration;
 
 namespace TwitchVor.Utility
 {
     public class Emailer
     {
-        readonly string name;
-        readonly string email;
-        readonly string password;
+        readonly EmailConfig config;
 
-        public Emailer(string name, string email, string password)
+        const string subjectBase = "TwitchVor";
+
+        public Emailer(EmailConfig config)
         {
-            this.name = name;
-            this.email = email;
-            this.password = password;
+            this.config = config;
         }
 
         static void LogError(string message)
@@ -34,7 +33,7 @@ namespace TwitchVor.Utility
                     client.Connect("smtp.gmail.com", 465, true);
 
                     // Note: only needed if the SMTP server requires authentication
-                    await client.AuthenticateAsync(email, password);
+                    await client.AuthenticateAsync(config.Email, config.Password);
 
                     await client.DisconnectAsync(true);
                 }
@@ -48,15 +47,31 @@ namespace TwitchVor.Utility
             }
         }
 
+        public async Task SendCriticalErrorAsync(string more)
+        {
+            if (!config.NotifyOnCriticalError)
+                return;
+
+            await SendAsync(subjectBase, $"ОЧЕНЬ ПЛОХО\n{more}");
+        }
+
+        public async Task SendVideoUploadAsync()
+        {
+            if (!config.NotifyOnVideoUpload)
+                return;
+
+            await SendAsync(subjectBase, "Всё в поряде, чувачечек");
+        }
+
         /// <param name="subject"></param>
         /// <param name="messageText"></param>
-        public async Task SendAsync(string subject, string messageText)
+        private async Task SendAsync(string subject, string messageText)
         {
             try
             {
                 var message = new MimeMessage();
-                message.From.Add(new MailboxAddress(name, email));
-                message.To.Add(new MailboxAddress(name, email));
+                message.From.Add(new MailboxAddress(config.Name, config.Email));
+                message.To.Add(new MailboxAddress(config.Name, config.Email));
                 message.Subject = subject;
 
                 message.Body = new TextPart("plain")
@@ -69,7 +84,7 @@ namespace TwitchVor.Utility
                     client.Connect("smtp.gmail.com", 465, true);
 
                     // Note: only needed if the SMTP server requires authentication
-                    await client.AuthenticateAsync(email, password);
+                    await client.AuthenticateAsync(config.Email, config.Password);
 
                     await client.SendAsync(message);
                     await client.DisconnectAsync(true);

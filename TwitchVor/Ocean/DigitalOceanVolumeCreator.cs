@@ -66,7 +66,7 @@ namespace TwitchVor.Ocean
 
                     if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
                     {
-                        await Program.emailer.SendAsync("TwitchVor Very Bad", "Exception on volume creation.");
+                        await Program.emailer.SendCriticalErrorAsync("Исключение при создании места.");
 
                         sentEmail = true;
                     }
@@ -104,7 +104,7 @@ namespace TwitchVor.Ocean
 
                     if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
                     {
-                        await Program.emailer.SendAsync("TwitchVor Very Bad", "Exception on volume attachment.");
+                        await Program.emailer.SendCriticalErrorAsync("Исключение при присоединении места.");
 
                         sentEmail = true;
                     }

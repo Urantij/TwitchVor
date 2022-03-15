@@ -235,14 +235,14 @@ namespace TwitchVor.Finisher
                 {
                     if (Program.emailer != null && Program.config.Email!.NotifyOnVideoUpload)
                     {
-                        await Program.emailer.SendAsync("Twitch Vor Fine", ":)");
+                        await Program.emailer.SendVideoUploadAsync();
                     }
                 }
                 else
                 {
                     if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
                     {
-                        await Program.emailer.SendAsync("Twitch Vor Very Bad", "Could not upload all videos");
+                        await Program.emailer.SendCriticalErrorAsync("Не получилось загрузить все видео...");
                     }
                 }
             }

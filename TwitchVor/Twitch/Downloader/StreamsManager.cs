@@ -83,7 +83,7 @@ namespace TwitchVor.Twitch.Downloader
 
                     if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
                     {
-                        await Program.emailer.SendAsync("TwitchVor Very Bad", $"Could not finish stream");
+                        await Program.emailer.SendCriticalErrorAsync("Не получилось зафинишировать стрим");
                     }
                 }
             });
