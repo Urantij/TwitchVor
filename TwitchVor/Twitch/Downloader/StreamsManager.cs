@@ -81,10 +81,8 @@ namespace TwitchVor.Twitch.Downloader
                 {
                     LogError($"Could not finish stream:\n{e}");
 
-                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
-                    {
+                    if (Program.emailer != null)
                         await Program.emailer.SendCriticalErrorAsync("Не получилось зафинишировать стрим");
-                    }
                 }
             });
         }

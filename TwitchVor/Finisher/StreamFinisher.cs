@@ -240,10 +240,8 @@ namespace TwitchVor.Finisher
                 }
                 else
                 {
-                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError)
-                    {
+                    if (Program.emailer != null)
                         await Program.emailer.SendCriticalErrorAsync("Не получилось загрузить все видео...");
-                    }
                 }
             }
             else if (Program.config.Conversion is ConversionConfig conversion)

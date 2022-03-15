@@ -64,7 +64,7 @@ namespace TwitchVor.Ocean
                 {
                     LogError($"Exception on volume creation.\n{e}");
 
-                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
+                    if (Program.emailer != null && !sentEmail)
                     {
                         await Program.emailer.SendCriticalErrorAsync("Исключение при создании места.");
 
@@ -102,7 +102,7 @@ namespace TwitchVor.Ocean
                         Log($"To continue, create /mnt/{volumeName}/ok file");
                     }
 
-                    if (Program.emailer != null && Program.config.Email!.NotifyOnCriticalError && !sentEmail)
+                    if (Program.emailer != null && !sentEmail)
                     {
                         await Program.emailer.SendCriticalErrorAsync("Исключение при присоединении места.");
 
