@@ -12,6 +12,22 @@ using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
 {
+    class VideoSummary
+    {
+        public readonly VideoWriter writer;
+        public string? videoId;
+
+        public bool uploaded = false;
+
+        public TimeSpan? conversionTime;
+        public TimeSpan? uploadTime;
+
+        public VideoSummary(VideoWriter video)
+        {
+            this.writer = video;
+        }
+    }
+
     class StreamFinisher
     {
         readonly StreamHandler stream;
@@ -27,367 +43,450 @@ namespace TwitchVor.Finisher
             ColorLog.Log(message, "Finisher");
         }
 
-        /// <summary>
-        /// Грузим на ютуб... Удаляем...
-        /// </summary>
-        /// <param name="stream"></param>
-        public async Task Finish()
+        public async Task FinishAsync()
         {
-            bool deleteVolume = true;
+            /* Бот может быть локальным, может быть на облаке
+             * Может быть с конверсией, может быть без
+             * Может быть с загрузкой на ютуб, может быть без 
+             *
+             * И в зависимости от этих переменных, алгоритм будет разный 
+             *
+             * Облачный всегда с загрузкой на ютуб. И если есть конверсия, он удалит оригинал только после загрузки
+             * Тому шо оставлять конвертированную копию на втором вольюме не вариант
+             * Либо удалять оригинал, но в случае неуспеха копировать конвертированный видос обратно. Звучит неплохо.
+             *
+             * А локальному похуй. */
 
-            DigitalOceanVolumeOperator? secondVolumeOperator;
-
-            List<UploadedVideo>? uploadedVideos;
-
-            //че то такие унылые решения уже, но у меня рука пиздец болит
-            SubCheck[] subChecks;
-            {
-                List<SubCheck?> tempList = new();
-                tempList.Add(stream.subCheck);
-
-                if (Program.config.Downloader?.SubCheck != null)
-                {
-                    var postStreamSubCheck = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
-
-                    tempList.Add(postStreamSubCheck);
-                }
-
-                subChecks = tempList.Where(s => s != null).ToArray()!;
-            }
+            DigitalOceanVolumeOperator? secondVolumeOperator = null;
+            List<VideoSummary> summaries = new();
+            bool summarySuccess = true;
 
             if (stream.currentVideoWriter == null)
             {
                 Log("Охуенный стрим без видео.");
-                secondVolumeOperator = null; uploadedVideos = null;
                 goto end;
             }
+
+            var subgifters = await GetDisplaySubgiftersAsync();
 
             List<VideoWriter> videoWriters = new();
             videoWriters.AddRange(stream.pastVideoWriters);
             videoWriters.Add(stream.currentVideoWriter);
 
-            if (Program.config.YouTube != null)
+            if (Program.config.YouTube != null && Program.config.Ocean != null && Program.config.Conversion != null)
             {
-                uploadedVideos = new();
+                var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
 
-                if (Program.config.Conversion != null && Program.config.Ocean != null)
+                //Можете кибербулить меня, но я хуй знает, че там у до на уме.
+                //var maxSizeGB = (int)(maxSizeBytes / 1024d / 1024d / 1024d * 1.1d);
+                int maxSizeGB = (int)Math.Ceiling(maxSizeBytes / 1000M / 1000M / 1000M * 1.1M);
+
+                if (maxSizeBytes < 10)
                 {
-                    var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
-
-                    //Можете кибербулить меня, но я хуй знает, че там у до на уме.
-                    //var maxSizeGB = (int)(maxSizeBytes / 1024d / 1024d / 1024d * 1.1d);
-                    int maxSizeGB = (int)Math.Ceiling(maxSizeBytes / 1000M / 1000M / 1000M * 1.1M);
-
-                    Log($"Creating second volume, size ({maxSizeGB})...");
-
-                    if (maxSizeBytes < 10)
-                    {
-                        maxSizeBytes = 10;
-                        Log("Volume is too small, set size to 10GB");
-                    }
-
-                    string volumeName = DigitalOceanVolumeCreator.GenerateVolumeName(DateTime.UtcNow);
-
-                    DigitalOceanVolumeCreator creator = new(Program.config.Ocean, volumeName, maxSizeGB);
-
-                    secondVolumeOperator = await creator.CreateAsync();
-
-                    stream.pricer.AddVolume(DateTime.UtcNow, maxSizeGB);
-                    Log($"Created second volume.");
-
-                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    Log($"Вольюм слишком мал {maxSizeBytes}, устанавливаем размер 10GB");
+                    maxSizeBytes = 10;
                 }
-                else
+
+                secondVolumeOperator = await CreateSecondVolumeAsync(maxSizeGB);
+            }
+
+            TimeSpan? totalConversionTime = null;
+            TimeSpan? totalUploadTime = null;
+
+            for (int videoIndex = 0; videoIndex < videoWriters.Count; videoIndex++)
+            {
+                var video = videoWriters[videoIndex];
+
+                if (video.linkedThing.estimatedSize == 0 || video.linkedThing.estimatedDuration == 0 || video.linkedThing.firstSegmentDate == null)
                 {
-                    secondVolumeOperator = null;
+                    Log($"Охуенное видео без сегментов. {videoIndex}");
+                    continue;
                 }
+
+                string origPath = video.linkedThing.FilePath;
+                bool saveDescriptionLocally = true;
 
                 int totalLost = (int)videoWriters.Sum(video => video.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
                 int advertLost = (int)stream.advertismentSeconds;
 
-                bool allUploaded = true;
-                for (int videoIndex = 0; videoIndex < videoWriters.Count; videoIndex++)
+                bool converted = false;
+                TimeSpan? conversionTime = null;
+                if (Program.config.Conversion is ConversionConfig)
                 {
-                    var video = videoWriters[videoIndex];
+                    string targetFilePath = secondVolumeOperator != null ? $"/mnt/{secondVolumeOperator.volumeName}/{video.linkedThing.FileName}" : video.linkedThing.FilePath;
 
-                    if (video.linkedThing.estimatedSize == 0 || video.linkedThing.estimatedDuration == 0 || video.linkedThing.firstSegmentDate == null)
+                    (converted, conversionTime) = ConvertVideo(video, targetFilePath);
+
+                    if (converted)
                     {
-                        Log($"Охуенное видео без сегментов. {videoIndex}");
-                        continue;
+                        totalConversionTime = totalConversionTime != null ? (totalConversionTime + conversionTime) : conversionTime;
                     }
+                }
 
-                    string originalPath = video.linkedThing.FilePath;
-                    TimeSpan? conversionTime;
+                string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? null : videoIndex + 1);
+                string videoDescription = FormDescription(video, subgifters, totalLost, advertLost, conversionTime, null, null, null, null, null);
 
-                    if (Program.config.Conversion is ConversionConfig conversion)
+                bool uploaded = false;
+                TimeSpan? uploadTime = null;
+                string? videoId = null;
+                if (Program.config.YouTube != null)
+                {
+                    (uploaded, videoId, uploadTime) = await UploadVideoAsync(video, videoName, videoDescription);
+
+                    if (!uploaded)
                     {
-                        Log($"Converting {video.linkedThing.FileName}...");
-
-                        string newName = Path.ChangeExtension(video.linkedThing.FileName, conversion.TargetFormat);
-                        string newPath;
-
-                        if (secondVolumeOperator != null)
-                        {
-                            newPath = Path.Combine($"/mnt/{secondVolumeOperator.volumeName}", newName);
-                        }
-                        else
-                        {
-                            newPath = Path.ChangeExtension(video.linkedThing.FilePath, conversion.TargetFormat);
-                        }
-
-                        DateTime startTime = DateTime.UtcNow;
-
-                        bool converted = Ffmpeg.Convert(originalPath, newPath);
-
-                        conversionTime = DateTime.UtcNow - startTime;
-
-                        if (converted)
-                        {
-                            Log($"Converted. Took {conversionTime.Value.TotalMinutes} minutes.");
-
-                            video.linkedThing.SetPath(newPath);
-                            video.linkedThing.SetName(newName);
-                        }
-                        else
-                        {
-                            Log($"Could not convert. Took {conversionTime.Value.TotalMinutes} minutes.");
-
-                            try
-                            {
-                                File.Delete(newPath);
-
-                                Log("Deleted converted file");
-                            }
-                            catch (Exception e)
-                            {
-                                Log($"Could not delete converted file: {e.Message}");
-                            }
-
-                            conversionTime = null;
-                        }
-                    }
-                    else
-                    {
-                        conversionTime = null;
-                    }
-
-                    string videoName = FormName(stream.handlerCreationDate, videoWriters.Count == 1 ? (int?)null : videoIndex + 1);
-                    string description = FormDescription(video, subChecks, totalLost, advertLost, null, null, null, null, null, null);
-
-                    YoutubeUploader uploader = new(Program.config.YouTube);
-
-                    TimeSpan uploadTime;
-
-                    Log($"Uploading {video.linkedThing.FilePath}...");
-                    bool uploaded;
-                    using (var fileStream = new FileStream(video.linkedThing.FilePath, FileMode.Open))
-                    {
-                        var uploadStartDate = DateTime.UtcNow;
-                        uploaded = await uploader.UploadAsync(videoName, description, Program.config.YouTube.VideoTags, fileStream, "public");
-
-                        uploadTime = DateTime.UtcNow - uploadStartDate;
+                        summarySuccess = false;
                     }
 
                     if (uploaded)
                     {
-                        Log($"Finished uploading {video.linkedThing.FilePath}. Took {uploadTime.TotalMinutes} minutes.");
-                        File.Delete(video.linkedThing.FilePath);
-                        Log("Deleted file from disk.");
+                        totalUploadTime = totalUploadTime != null ? (totalUploadTime + uploadTime) : uploadTime;
 
-                        if (uploader.videoId != null)
-                        {
-                            uploadedVideos.Add(new UploadedVideo(video, uploader.videoId, conversionTime, uploadTime));
-                        }
-                        else
-                        {
-                            Log($"{nameof(uploader.videoId)} is null");
-                        }
+                        saveDescriptionLocally = false;
                     }
-                    else
+                    else if (converted && secondVolumeOperator != null)
                     {
-                        Log($"Could not upload video! {video.linkedThing.FilePath}. Took {uploadTime.TotalMinutes} minutes.");
-                        allUploaded = false;
+                        // если не удалось загрузить на облаке, и оно было конвертировано, нужно вернуть файл на основной вольюм
+                        string returnPath = Path.ChangeExtension(origPath, Program.config.Conversion!.TargetFormat);
 
-                        File.WriteAllText(Path.ChangeExtension(originalPath, "description.txt"), description);
-                    }
+                        File.Move(video.linkedThing.FilePath, returnPath);
 
-                    if (Program.config.Conversion != null)
-                    {
-                        //Если успешно загрузилось, удаляем и новый и старый файл. Если не успешно, только новый
-                        //А если успешно, оно новый само удаляет.
-                        if (uploaded)
-                        {
-                            File.Delete(originalPath);
-                            Log($"Uploaded, removed original file {originalPath}");
-                        }
-                        else
-                        {
-                            File.Delete(video.linkedThing.FilePath);
-                            Log($"Could not upload, removed converted file {video.linkedThing.FilePath}");
-                        }
+                        Log("Вернули конвертированный файл на основной вольюм");
                     }
                 }
 
-                Log($"Finished. Uploaded all: {allUploaded}");
-                deleteVolume = allUploaded;
-
-                if (allUploaded)
+                VideoSummary summary = new(video)
                 {
-                    if (Program.emailer != null && Program.config.Email!.NotifyOnVideoUpload)
+                    videoId = videoId,
+
+                    uploaded = uploaded,
+
+                    conversionTime = conversionTime,
+                    uploadTime = uploadTime
+                };
+                summaries.Add(summary);
+
+                if (saveDescriptionLocally)
+                {
+                    string fileName = Path.ChangeExtension(video.linkedThing.FileName, "description");
+                    string path = Path.Combine(Program.config.LocalDescriptionsDirectoryName, fileName);
+
+                    string content = $"{videoName}\n\n{videoDescription}";
+
+                    try
                     {
-                        await Program.emailer.SendVideoUploadAsync();
+                        await File.WriteAllTextAsync(path, content);
+                        Log("Описание видео записано в папку.");
                     }
-                }
-                else
-                {
-                    if (Program.emailer != null)
-                        await Program.emailer.SendCriticalErrorAsync("Не получилось загрузить все видео...");
-                }
-            }
-            else if (Program.config.Conversion is ConversionConfig conversion)
-            {
-                //Раз грузить на ютуб не надо, нужно просто сконвертировать и хранить
-                secondVolumeOperator = null;
-                uploadedVideos = null;
-
-                foreach (var video in videoWriters)
-                {
-                    Log($"Converting {video.linkedThing.FileName}...");
-
-                    string newName = Path.ChangeExtension(video.linkedThing.FileName, conversion.TargetFormat);
-
-                    string oldPath = video.linkedThing.FilePath;
-                    string newPath = Path.ChangeExtension(video.linkedThing.FilePath, conversion.TargetFormat);
-
-                    DateTime startTime = DateTime.UtcNow;
-
-                    bool converted = Ffmpeg.Convert(oldPath, newPath);
-
-                    var passed = DateTime.UtcNow - startTime;
-
-                    if (converted)
+                    catch (Exception e)
                     {
-                        Log($"Converted. Took {passed.TotalMinutes} minutes.");
-
-                        File.Delete(oldPath);
-                        Log("Removed old file.");
-
-                        video.linkedThing.SetPath(newPath);
-                        video.linkedThing.SetName(newName);
-                    }
-                    else
-                    {
-                        Log($"Could not convert. Took {passed.TotalMinutes} minutes.");
+                        Log($"Не удалось записать описание видео, исключение:\n{e}");
                     }
                 }
             }
-            else
+
+            if (Program.config.YouTube != null)
             {
-                secondVolumeOperator = null; uploadedVideos = null;
+                _ = ContinueVideoninining(summaries, subgifters, totalConversionTime, totalUploadTime);
             }
 
         end:;
 
-            List<DigitalOceanVolumeOperator> operators = new();
-
-            if (secondVolumeOperator != null)
-                operators.Add(secondVolumeOperator);
-
-            //не может быть нул если второй не нул, ну да ладно
-            if (stream.volumeOperator2 != null)
-                operators.Add(stream.volumeOperator2);
-
-            if (operators.Count > 0)
+            //Если облачные технологии, в случае успеха нужно удалить все вольюмы. В случае неуспеха только второй.
+            if (Program.config.Ocean != null)
             {
-                //расправа
+                List<DigitalOceanVolumeOperator> operators = new();
 
-                foreach (var op in operators)
+                if (summarySuccess && stream.volumeOperator2 != null)
+                    operators.Add(stream.volumeOperator2);
+
+                if (secondVolumeOperator != null)
+                    operators.Add(secondVolumeOperator);
+
+                if (operators.Count > 0)
                 {
-                    await op.DetachAsync();
+                    bool fine = await DestroyVolumes(operators);
 
-                    //Сразу он выдаёт ошибку, что нельзя атачд вольюм удалить
-                    //алсо не знаю, стоит ли их в один момент детачить, так что лучше подожду
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-                }
-
-                foreach (var op in operators)
-                {
-                    try
+                    if (!fine && Program.emailer != null)
                     {
-                        await op.DeleteAsync();
-                    }
-                    catch (Exception e)
-                    {
-                        Log($"Could not delete volume {op.volumeName}:\n{e}");
-                    }
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(10));
-
-                //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
-                foreach (var op in operators)
-                {
-                    try
-                    {
-                        Directory.Delete($"/mnt/{op.volumeName}");
-                        Log($"Directory {op.volumeName} deleted");
-                    }
-                    catch (Exception e)
-                    {
-                        Log($"Could not delete directory {op.volumeName}: {e.Message}");
+                        await Program.emailer.SendCriticalErrorAsync("Не удалось сломать вольюмы");
                     }
                 }
             }
 
-            if (uploadedVideos?.Count > 0)
+            if (Program.emailer != null)
             {
-                await ContinueVideoninining(uploadedVideos, subChecks);
+                bool fine = true;
+
+                if (Program.config.YouTube != null)
+                {
+                    fine = summarySuccess;
+                }
+
+                if (fine)
+                {
+                    await Program.emailer.SendFinishSuccessAsync();
+                }
+                else
+                {
+                    await Program.emailer.SendCriticalErrorAsync("Не получилось нормально закончить стрим...");
+                }
             }
         }
 
-        private async Task ContinueVideoninining(List<UploadedVideo> upVideos, SubCheck[] subChecks)
+        async Task<string[]> GetDisplaySubgiftersAsync()
         {
+            List<SubCheck> tempList = new();
+
+            if (stream.subCheck != null)
+                tempList.Add(stream.subCheck);
+
+            if (Program.config.Downloader?.SubCheck != null)
+            {
+                var postStreamSubCheck = await SubChecker.GetSub(Program.config.ChannelId!, Program.config.Downloader.SubCheck.AppSecret, Program.config.Downloader.SubCheck.AppClientId, Program.config.Downloader.SubCheck.UserId, Program.config.Downloader.SubCheck.RefreshToken);
+
+                if (postStreamSubCheck != null)
+                    tempList.Add(postStreamSubCheck);
+            }
+
+            return tempList.Where(s => s.sub)
+                           .Reverse() //ник мог поменяться, тогда нужно юзать самый новый
+                           .DistinctBy(sc => sc.subInfo?.GiftertId)
+                           .Select(sc =>
+                           {
+                               if (sc.subInfo == null)
+                                   return "???";
+
+                               if (sc.subInfo.GifterName.Equals(sc.subInfo.GifterLogin, StringComparison.OrdinalIgnoreCase))
+                               {
+                                   return sc.subInfo.GifterName;
+                               }
+
+                               return $"{sc.subInfo.GifterName} ({sc.subInfo.GifterLogin})";
+
+                           }).ToArray();
+        }
+
+        async Task<DigitalOceanVolumeOperator> CreateSecondVolumeAsync(int size)
+        {
+            Log($"Создаём второй вольюм, размер ({size})...");
+
+            string volumeName = DigitalOceanVolumeCreator.GenerateVolumeName(DateTime.UtcNow);
+
+            DigitalOceanVolumeCreator creator = new(Program.config.Ocean!, volumeName, size);
+
+            var secondVolumeOperator = await creator.CreateAsync();
+
+            stream.pricer.AddVolume(DateTime.UtcNow, size);
+            Log($"Создан второй вольюм.");
+
+            await Task.Delay(TimeSpan.FromSeconds(5));
+
+            return secondVolumeOperator;
+        }
+
+        /// <summary>
+        /// Конвертирует видео, создавая новую копию в указанном месте. В случае успеха удаляет оригинал
+        /// </summary>
+        /// <param name="video"></param>
+        /// <param name="targetFilePath">Можно с форматом, можно без. Без разницы.</param>
+        /// <param name="deleteOrigOnSuccess"></param>
+        /// <returns></returns>
+        (bool converted, TimeSpan passed) ConvertVideo(VideoWriter video, string targetFilePath)
+        {
+            Log($"Конвертируем {video.linkedThing.FileName}...");
+
+            string oldPath = video.linkedThing.FilePath;
+
+            string newName = Path.ChangeExtension(video.linkedThing.FileName, Program.config.Conversion!.TargetFormat);
+            string newPath = Path.ChangeExtension(targetFilePath, Program.config.Conversion!.TargetFormat);
+
+            DateTime startTime = DateTime.UtcNow;
+
+            bool converted = Ffmpeg.Convert(oldPath, newPath);
+
+            var passed = DateTime.UtcNow - startTime;
+
+            if (converted)
+            {
+                Log($"Конвертировано. Заняло {passed.TotalMinutes} минут.");
+
+                try
+                {
+                    File.Delete(oldPath);
+                    Log("Старый файл удалён.");
+                }
+                catch (Exception e)
+                {
+                    Log($"Не удалось удалить старый файл, исключение:\n{e}");
+                }
+
+                video.linkedThing.SetPath(newPath);
+                video.linkedThing.SetName(newName);
+            }
+            else
+            {
+                Log($"Не удалось конвертировать. Заняло {passed.TotalMinutes} минут.");
+
+                try { File.Delete(newPath); }
+                catch { }
+            }
+
+            return (converted, passed);
+        }
+
+        /// <summary>
+        /// Загружает видево на ютуб. В случае успеха удаляет локальную копию видева
+        /// </summary>
+        /// <param name="video"></param>
+        /// <param name="videoName"></param>
+        /// <param name="description"></param>
+        /// <returns></returns>
+        async Task<(bool uploaded, string? videoId, TimeSpan passed)> UploadVideoAsync(VideoWriter video, string videoName, string description)
+        {
+            YoutubeUploader uploader = new(Program.config.YouTube!);
+
+            TimeSpan uploadTime;
+
+            Log($"Загружаем {video.linkedThing.FilePath}...");
+            bool uploaded;
+            using (var fileStream = new FileStream(video.linkedThing.FilePath, FileMode.Open))
+            {
+                var uploadStartDate = DateTime.UtcNow;
+                uploaded = await uploader.UploadAsync(videoName, description, Program.config.YouTube!.VideoTags, fileStream, "public");
+
+                uploadTime = DateTime.UtcNow - uploadStartDate;
+            }
+
+            string? videoId = null;
+            if (uploaded)
+            {
+                Log($"Загрузка успешно закончена {video.linkedThing.FilePath}. Заняло {uploadTime.TotalMinutes} минут.");
+                try
+                {
+                    File.Delete(video.linkedThing.FilePath);
+                    Log("Видео удалено с диска.");
+                }
+                catch (Exception e)
+                {
+                    Log($"Не удалось удалить файл, исключение:\n{e}");
+                }
+
+                videoId = uploader.videoId;
+
+                if (uploader.videoId == null)
+                {
+                    Log($"{nameof(uploader.videoId)} is null");
+                }
+            }
+            else
+            {
+                Log($"Не удалось загрузить видео {video.linkedThing.FilePath}. Заняло {uploadTime.TotalMinutes} минут.");
+            }
+
+            return (uploaded, videoId, uploadTime);
+        }
+
+        async Task<bool> DestroyVolumes(List<DigitalOceanVolumeOperator> operators)
+        {
+            //расправа
+
+            List<Task<bool>> tasks = new();
+            foreach (var op in operators)
+            {
+                var task = Task.Run<bool>(async () =>
+                {
+                    bool fine = false;
+
+                    int retries = 0;
+                    while (retries < 3)
+                    {
+                        try
+                        {
+                            await op.DetachAsync();
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            Log($"Не удалось отсоединить вольюм {op.volumeName}. Исключение:\n{e}");
+
+                            retries++;
+                            await Task.Delay(TimeSpan.FromSeconds(5));
+                        }
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    retries = 0;
+                    while (retries < 3)
+                    {
+                        try
+                        {
+                            await op.DeleteAsync();
+
+                            fine = true;
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            Log($"Не удалось удалить вольюм {op.volumeName}. Исключение:\n{e}");
+
+                            retries++;
+                            await Task.Delay(TimeSpan.FromSeconds(5));
+                        }
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
+                    try
+                    {
+                        Directory.Delete($"/mnt/{op.volumeName}");
+                        Log($"Папка {op.volumeName} удалена");
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"Не удалось удалить папку {op.volumeName}: {e.Message}");
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    return fine;
+                });
+
+                tasks.Add(task);
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+
+            Task.WaitAll(tasks.ToArray());
+
+            return tasks.All(t => t.Result);
+        }
+
+        async Task ContinueVideoninining(List<VideoSummary> summaries2, string[] subgifters, TimeSpan? totalConversionTime, TimeSpan? totalUploadTime)
+        {
+            var validSummaries = summaries2.Where(s => s.uploaded && s.videoId != null).ToList();
+
             DateTime end = DateTime.UtcNow;
 
             //повторно вычичляю потому что я панк
-            int totalLost = (int)upVideos.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
+            int totalLost = (int)validSummaries.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
             int advertLost = (int)stream.advertismentSeconds;
 
             decimal streamCost = stream.pricer.EstimateAll(end);
 
-            string[] videosIds = upVideos.Select(v => v.videoId).ToArray();
+            string[] videosIds = validSummaries.Select(v => v.videoId!).ToArray();
             //какой нул
             YoutubeDescriptor you = new(Program.config.YouTube!, videosIds);
 
-            TimeSpan? totalProcessingTime;
-            {
-                var allConversions = upVideos.Where(v => v.processingTime != null)
-                                             .Select(v => v.processingTime!.Value)
-                                             .ToArray();
-
-                if (allConversions.Length > 0)
-                {
-                    totalProcessingTime = TimeSpan.FromSeconds(0);
-
-                    foreach (var time in allConversions)
-                        totalProcessingTime = totalProcessingTime.Value + time;
-                }
-                else
-                {
-                    totalProcessingTime = null;
-                }
-            }
-
-            TimeSpan totalUploadingTime = TimeSpan.FromSeconds(0);
-            foreach (var up in upVideos)
-                totalUploadingTime += up.uploadingTime;
-
             //на всякий подождём
             await Task.Delay(TimeSpan.FromSeconds(10));
+
             IList<Google.Apis.YouTube.v3.Data.Video> videos;
             try
             {
-                Log("Making first list...");
+                Log("Качаем первый лист видосов...");
                 videos = await you.CheckProcessing();
 
                 foreach (var video in videos)
@@ -395,39 +494,39 @@ namespace TwitchVor.Finisher
             }
             catch (Exception e)
             {
-                Log($"Could not list videos.\n{e}");
+                Log($"Не удалось скачать лист видосов.\n{e}");
                 return;
             }
 
             //супер дурка, я хз
-            foreach (var up in upVideos.ToArray())
+            foreach (var up in validSummaries.ToArray())
             {
-                if (!you.Check(up.videoId))
+                if (!you.Check(up.videoId!))
                 {
-                    Log($"no video {up.videoId}");
-                    upVideos.Remove(up);
+                    Log($"А видео то и нет {up.videoId}");
+                    validSummaries.Remove(up);
                 }
             }
 
             //Обновляем первый раз
-            foreach (var up in upVideos)
+            foreach (var up in validSummaries)
             {
-                string description = FormDescription(up.writer, subChecks,
+                string description = FormDescription(up.writer, subgifters,
                                                         totalLost, advertLost,
-                                                        up.processingTime, totalProcessingTime,
-                                                        up.uploadingTime, totalUploadingTime,
+                                                        up.conversionTime, totalConversionTime,
+                                                        up.uploadTime, totalUploadTime,
                                                         null,
                                                         streamCost);
 
                 try
                 {
-                    Log($"Updating video {up.videoId}...");
-                    await you.UpdateDescription(up.videoId, description);
-                    Log($"Updated video {up.videoId}...");
+                    Log($"Обновляем видево {up.videoId}...");
+                    await you.UpdateDescription(up.videoId!, description);
+                    Log($"Обновили видево {up.videoId}.");
                 }
                 catch (Exception e)
                 {
-                    Log($"Could not update video {up.videoId}.\n{e}");
+                    Log($"Не удалось обновить {up.videoId}.\n{e}");
                     continue;
                 }
             }
@@ -489,7 +588,7 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        private string FormDescription(VideoWriter video, SubCheck[] subChecks,
+        private string FormDescription(VideoWriter video, string[] subgifters,
             int totalLostTimeSeconds, int advertismentSeconds,
             TimeSpan? processingTime, TimeSpan? totalProcessingTime,
             TimeSpan? uploadTime, TimeSpan? totalUploadTime,
@@ -502,19 +601,10 @@ namespace TwitchVor.Finisher
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
 
-            var validSubChecks = subChecks.Where(s => s.sub).ToArray();
-            if (validSubChecks.Length > 0)
+            builder.AppendLine();
+            foreach (var subgifter in subgifters)
             {
-                builder.AppendLine();
-
-                validSubChecks = validSubChecks.Reverse().DistinctBy(sc => sc.subInfo?.GiftertId).ToArray();
-
-                foreach (var sc in validSubChecks)
-                {
-                    string who = sc.subInfo == null ? "???" : sc.subInfo.GifterName.Equals(sc.subInfo.GifterLogin, StringComparison.OrdinalIgnoreCase) ? sc.subInfo.GifterName : $"{sc.subInfo.GifterName} ({sc.subInfo.GifterLogin})";
-
-                    builder.AppendLine($"Спасибо за подписку: {who}");
-                }
+                builder.AppendLine($"Спасибо за подписку: {subgifter}");
             }
 
             if (stream.timestamper.timestamps.Count == 0)

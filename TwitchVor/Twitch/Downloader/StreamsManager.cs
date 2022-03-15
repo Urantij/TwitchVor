@@ -1,3 +1,4 @@
+using TwitchVor.Finisher;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
@@ -76,10 +77,13 @@ namespace TwitchVor.Twitch.Downloader
                 try
                 {
                     await finishingStream.FinishAsync();
+
+                    StreamFinisher finisher = new(finishingStream);
+                    await finisher.FinishAsync();
                 }
                 catch (Exception e)
                 {
-                    LogError($"Could not finish stream:\n{e}");
+                    LogError($"Не удалось зафинишировать стрим. Исключение:\n{e}");
 
                     if (Program.emailer != null)
                         await Program.emailer.SendCriticalErrorAsync("Не получилось зафинишировать стрим");
@@ -158,7 +162,7 @@ namespace TwitchVor.Twitch.Downloader
             if (currentStreamOfflineCancelSource == null)
                 return;
 
-            try { currentStreamOfflineCancelSource.Cancel(); } catch {};
+            try { currentStreamOfflineCancelSource.Cancel(); } catch { };
             currentStreamOfflineCancelSource.Dispose();
             currentStreamOfflineCancelSource = null;
         }

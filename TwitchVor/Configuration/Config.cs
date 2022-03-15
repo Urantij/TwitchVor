@@ -70,6 +70,7 @@ namespace TwitchVor.Configuration
         //File
 
         public string VideosDirectoryName { get; set; } = "Videos";
+        public string LocalDescriptionsDirectoryName { get; set; } = "Descriptions";
 
         /// <summary>
         /// Байты

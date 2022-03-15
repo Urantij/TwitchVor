@@ -55,9 +55,9 @@ namespace TwitchVor.Utility
             await SendAsync(subjectBase, $"ОЧЕНЬ ПЛОХО\n{more}");
         }
 
-        public async Task SendVideoUploadAsync()
+        public async Task SendFinishSuccessAsync()
         {
-            if (!config.NotifyOnVideoUpload)
+            if (!config.NotifyOnFinishSuccess)
                 return;
 
             await SendAsync(subjectBase, "Всё в поряде, чувачечек");

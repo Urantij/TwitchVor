@@ -21,6 +21,6 @@ namespace TwitchVor.Configuration
         public bool NotifyOnCriticalError { get; set; } = false;
 
         [JsonProperty(Required = Required.Default)]
-        public bool NotifyOnVideoUpload { get; set; } = false;
+        public bool NotifyOnFinishSuccess { get; set; } = false;
     }
 }

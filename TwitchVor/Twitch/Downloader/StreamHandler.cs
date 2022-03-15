@@ -160,6 +160,9 @@ namespace TwitchVor.Twitch.Downloader
             if (IsCloud && volumeOperator2 == null)
             {
                 //Какой шанс?
+                if (Program.emailer != null)
+                    await Program.emailer.SendCriticalErrorAsync("Тута вольюм в конце стрима всё ещё нулл");
+
                 LogError("Какого хуя вольюм не готов?");
                 while (volumeOperator2 == null)
                 {
@@ -168,16 +171,14 @@ namespace TwitchVor.Twitch.Downloader
                 LogError("Пиздец.");
             }
 
-            currentVideoWriter?.CloseAsync().GetAwaiter().GetResult();
+            if (currentVideoWriter != null)
+                await currentVideoWriter.CloseAsync();
 
             segmentsDownloader!.Dispose();
             segmentsDownloader = null;
 
             downloadQueue!.Dispose();
             downloadQueue = null;
-
-            StreamFinisher finisher = new(this);
-            await finisher.Finish();
         }
 
         private void LaunchSegmentsDownloader()

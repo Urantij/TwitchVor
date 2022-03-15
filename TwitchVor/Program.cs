@@ -38,7 +38,7 @@ namespace TwitchVor
             debug = appArgs.Contains("--debug");
             if (debug)
             {
-                ColorLog.LogWarning("Debug is true");
+                ColorLog.LogWarning("Дыбажым");
             }
 
             if (File.Exists(configPath))
@@ -58,7 +58,7 @@ namespace TwitchVor
             if (config.Channel == null ||
                 config.TwitchAPISecret == null || config.TwitchAPIClientId == null)
             {
-                ColorLog.LogError("Set Config");
+                ColorLog.LogError("Разберись с конфигом ебать");
                 return;
             }
 
@@ -72,7 +72,7 @@ namespace TwitchVor
 
                 if (callrsult.Users.Length == 0)
                 {
-                    ColorLog.Log($"No such user");
+                    ColorLog.Log($"Нет такого юзера");
                     return;
                 }
 
@@ -80,26 +80,26 @@ namespace TwitchVor
 
                 File.WriteAllText(configPath, JsonConvert.SerializeObject(config, Formatting.Indented));
 
-                ColorLog.Log($"Updated channel id");
+                ColorLog.Log($"Обновлён айди канала");
             }
 
             //q
-            ColorLog.Log($"Quality {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
+            ColorLog.Log($"Качество {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
 
             //youtube
             if (config.YouTube != null)
             {
-                ColorLog.Log("Youtube added");
+                ColorLog.Log("Ютуб добавлен");
             }
             else
             {
-                ColorLog.Log("No youtube");
+                ColorLog.Log("Без ютуба");
             }
 
             //do
             if (config.Ocean != null)
             {
-                ColorLog.Log("Ocean added");
+                ColorLog.Log("ДО добавлен");
 
                 var do_client = new DigitalOcean.API.DigitalOceanClient(config.Ocean.ApiToken);
 
@@ -107,26 +107,26 @@ namespace TwitchVor
 
                 config.Ocean.Region = droplet.Region.Slug;
 
-                ColorLog.Log($"Droplet region: {config.Ocean.Region}");
+                ColorLog.Log($"Регион дроплетов: {config.Ocean.Region}");
             }
             else
             {
-                ColorLog.Log("No ocean");
+                ColorLog.Log("Без ДО");
             }
 
             if (config.Conversion is ConversionConfig conversion)
             {
-                ColorLog.Log($"Conversion to {conversion.TargetFormat} with \"{conversion.Arguments}\" args ({conversion.FfmpegPath})");
+                ColorLog.Log($"Конвертируем в {conversion.TargetFormat} с параметрами \"{conversion.Arguments}\" ({conversion.FfmpegPath})");
 
                 if (!File.Exists(conversion.FfmpegPath))
                 {
-                    ColorLog.Log("Cant find ffmpeg");
+                    ColorLog.Log("Не удаётся найти ффмпег");
                     return;
                 }
             }
             else
             {
-                ColorLog.Log("No conversion");
+                ColorLog.Log("Без конверсии");
             }
 
             if (config.Ocean != null && config.YouTube == null)
@@ -137,7 +137,7 @@ namespace TwitchVor
 
             if (config.Downloader?.SubCheck != null)
             {
-                ColorLog.Log($"SubCheck!");
+                ColorLog.Log($"Чекаем сабгифтера");
 
                 if (config.Downloader.SubCheck.CheckSubOnStart)
                 {
@@ -152,7 +152,13 @@ namespace TwitchVor
             if (!Directory.Exists(config.VideosDirectoryName))
             {
                 Directory.CreateDirectory(config.VideosDirectoryName);
-                ColorLog.Log("Created video directory.");
+                ColorLog.Log("Создана папка для видео.");
+            }
+
+            if (!Directory.Exists(config.LocalDescriptionsDirectoryName))
+            {
+                Directory.CreateDirectory(config.LocalDescriptionsDirectoryName);
+                ColorLog.Log("Создана папка для локальных описаний.");
             }
 
             if (config.Email != null)
@@ -160,11 +166,11 @@ namespace TwitchVor
                 emailer = new Emailer(config.Email);
                 if (emailer.ValidateAsync().GetAwaiter().GetResult())
                 {
-                    ColorLog.Log("Email is ok");
+                    ColorLog.Log("Емейл в поряде");
                 }
                 else
                 {
-                    ColorLog.LogError("Email is not ok");
+                    ColorLog.LogError("Емейл каличный");
                     return;
                 }
             }
@@ -184,7 +190,7 @@ namespace TwitchVor
                 {
                     debug = !debug;
 
-                    ColorLog.Log($"Debug is {debug} now");
+                    ColorLog.Log($"дыбаг теперь {debug}");
                 }
                 else if (line == "pubsub")
                 {
@@ -201,7 +207,7 @@ namespace TwitchVor
                 else if (line == "finish")
                 {
                     streamsManager.EndStream();
-                    ColorLog.Log("ok");
+                    ColorLog.Log("ок");
                 }
             }
         }
