@@ -6,8 +6,10 @@ namespace TwitchVor.Configuration
 {
     class Config
     {
+        public const string emptyChannel = "___Channel";
+
         [JsonProperty(Required = Required.Always)]
-        public string? Channel { get; set; } = null;
+        public string? Channel { get; set; } = emptyChannel;
         [JsonProperty(Required = Required.Default)]
         public string? ChannelId { get; set; } = null;
 

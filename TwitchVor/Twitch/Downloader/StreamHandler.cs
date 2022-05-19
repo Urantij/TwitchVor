@@ -31,7 +31,7 @@ namespace TwitchVor.Twitch.Downloader
         internal readonly List<VideoWriter> pastVideoWriters = new();
 
         internal readonly Timestamper timestamper;
-        internal readonly Pricer pricer;
+        internal readonly Pricer? pricer;
         internal SubCheck? subCheck;
 
         /// <summary>
@@ -60,7 +60,10 @@ namespace TwitchVor.Twitch.Downloader
 
             handlerCreationDate = DateTime.UtcNow;
 
-            pricer = new(handlerCreationDate);
+            if (oceanCreds != null)
+            {
+                pricer = new(handlerCreationDate);
+            }
         }
 
         void Log(string message)
@@ -346,7 +349,7 @@ namespace TwitchVor.Twitch.Downloader
             //TODO подумать
 
             //никак не нул
-            pricer.AddVolume(DateTime.UtcNow, oceanCreds!.SizeGigabytes);
+            pricer!.AddVolume(DateTime.UtcNow, oceanCreds!.SizeGigabytes);
 
             //Кстати, можно подождать, мало ли
             await Task.Delay(TimeSpan.FromSeconds(5));

@@ -55,7 +55,7 @@ namespace TwitchVor
                 File.WriteAllText(configPath, configStr);
             }
 
-            if (config.Channel == null ||
+            if (config.Channel == null || config.Channel == Config.emptyChannel ||
                 config.TwitchAPISecret == null || config.TwitchAPIClientId == null)
             {
                 ColorLog.LogError("Разберись с конфигом ебать");

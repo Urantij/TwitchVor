@@ -277,7 +277,8 @@ namespace TwitchVor.Finisher
 
             var secondVolumeOperator = await creator.CreateAsync();
 
-            stream.pricer.AddVolume(DateTime.UtcNow, size);
+            //никак не нулл
+            stream.pricer!.AddVolume(DateTime.UtcNow, size);
             Log($"Создан второй вольюм.");
 
             await Task.Delay(TimeSpan.FromSeconds(5));
@@ -474,7 +475,7 @@ namespace TwitchVor.Finisher
             int totalLost = (int)validSummaries.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
             int advertLost = (int)stream.advertismentSeconds;
 
-            decimal streamCost = stream.pricer.EstimateAll(end);
+            decimal? streamCost = stream.pricer?.EstimateAll(end);
 
             string[] videosIds = validSummaries.Select(v => v.videoId!).ToArray();
             //какой нул

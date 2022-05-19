@@ -14,6 +14,7 @@ namespace TwitchVor.TubeYou
 
         private readonly YoutubeCreds creds;
 
+        //TODO а тута не должен быть другой тип, если конверт или нет? :)
         private const string mimeType = "video/MP2T";
 
         public string? videoId;
@@ -71,6 +72,7 @@ namespace TwitchVor.TubeYou
                     Title = name,
                     Description = description,
                     Tags = tags,
+                    DefaultLanguage = "Russian",
                     CategoryId = "22" // See https://developers.google.com/youtube/v3/docs/videoCategories/list
                 },
                 Status = new VideoStatus()
