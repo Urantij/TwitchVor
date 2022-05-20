@@ -469,6 +469,11 @@ namespace TwitchVor.Finisher
         {
             var validSummaries = summaries2.Where(s => s.uploaded && s.videoId != null).ToList();
 
+            if (validSummaries.Count == 0) {
+                Log("Ты прикинь, ничего не загрузилось. Вот дела...");
+                return;
+            }
+
             DateTime end = DateTime.UtcNow;
 
             //повторно вычичляю потому что я панк
