@@ -72,7 +72,7 @@ namespace TwitchVor.TubeYou
                     Title = name,
                     Description = description,
                     Tags = tags,
-                    DefaultLanguage = "Russian",
+                    DefaultLanguage = "ru",
                     CategoryId = "22" // See https://developers.google.com/youtube/v3/docs/videoCategories/list
                 },
                 Status = new VideoStatus()
