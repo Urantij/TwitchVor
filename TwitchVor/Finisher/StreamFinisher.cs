@@ -469,7 +469,8 @@ namespace TwitchVor.Finisher
         {
             var validSummaries = summaries2.Where(s => s.uploaded && s.videoId != null).ToList();
 
-            if (validSummaries.Count == 0) {
+            if (validSummaries.Count == 0)
+            {
                 Log("Ты прикинь, ничего не загрузилось. Вот дела...");
                 return;
             }
@@ -747,54 +748,65 @@ namespace TwitchVor.Finisher
             //video.Suggestions;
 
             Log("Video");
-            Log($"Status: {video.Status.UploadStatus}");
-            if (video.Status.FailureReason != null)
-                Log($"FailureReason: {video.Status.FailureReason}");
-            if (video.Status.RejectionReason != null)
-                Log($"RejectionReason: {video.Status.RejectionReason}");
-
-            Log($"Processing: {video.ProcessingDetails.ProcessingStatus}");
-            if (video.ProcessingDetails.ProcessingProgress != null)
+            if (video.Status != null)
             {
-                Log($"Parts: {video.ProcessingDetails.ProcessingProgress.PartsProcessed}/{video.ProcessingDetails.ProcessingProgress.PartsTotal}");
-                Log($"MS left: {video.ProcessingDetails.ProcessingProgress.TimeLeftMs}");
+                Log($"Status: {video.Status.UploadStatus}");
+                if (video.Status.FailureReason != null)
+                    Log($"FailureReason: {video.Status.FailureReason}");
+                if (video.Status.RejectionReason != null)
+                    Log($"RejectionReason: {video.Status.RejectionReason}");
             }
-            if (video.ProcessingDetails.ProcessingFailureReason != null)
-                Log($"ProcessingFailureReason: {video.ProcessingDetails.ProcessingFailureReason}");
 
-            if (video.ProcessingDetails.ProcessingIssuesAvailability != null)
-                Log($"ProcessingIssuesAvailability: {video.ProcessingDetails.ProcessingIssuesAvailability}");
-
-            if (video.ProcessingDetails.TagSuggestionsAvailability != null)
-                Log($"TagSuggestionsAvailability: {video.ProcessingDetails.TagSuggestionsAvailability}");
-
-            if (video.ProcessingDetails.EditorSuggestionsAvailability != null)
-                Log($"EditorSuggestionsAvailability: {video.ProcessingDetails.EditorSuggestionsAvailability}");
-
-            Log("Suggestions");
-            if (video.Suggestions.ProcessingErrors != null)
+            if (video.ProcessingDetails != null)
             {
-                Log($"ProcessingErrors:");
-                foreach (var error in video.Suggestions.ProcessingErrors)
+                Log($"Processing: {video.ProcessingDetails.ProcessingStatus}");
+
+                if (video.ProcessingDetails.ProcessingProgress != null)
                 {
-                    Log(error);
+                    Log($"Parts: {video.ProcessingDetails.ProcessingProgress.PartsProcessed}/{video.ProcessingDetails.ProcessingProgress.PartsTotal}");
+                    Log($"MS left: {video.ProcessingDetails.ProcessingProgress.TimeLeftMs}");
                 }
-            }
-            if (video.Suggestions.ProcessingWarnings != null)
-            {
-                Log($"ProcessingWarnings:");
-                foreach (var warning in video.Suggestions.ProcessingWarnings)
-                {
-                    Log(warning);
-                }
+                if (video.ProcessingDetails.ProcessingFailureReason != null)
+                    Log($"ProcessingFailureReason: {video.ProcessingDetails.ProcessingFailureReason}");
+
+                if (video.ProcessingDetails.ProcessingIssuesAvailability != null)
+                    Log($"ProcessingIssuesAvailability: {video.ProcessingDetails.ProcessingIssuesAvailability}");
+
+                if (video.ProcessingDetails.TagSuggestionsAvailability != null)
+                    Log($"TagSuggestionsAvailability: {video.ProcessingDetails.TagSuggestionsAvailability}");
+
+                if (video.ProcessingDetails.EditorSuggestionsAvailability != null)
+                    Log($"EditorSuggestionsAvailability: {video.ProcessingDetails.EditorSuggestionsAvailability}");
             }
 
-            if (video.Suggestions.ProcessingHints != null)
+            if (video.Suggestions != null)
             {
-                Log($"ProcessingHints:");
-                foreach (var hint in video.Suggestions.ProcessingHints)
+                Log("Suggestions");
+
+                if (video.Suggestions.ProcessingErrors != null)
                 {
-                    Log(hint);
+                    Log($"ProcessingErrors:");
+                    foreach (var error in video.Suggestions.ProcessingErrors)
+                    {
+                        Log(error);
+                    }
+                }
+                if (video.Suggestions.ProcessingWarnings != null)
+                {
+                    Log($"ProcessingWarnings:");
+                    foreach (var warning in video.Suggestions.ProcessingWarnings)
+                    {
+                        Log(warning);
+                    }
+                }
+
+                if (video.Suggestions.ProcessingHints != null)
+                {
+                    Log($"ProcessingHints:");
+                    foreach (var hint in video.Suggestions.ProcessingHints)
+                    {
+                        Log(hint);
+                    }
                 }
             }
         }
