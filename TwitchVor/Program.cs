@@ -30,6 +30,7 @@ namespace TwitchVor
         public static Emailer? emailer;
 
         public static bool debug = false;
+        public static bool shutdown = false;
 
         static void Main(string[] appArgs)
         {
@@ -179,7 +180,7 @@ namespace TwitchVor
 
             while (true)
             {
-                Console.WriteLine("Пошёл нахуй. debug pubsub finish");
+                Console.WriteLine("Пошёл нахуй. debug pubsub finish shutdown");
                 string? line = Console.ReadLine();
                 if (line == null)
                 {
@@ -207,6 +208,11 @@ namespace TwitchVor
                 else if (line == "finish")
                 {
                     streamsManager.EndStream();
+                    ColorLog.Log("ок");
+                }
+                else if (line == "shutdown")
+                {
+                    shutdown = true;
                     ColorLog.Log("ок");
                 }
             }

@@ -61,6 +61,8 @@ namespace TwitchVor.Finisher
             List<VideoSummary> summaries = new();
             bool summarySuccess = true;
 
+            Task? finishingTask = null;
+
             if (stream.currentVideoWriter == null)
             {
                 Log("Охуенный стрим без видео.");
@@ -187,7 +189,7 @@ namespace TwitchVor.Finisher
 
             if (Program.config.YouTube != null)
             {
-                _ = ContinueVideoninining(summaries, subgifters, totalConversionTime, totalUploadTime);
+                finishingTask = ContinueVideoninining(summaries, subgifters, totalConversionTime, totalUploadTime);
             }
 
         end:;
@@ -231,6 +233,38 @@ namespace TwitchVor.Finisher
                 {
                     await Program.emailer.SendCriticalErrorAsync("Не получилось нормально закончить стрим...");
                 }
+            }
+
+            if (Program.shutdown)
+            {
+                Log("Shutdown...");
+                var superfinish = () =>
+                {
+                    using Process pr = new();
+
+                    pr.StartInfo.FileName = "shutdown";
+
+                    pr.StartInfo.UseShellExecute = false;
+                    pr.StartInfo.RedirectStandardOutput = true;
+                    pr.StartInfo.RedirectStandardError = true;
+                    pr.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    pr.StartInfo.CreateNoWindow = true;
+                    pr.Start();
+
+                    pr.OutputDataReceived += (s, e) => { Log(e.Data); };
+                    pr.ErrorDataReceived += (s, e) => { Log(e.Data); };
+
+                    pr.BeginOutputReadLine();
+                    pr.BeginErrorReadLine();
+
+                    pr.WaitForExit();
+                };
+
+                if (finishingTask != null)
+                {
+                    await finishingTask.ContinueWith(t => superfinish());
+                }
+                else superfinish();
             }
         }
 
