@@ -6,6 +6,8 @@ namespace TwitchVor.TubeYou
     {
         [JsonProperty(Required = Required.Always)]
         public string RefreshToken { get; private set; } = "";
+        [JsonProperty(Required = Required.Always)]
+        public string UserId { get; private set; } = "";
 
         [JsonProperty(Required = Required.Always)]
         public string ClientId { get; private set; } = "";
@@ -26,5 +28,17 @@ namespace TwitchVor.TubeYou
         /// </summary>
         [JsonProperty(Required = Required.Default)]
         public TimeSpan VideoProcessingCheckDelay = TimeSpan.FromMinutes(5);
+
+        public YoutubeCreds()
+        {
+        }
+
+        public YoutubeCreds(string refreshToken, string userId, string clientId, string clientSecret)
+        {
+            RefreshToken = refreshToken;
+            UserId = userId;
+            ClientId = clientId;
+            ClientSecret = clientSecret;
+        }
     }
 }

@@ -57,7 +57,7 @@ namespace TwitchVor.TubeYou
             new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = secrets
-            }), "user", token);
+            }), creds.UserId, token);
 
             var youtubeService = new YouTubeService(new BaseClientService.Initializer()
             {

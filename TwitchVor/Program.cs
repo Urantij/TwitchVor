@@ -32,7 +32,7 @@ namespace TwitchVor
         public static bool debug = false;
         public static bool shutdown = false;
 
-        static void Main(string[] appArgs)
+        static async Task Main(string[] appArgs)
         {
             Great();
 
@@ -54,6 +54,22 @@ namespace TwitchVor
                 string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
 
                 File.WriteAllText(configPath, configStr);
+            }
+
+            {
+                var genIndex = Array.IndexOf(appArgs, "--generateyoutubecreds");
+                if (genIndex != -1)
+                {
+                    var creds = await YoutubeSigner.GenerateCreds(appArgs[genIndex + 1], appArgs[genIndex + 2]);
+
+                    config.YouTube = creds;
+
+                    string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
+
+                    File.WriteAllText(configPath, configStr);
+                    System.Console.WriteLine("Сделано.");
+                    return;
+                }
             }
 
             if (config.Channel == null || config.Channel == Config.emptyChannel ||
