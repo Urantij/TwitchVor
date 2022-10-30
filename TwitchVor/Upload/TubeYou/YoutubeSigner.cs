@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace TwitchVor.TubeYou
+namespace TwitchVor.Upload.TubeYou
 {
     public static class YoutubeSigner
     {

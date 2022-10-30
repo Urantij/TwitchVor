@@ -3,31 +3,16 @@ using System.Diagnostics;
 using System.Text;
 using TwitchVor.Configuration;
 using TwitchVor.Ocean;
-using TwitchVor.TubeYou;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Downloader;
+using TwitchVor.Upload.Kvk;
+using TwitchVor.Upload.TubeYou;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
 {
-    class VideoSummary
-    {
-        public readonly VideoWriter writer;
-        public string? videoId;
-
-        public bool uploaded = false;
-
-        public TimeSpan? conversionTime;
-        public TimeSpan? uploadTime;
-
-        public VideoSummary(VideoWriter video)
-        {
-            this.writer = video;
-        }
-    }
-
     class StreamFinisher
     {
         readonly StreamHandler stream;
@@ -75,7 +60,8 @@ namespace TwitchVor.Finisher
             videoWriters.AddRange(stream.pastVideoWriters);
             videoWriters.Add(stream.currentVideoWriter);
 
-            if (Program.config.YouTube != null && Program.config.Ocean != null && Program.config.Conversion != null)
+            // if (Program.config.YouTube != null && Program.config.Ocean != null && Program.config.Conversion != null)
+            if (Program.config.Vk != null && Program.config.Ocean != null && Program.config.Conversion != null)
             {
                 var maxSizeBytes = videoWriters.Select(w => new FileInfo(w.linkedThing.FilePath).Length).Max();
 
@@ -131,7 +117,8 @@ namespace TwitchVor.Finisher
                 bool uploaded = false;
                 TimeSpan? uploadTime = null;
                 string? videoId = null;
-                if (Program.config.YouTube != null)
+                // if (Program.config.YouTube != null)
+                if (Program.config.Vk != null)
                 {
                     (uploaded, videoId, uploadTime) = await UploadVideoAsync(video, videoName, videoDescription);
 
@@ -187,10 +174,10 @@ namespace TwitchVor.Finisher
                 }
             }
 
-            if (Program.config.YouTube != null)
-            {
-                finishingTask = ContinueVideoninining(summaries, subgifters, totalConversionTime, totalUploadTime);
-            }
+        // if (Program.config.YouTube != null)
+        // {
+        //     finishingTask = ContinueVideoninining(summaries, subgifters, totalConversionTime, totalUploadTime);
+        // }
 
         end:;
 
@@ -220,7 +207,8 @@ namespace TwitchVor.Finisher
             {
                 bool fine = true;
 
-                if (Program.config.YouTube != null)
+                // if (Program.config.YouTube != null)
+                if (Program.config.Vk != null)
                 {
                     fine = summarySuccess;
                 }
@@ -379,7 +367,8 @@ namespace TwitchVor.Finisher
         /// <returns></returns>
         async Task<(bool uploaded, string? videoId, TimeSpan passed)> UploadVideoAsync(VideoWriter video, string videoName, string description)
         {
-            YoutubeUploader uploader = new(Program.config.YouTube!);
+            // YoutubeUploader uploader = new(Program.config.YouTube!);
+            VkUploader uploader = new(Program.config.Vk!);
 
             TimeSpan uploadTime;
 
@@ -388,7 +377,8 @@ namespace TwitchVor.Finisher
             using (var fileStream = new FileStream(video.linkedThing.FilePath, FileMode.Open))
             {
                 var uploadStartDate = DateTime.UtcNow;
-                uploaded = await uploader.UploadAsync(videoName, description, Program.config.YouTube!.VideoTags, fileStream, "public");
+                uploaded = await uploader.UploadAsync(videoName, description, video.linkedThing.FileName, fileStream);
+                // uploaded = await uploader.UploadAsync(videoName, description, Program.config.YouTube!.VideoTags, fileStream, "public");
 
                 uploadTime = DateTime.UtcNow - uploadStartDate;
             }
@@ -407,12 +397,12 @@ namespace TwitchVor.Finisher
                     Log($"Не удалось удалить файл, исключение:\n{e}");
                 }
 
-                videoId = uploader.videoId;
+                // videoId = uploader.videoId;
 
-                if (uploader.videoId == null)
-                {
-                    Log($"{nameof(uploader.videoId)} is null");
-                }
+                // if (uploader.videoId == null)
+                // {
+                //     Log($"{nameof(uploader.videoId)} is null");
+                // }
             }
             else
             {
@@ -499,83 +489,83 @@ namespace TwitchVor.Finisher
             return tasks.All(t => t.Result);
         }
 
-        async Task ContinueVideoninining(List<VideoSummary> summaries2, string[] subgifters, TimeSpan? totalConversionTime, TimeSpan? totalUploadTime)
-        {
-            var validSummaries = summaries2.Where(s => s.uploaded && s.videoId != null).ToList();
+        // async Task ContinueVideoninining(List<VideoSummary> summaries2, string[] subgifters, TimeSpan? totalConversionTime, TimeSpan? totalUploadTime)
+        // {
+        //     var validSummaries = summaries2.Where(s => s.uploaded && s.videoId != null).ToList();
 
-            if (validSummaries.Count == 0)
-            {
-                Log("Ты прикинь, ничего не загрузилось. Вот дела...");
-                return;
-            }
+        //     if (validSummaries.Count == 0)
+        //     {
+        //         Log("Ты прикинь, ничего не загрузилось. Вот дела...");
+        //         return;
+        //     }
 
-            DateTime end = DateTime.UtcNow;
+        //     DateTime end = DateTime.UtcNow;
 
-            //повторно вычичляю потому что я панк
-            int totalLost = (int)validSummaries.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
-            int advertLost = (int)stream.advertismentSeconds;
+        //     //повторно вычичляю потому что я панк
+        //     int totalLost = (int)validSummaries.Sum(up => up.writer.skipInfos.Sum(skip => (skip.whenEnded - skip.whenStarted).TotalSeconds));
+        //     int advertLost = (int)stream.advertismentSeconds;
 
-            decimal? streamCost = stream.pricer?.EstimateAll(end);
+        //     decimal? streamCost = stream.pricer?.EstimateAll(end);
 
-            string[] videosIds = validSummaries.Select(v => v.videoId!).ToArray();
-            //какой нул
-            YoutubeDescriptor you = new(Program.config.YouTube!, videosIds);
+        //     string[] videosIds = validSummaries.Select(v => v.videoId!).ToArray();
+        //     //какой нул
+        //     YoutubeDescriptor you = new(Program.config.YouTube!, videosIds);
 
-            //на всякий подождём
-            await Task.Delay(TimeSpan.FromSeconds(10));
+        //     //на всякий подождём
+        //     await Task.Delay(TimeSpan.FromSeconds(10));
 
-            IList<Google.Apis.YouTube.v3.Data.Video> videos;
-            try
-            {
-                Log("Качаем первый лист видосов...");
-                videos = await you.CheckProcessing();
+        //     IList<Google.Apis.YouTube.v3.Data.Video> videos;
+        //     try
+        //     {
+        //         Log("Качаем первый лист видосов...");
+        //         videos = await you.CheckProcessing();
 
-                foreach (var video in videos)
-                    LogList(video);
-            }
-            catch (Exception e)
-            {
-                Log($"Не удалось скачать лист видосов.\n{e}");
-                return;
-            }
+        //         foreach (var video in videos)
+        //             LogList(video);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Log($"Не удалось скачать лист видосов.\n{e}");
+        //         return;
+        //     }
 
-            //супер дурка, я хз
-            foreach (var up in validSummaries.ToArray())
-            {
-                if (!you.Check(up.videoId!))
-                {
-                    Log($"А видео то и нет {up.videoId}");
-                    validSummaries.Remove(up);
-                }
-            }
+        //     //супер дурка, я хз
+        //     foreach (var up in validSummaries.ToArray())
+        //     {
+        //         if (!you.Check(up.videoId!))
+        //         {
+        //             Log($"А видео то и нет {up.videoId}");
+        //             validSummaries.Remove(up);
+        //         }
+        //     }
 
-            //Обновляем первый раз
-            foreach (var up in validSummaries)
-            {
-                string description = FormDescription(up.writer, subgifters,
-                                                        totalLost, advertLost,
-                                                        up.conversionTime, totalConversionTime,
-                                                        up.uploadTime, totalUploadTime,
-                                                        null,
-                                                        streamCost);
+        //     //Обновляем первый раз
+        //     foreach (var up in validSummaries)
+        //     {
+        //         string description = FormDescription(up.writer, subgifters,
+        //                                                 totalLost, advertLost,
+        //                                                 up.conversionTime, totalConversionTime,
+        //                                                 up.uploadTime, totalUploadTime,
+        //                                                 null,
+        //                                                 streamCost);
 
-                try
-                {
-                    Log($"Обновляем видево {up.videoId}...");
-                    await you.UpdateDescription(up.videoId!, description);
-                    Log($"Обновили видево {up.videoId}.");
-                }
-                catch (Exception e)
-                {
-                    Log($"Не удалось обновить {up.videoId}.\n{e}");
-                    continue;
-                }
-            }
+        //         try
+        //         {
+        //             Log($"Обновляем видево {up.videoId}...");
+        //             await you.UpdateDescription(up.videoId!, description);
+        //             Log($"Обновили видево {up.videoId}.");
+        //         }
+        //         catch (Exception e)
+        //         {
+        //             Log($"Не удалось обновить {up.videoId}.\n{e}");
+        //             continue;
+        //         }
+        //     }
 
-            //ну всё, начинается цирк
-            //TODO доделать
-            //await Task.Delay(Program.config.YouTube!.VideoDescriptionUpdateDelay);
-        }
+        //     //ну всё, начинается цирк
+        //     //TODO доделать
+        //     //await Task.Delay(Program.config.YouTube!.VideoDescriptionUpdateDelay);
+        // }
 
         private string FormName(DateTimeOffset date, int? videoNumber)
         {

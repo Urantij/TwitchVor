@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
-		<ProjectReference Include="..\TwitchStreamDownloader\TwitchStreamDownloader\TwitchStreamDownloader.csproj"/>
+		<ProjectReference Include="..\TwitchStreamDownloader\TwitchStreamDownloader\TwitchStreamDownloader.csproj" />
 	</ItemGroup>
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -9,12 +9,13 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="DigitalOcean.API" Version="5.2.0"/>
-		<PackageReference Include="Google.Apis.YouTube.v3" Version="1.57.0.2693"/>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
-		<PackageReference Include="TwitchLib.Api" Version="3.5.2"/>
-		<PackageReference Include="TwitchLib.Api.Helix" Version="3.5.2"/>
-		<PackageReference Include="TwitchLib.PubSub" Version="3.2.3"/>
-		<PackageReference Include="MailKit" Version="3.2.0"/>
+		<PackageReference Include="DigitalOcean.API" Version="5.2.0" />
+		<PackageReference Include="Google.Apis.YouTube.v3" Version="1.57.0.2756" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="TwitchLib.Api" Version="3.7.0" />
+		<PackageReference Include="TwitchLib.Api.Helix" Version="3.7.0" />
+		<PackageReference Include="TwitchLib.PubSub" Version="3.2.5" />
+		<PackageReference Include="MailKit" Version="3.4.2" />
+		<PackageReference Include="VkNet" Version="1.72.0" />
 	</ItemGroup>
 </Project>

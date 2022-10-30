@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace TwitchVor.TubeYou
+namespace TwitchVor.Upload.TubeYou
 {
     public class YoutubeCreds
     {

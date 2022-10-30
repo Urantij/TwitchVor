@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using TwitchVor.Ocean;
-using TwitchVor.TubeYou;
+using TwitchVor.Upload.Kvk;
+using TwitchVor.Upload.TubeYou;
 
 namespace TwitchVor.Configuration
 {
@@ -21,8 +22,11 @@ namespace TwitchVor.Configuration
         public string PreferedVideoQuality { get; set; } = "720p";
         public string PreferedVideoFps { get; set; } = "p60";
 
+        // [JsonProperty(Required = Required.Default)]
+        // public YoutubeCreds? YouTube { get; set; } = null;
+
         [JsonProperty(Required = Required.Default)]
-        public YoutubeCreds? YouTube { get; set; } = null;
+        public VkCreds? Vk { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public OceanCreds? Ocean { get; set; } = null;

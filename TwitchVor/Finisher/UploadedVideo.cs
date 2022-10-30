@@ -1,4 +1,3 @@
-using TwitchVor.TubeYou;
 using TwitchVor.Vvideo;
 
 namespace TwitchVor.Finisher

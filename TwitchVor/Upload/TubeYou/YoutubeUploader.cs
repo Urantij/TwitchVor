@@ -6,7 +6,7 @@ using Google.Apis.Upload;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 
-namespace TwitchVor.TubeYou
+namespace TwitchVor.Upload.TubeYou
 {
     public class YoutubeUploader
     {

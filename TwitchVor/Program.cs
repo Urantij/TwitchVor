@@ -5,10 +5,10 @@ using Newtonsoft.Json;
 using TwitchLib.Api;
 using TwitchVor.Configuration;
 using TwitchVor.Finisher;
-using TwitchVor.TubeYou;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
+using TwitchVor.Upload.TubeYou;
 using TwitchVor.Utility;
 
 namespace TwitchVor
@@ -56,21 +56,21 @@ namespace TwitchVor
                 File.WriteAllText(configPath, configStr);
             }
 
-            {
-                var genIndex = Array.IndexOf(appArgs, "--generateyoutubecreds");
-                if (genIndex != -1)
-                {
-                    var creds = await YoutubeSigner.GenerateCreds(appArgs[genIndex + 1], appArgs[genIndex + 2]);
+            // {
+            //     var genIndex = Array.IndexOf(appArgs, "--generateyoutubecreds");
+            //     if (genIndex != -1)
+            //     {
+            //         var creds = await YoutubeSigner.GenerateCreds(appArgs[genIndex + 1], appArgs[genIndex + 2]);
 
-                    config.YouTube = creds;
+            //         config.YouTube = creds;
 
-                    string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
+            //         string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
 
-                    File.WriteAllText(configPath, configStr);
-                    System.Console.WriteLine("Сделано.");
-                    return;
-                }
-            }
+            //         File.WriteAllText(configPath, configStr);
+            //         System.Console.WriteLine("Сделано.");
+            //         return;
+            //     }
+            // }
 
             if (config.Channel == null || config.Channel == Config.emptyChannel ||
                 config.TwitchAPISecret == null || config.TwitchAPIClientId == null)
@@ -103,14 +103,24 @@ namespace TwitchVor
             //q
             ColorLog.Log($"Качество {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
 
-            //youtube
-            if (config.YouTube != null)
+            // //youtube
+            // if (config.YouTube != null)
+            // {
+            //     ColorLog.Log("Ютуб добавлен");
+            // }
+            // else
+            // {
+            //     ColorLog.Log("Без ютуба");
+            // }
+
+            //vk
+            if (config.Vk != null)
             {
-                ColorLog.Log("Ютуб добавлен");
+                ColorLog.Log("Вк добавлен");
             }
             else
             {
-                ColorLog.Log("Без ютуба");
+                ColorLog.Log("Без вк");
             }
 
             //do
@@ -146,7 +156,12 @@ namespace TwitchVor
                 ColorLog.Log("Без конверсии");
             }
 
-            if (config.Ocean != null && config.YouTube == null)
+            // if (config.Ocean != null && (config.YouTube == null || config.Vk == null))
+            // {
+            //     ColorLog.Log("Чего блять?");
+            //     return;
+            // }
+            if (config.Ocean != null && config.Vk == null)
             {
                 ColorLog.Log("Чего блять?");
                 return;

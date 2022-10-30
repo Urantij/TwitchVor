@@ -7,7 +7,7 @@ using Google.Apis.Util;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 
-namespace TwitchVor.TubeYou
+namespace TwitchVor.Upload.TubeYou
 {
     class YoutubeDescriptor
     {
