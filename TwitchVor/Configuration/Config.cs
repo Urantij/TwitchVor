@@ -1,16 +1,44 @@
 using Newtonsoft.Json;
-using TwitchVor.Ocean;
+using TwitchVor.Communication.Email;
+using TwitchVor.Conversion;
+using TwitchVor.Space.TimeWeb;
+using TwitchVor.Twitch;
 using TwitchVor.Upload.Kvk;
-using TwitchVor.Upload.TubeYou;
 
 namespace TwitchVor.Configuration
 {
     class Config
     {
-        public const string emptyChannel = "___Channel";
+        [JsonIgnore]
+        private readonly string path;
+
+        [Obsolete("Юзается для десериализации, не трогай.")]
+        public Config()
+        {
+
+        }
+
+        public Config(string path)
+        {
+            this.path = path;
+        }
+
+        public async Task SaveAsync()
+        {
+            string content = JsonConvert.SerializeObject(this, Formatting.Indented);
+
+            await File.WriteAllTextAsync(path, content);
+        }
+
+        public static async Task<Config> LoadAsync(string path)
+        {
+            string content = await File.ReadAllTextAsync(path);
+
+            return JsonConvert.DeserializeObject<Config>(content)!;
+        }
 
         [JsonProperty(Required = Required.Always)]
-        public string? Channel { get; set; } = emptyChannel;
+        public string? Channel { get; set; } = null;
         [JsonProperty(Required = Required.Default)]
         public string? ChannelId { get; set; } = null;
 
@@ -21,15 +49,13 @@ namespace TwitchVor.Configuration
 
         public string PreferedVideoQuality { get; set; } = "720p";
         public string PreferedVideoFps { get; set; } = "p60";
+        public bool TakeOnlyPrefered { get; set; } = false;
 
-        // [JsonProperty(Required = Required.Default)]
-        // public YoutubeCreds? YouTube { get; set; } = null;
+        [JsonProperty(Required = Required.Default)]
+        public TimewebConfig? Timeweb { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public VkCreds? Vk { get; set; } = null;
-
-        [JsonProperty(Required = Required.Default)]
-        public OceanCreds? Ocean { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public ConversionConfig? Conversion { get; set; } = null;
@@ -52,7 +78,8 @@ namespace TwitchVor.Configuration
 
         //Stream
 
-        public DownloaderConfig? Downloader { get; set; } = null;
+        [JsonProperty(Required = Required.Always)]
+        public DownloaderConfig Downloader { get; set; }
         /// <summary>
         /// У токена срока жизни 20 минут, но пользоваться им можно час, почему то.
         /// Тру - форсить смену токена через 20 минут (ну или когда он истечёт(?))
@@ -69,20 +96,11 @@ namespace TwitchVor.Configuration
         /// </summary>
         public TimeSpan StreamRestartCheckTime { get; set; } = TimeSpan.FromHours(1); //часик
 
-        public TimeSpan SegmentAccessReupdateDelay { get; set; } = TimeSpan.FromMinutes(1);
-
         public TimeSpan SegmentDownloaderTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
         //File
 
-        public string VideosDirectoryName { get; set; } = "Videos";
-        public string LocalDescriptionsDirectoryName { get; set; } = "Descriptions";
-
-        /// <summary>
-        /// Байты
-        /// </summary>
-        public long MaximumVideoSize { get; set; } = 1000L * 1000L * 1000L * 100L; // ~100 гигов
-        public TimeSpan MaximumVideoDuration { get; set; } = TimeSpan.FromHours(12) * 0.98f; // ~12 часов
+        public string CacheDirectoryName { get; set; } = "CachedData";
 
         /// <summary>
         /// Информация о длительности сегмента не всегда правдива.
@@ -90,6 +108,5 @@ namespace TwitchVor.Configuration
         /// Но если больше, то мы потеряли контент
         /// </summary>
         public TimeSpan MinimumSegmentSkipDelay { get; set; } = TimeSpan.FromSeconds(0.2);
-        public TimeSpan FileWriteTimeout { get; set; } = TimeSpan.FromSeconds(5);
     }
 }

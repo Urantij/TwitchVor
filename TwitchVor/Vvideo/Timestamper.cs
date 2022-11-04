@@ -9,22 +9,9 @@ namespace TwitchVor.Vvideo
     /// </summary>
     class Timestamper
     {
-        readonly HelixChecker helixChecker;
-
         public readonly List<BaseTimestamp> timestamps = new();
 
         HelixCheck? lastHelixCheck;
-
-        public Timestamper(HelixChecker helixChecker)
-        {
-            this.helixChecker = helixChecker;
-            helixChecker.ChannelChecked += HelixChecker_ChannelChecked;
-        }
-
-        public void Stop()
-        {
-            helixChecker.ChannelChecked -= HelixChecker_ChannelChecked;
-        }
 
         private void AddTimestamp(BaseTimestamp timestamp)
         {
@@ -34,7 +21,7 @@ namespace TwitchVor.Vvideo
             }
         }
 
-        private void HelixChecker_ChannelChecked(object? sender, HelixCheck e)
+        public void HelixChecker_ChannelChecked(object? sender, HelixCheck e)
         {
             if (lastHelixCheck != null)
             {

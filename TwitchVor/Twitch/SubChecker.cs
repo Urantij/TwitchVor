@@ -15,24 +15,33 @@ namespace TwitchVor.Twitch
         }
     }
 
-    static class SubChecker
+    class SubChecker
     {
+        readonly string channelId;
+        readonly SubCheckConfig config;
+
+        public SubChecker(string channelId, SubCheckConfig config)
+        {
+            this.channelId = channelId;
+            this.config = config;
+        }
+
         static void Log(string message)
         {
             ColorLog.Log(message, "SubChecker");
         }
 
-        public static async Task<SubCheck?> GetSub(string channelId, string appSecret, string appClientId, string userId, string refreshToken)
+        public async Task<SubCheck?> GetSubAsync()
         {
             try
             {
                 TwitchAPI userApi = new();
 
                 //всё равно нужно внутрь класть, или он ошибку кинет, что нужно класть
-                userApi.Settings.ClientId = appClientId;
-                userApi.Settings.Secret = appSecret;
+                userApi.Settings.ClientId = config.AppClientId;
+                userApi.Settings.Secret = config.AppSecret;
 
-                var token = await userApi.Auth.RefreshAuthTokenAsync(refreshToken, appSecret, appClientId);
+                var token = await userApi.Auth.RefreshAuthTokenAsync(config.RefreshToken, config.AppSecret, config.AppClientId);
 
                 userApi.Settings.AccessToken = token.AccessToken;
 
@@ -41,7 +50,7 @@ namespace TwitchVor.Twitch
                 TwitchLib.Api.Helix.Models.Subscriptions.Subscription subscription;
                 try
                 {
-                    var result = await userApi.Helix.Subscriptions.CheckUserSubscriptionAsync(channelId, userId, token.AccessToken);
+                    var result = await userApi.Helix.Subscriptions.CheckUserSubscriptionAsync(channelId, config.UserId, token.AccessToken);
                     subscription = result.Data[0];
                 }
                 catch (TwitchLib.Api.Core.Exceptions.BadResourceException)
@@ -49,7 +58,7 @@ namespace TwitchVor.Twitch
                     Log($"We have no sub");
                     return new SubCheck(false, null);
                 }
-                
+
                 if (!subscription.IsGift)
                 {
                     Log("We have sub, but no subgifter");

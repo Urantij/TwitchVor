@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using MimeKit;
 using TwitchVor.Configuration;
+using TwitchVor.Utility;
 
-namespace TwitchVor.Utility
+namespace TwitchVor.Communication.Email
 {
     public class Emailer
     {

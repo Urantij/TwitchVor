@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-namespace TwitchVor.Configuration
+namespace TwitchVor.Communication.Email
 {
     public class EmailConfig
     {
