@@ -188,16 +188,12 @@ namespace TwitchVor.Twitch.Downloader
             }
         }
 
-        private async void ItemDequeued(object? sender, QueueItem e)
+        private async void ItemDequeued(object? sender, QueueItem qItem)
         {
             try
             {
-                if (e.Written)
+                if (qItem.Written)
                 {
-                    int id = db.AddSegment(e.segment.mediaSequenceNumber, e.segment.programDate, e.bufferWriteStream.Length, e.segment.duration);
-
-                    e.bufferWriteStream.Position = 0;
-
                     BaseSpaceProvider spaceToWrite;
 
                     if (space.Ready)
@@ -228,15 +224,18 @@ namespace TwitchVor.Twitch.Downloader
                         spaceToWrite = tempSpace;
                     }
 
+                    int id = db.AddSegment(qItem.segment.mediaSequenceNumber, qItem.segment.programDate, qItem.bufferWriteStream.Length, qItem.segment.duration);
+                    qItem.bufferWriteStream.Position = 0;
+
                     try
                     {
                         if (spaceToWrite.AsyncUpload)
                         {
-                            await spaceToWrite.PutDataAsync(id, e.bufferWriteStream, e.bufferWriteStream.Length);
+                            await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
                         }
                         else
                         {
-                            spaceToWrite.PutDataAsync(id, e.bufferWriteStream, e.bufferWriteStream.Length).GetAwaiter().GetResult();
+                            spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
                         }
                     }
                     catch (Exception exception)
@@ -246,28 +245,28 @@ namespace TwitchVor.Twitch.Downloader
 
                     if (lastSegmentEnd != null)
                     {
-                        var difference = e.segment.programDate - lastSegmentEnd.Value;
+                        var difference = qItem.segment.programDate - lastSegmentEnd.Value;
 
                         if (difference >= Program.config.MinimumSegmentSkipDelay)
                         {
                             Log($"Skip Detected! Skipped {difference.TotalSeconds:N0} seconds :(");
 
-                            await db.AddSkipAsync(lastSegmentEnd.Value, e.segment.programDate);
+                            await db.AddSkipAsync(lastSegmentEnd.Value, qItem.segment.programDate);
                         }
                     }
 
-                    lastSegmentEnd = e.segment.programDate.AddSeconds(e.segment.duration);
+                    lastSegmentEnd = qItem.segment.programDate.AddSeconds(qItem.segment.duration);
                 }
                 else
                 {
                     // пропущен сегмент
 
-                    Log($"Missing downloading segment {e.segment.title}");
+                    Log($"Missing downloading segment {qItem.segment.title}");
                 }
             }
             finally
             {
-                await e.bufferWriteStream.DisposeAsync();
+                await qItem.bufferWriteStream.DisposeAsync();
             }
         }
 
