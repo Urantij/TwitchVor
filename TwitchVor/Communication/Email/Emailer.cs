@@ -31,6 +31,7 @@ namespace TwitchVor.Communication.Email
             {
                 using (var client = new SmtpClient())
                 {
+                    client.Timeout = 10000;
                     client.Connect("smtp.gmail.com", 465, true);
 
                     // Note: only needed if the SMTP server requires authentication
