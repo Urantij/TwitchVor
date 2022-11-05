@@ -11,7 +11,7 @@ namespace TwitchVor.Configuration
     class Config
     {
         [JsonIgnore]
-        private readonly string path;
+        private string path;
 
         [Obsolete("Юзается для десериализации, не трогай.")]
         public Config()
@@ -35,7 +35,10 @@ namespace TwitchVor.Configuration
         {
             string content = await File.ReadAllTextAsync(path);
 
-            return JsonConvert.DeserializeObject<Config>(content)!;
+            var config = JsonConvert.DeserializeObject<Config>(content)!;
+            config.path = path;
+
+            return config;
         }
 
         [JsonProperty(Required = Required.Always)]
@@ -54,7 +57,7 @@ namespace TwitchVor.Configuration
 
         [JsonProperty(Required = Required.Default)]
         public OceanCreds? Ocean { get; set; } = null;
-        
+
         [JsonProperty(Required = Required.Default)]
         public TimewebConfig? Timeweb { get; set; } = null;
 
