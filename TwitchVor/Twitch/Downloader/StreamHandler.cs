@@ -145,12 +145,11 @@ namespace TwitchVor.Twitch.Downloader
             await streamDownloader.CloseAsync();
         }
 
-        internal async Task DestroyAsync(bool destroySpace)
+        internal async Task DestroyAsync(bool destroySegments)
         {
-            await db.DestroyAsync();
-
-            if (destroySpace)
+            if (destroySegments)
             {
+                await db.DestroyAsync();
                 await space.DestroyAsync();
             }
         }

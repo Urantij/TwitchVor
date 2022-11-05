@@ -134,7 +134,17 @@ namespace TwitchVor.Finisher
 
                     var uploader = DependencyProvider.GetUploader(streamHandler.guid);
 
-                    bool success = await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
+                    bool success;
+                    try
+                    {
+                        await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
+
+                        success = true;
+                    }
+                    catch (Exception e)
+                    {
+                        success = false;
+                    }
 
                     if (!success)
                         allSuccess = false;
@@ -147,7 +157,7 @@ namespace TwitchVor.Finisher
                 }
             }
 
-            await streamHandler.DestroyAsync(destroySpace: allSuccess);
+            await streamHandler.DestroyAsync(destroySegments: allSuccess);
 
             if (Program.emailer != null)
             {
