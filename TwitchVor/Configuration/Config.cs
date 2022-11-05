@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using TwitchVor.Communication.Email;
 using TwitchVor.Conversion;
+using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
 using TwitchVor.Upload.Kvk;
@@ -51,6 +52,9 @@ namespace TwitchVor.Configuration
         public string PreferedVideoFps { get; set; } = "p60";
         public bool TakeOnlyPrefered { get; set; } = false;
 
+        [JsonProperty(Required = Required.Default)]
+        public OceanCreds? Ocean { get; set; } = null;
+        
         [JsonProperty(Required = Required.Default)]
         public TimewebConfig? Timeweb { get; set; } = null;
 

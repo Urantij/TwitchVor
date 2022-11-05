@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TwitchVor.Space;
 using TwitchVor.Space.Local;
+using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Upload;
 using TwitchVor.Upload.FileSystem;
@@ -18,6 +19,10 @@ namespace TwitchVor.Utility
             if (Program.config.Timeweb != null)
             {
                 return new TimewebSpaceProvider(guid, Program.config.Timeweb);
+            }
+            else if (Program.config.Ocean != null)
+            {
+                return new DigitalOceanSpaceProvider(guid, Program.config.Ocean);
             }
 
             return new LocalSpaceProvider(guid, MakeLocalSpacePath(guid, false));
