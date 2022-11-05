@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace TwitchVor.Vvideo
+namespace TwitchVor.Space.OceanDigital
 {
     class VolumeTracker
     {

@@ -18,7 +18,8 @@ namespace TwitchVor.Twitch.Downloader
 
         public StreamsManager()
         {
-            currentStamper = new(Program.statuser.helixChecker);
+            currentStamper = new();
+            Program.statuser.helixChecker.ChannelChecked += currentStamper.HelixChecker_ChannelChecked;
 
             Program.statuser.ChannelWentOnline += StatuserOnline;
             Program.statuser.ChannelWentOffline += StatuserOffline;
@@ -68,8 +69,9 @@ namespace TwitchVor.Twitch.Downloader
                 currentStream = null;
                 ClearCurrentCancellationSource();
 
-                currentStamper.Stop();
-                currentStamper = new(Program.statuser.helixChecker);
+                Program.statuser.helixChecker.ChannelChecked -= currentStamper.HelixChecker_ChannelChecked;
+
+                currentStamper = new();
             }
 
             _ = Task.Run(async () =>
@@ -79,7 +81,7 @@ namespace TwitchVor.Twitch.Downloader
                     await finishingStream.FinishAsync();
 
                     StreamFinisher finisher = new(finishingStream);
-                    await finisher.FinishAsync();
+                    await finisher.DoAsync();
                 }
                 catch (Exception e)
                 {
@@ -110,8 +112,8 @@ namespace TwitchVor.Twitch.Downloader
                 }
                 else
                 {
-                    currentStream = new StreamHandler(currentStamper, Program.config.Ocean);
-                    currentStream.Start();
+                    currentStream = new StreamHandler(currentStamper);
+                    _ = currentStream.StartAsync();
                 }
             }
         }

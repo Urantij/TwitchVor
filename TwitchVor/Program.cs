@@ -3,12 +3,13 @@ using System.Drawing;
 using System.IO;
 using Newtonsoft.Json;
 using TwitchLib.Api;
+using TwitchVor.Communication.Email;
 using TwitchVor.Configuration;
+using TwitchVor.Conversion;
 using TwitchVor.Finisher;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
-using TwitchVor.Upload.TubeYou;
 using TwitchVor.Utility;
 
 namespace TwitchVor
@@ -27,6 +28,10 @@ namespace TwitchVor
         public static Config config;
 #nullable enable
 
+
+        public static SubChecker? subChecker;
+        public static Ffmpeg? ffmpeg;
+
         public static Emailer? emailer;
 
         public static bool debug = false;
@@ -34,7 +39,7 @@ namespace TwitchVor
 
         static async Task Main(string[] appArgs)
         {
-            Great();
+            Greater.Great();
 
             debug = appArgs.Contains("--debug");
             if (debug)
@@ -44,39 +49,26 @@ namespace TwitchVor
 
             if (File.Exists(configPath))
             {
-                string configStr = File.ReadAllText(configPath);
-
-                config = JsonConvert.DeserializeObject<Config>(configStr)!;
+                config = await Config.LoadAsync(configPath);
             }
             else
             {
-                config = new Config();
-                string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
+                config = new Config(configPath);
+                await config.SaveAsync();
 
-                File.WriteAllText(configPath, configStr);
+                ColorLog.Log("Создали конфиг.");
             }
 
-            // {
-            //     var genIndex = Array.IndexOf(appArgs, "--generateyoutubecreds");
-            //     if (genIndex != -1)
-            //     {
-            //         var creds = await YoutubeSigner.GenerateCreds(appArgs[genIndex + 1], appArgs[genIndex + 2]);
-
-            //         config.YouTube = creds;
-
-            //         string configStr = JsonConvert.SerializeObject(config, Formatting.Indented);
-
-            //         File.WriteAllText(configPath, configStr);
-            //         System.Console.WriteLine("Сделано.");
-            //         return;
-            //     }
-            // }
-
-            if (config.Channel == null || config.Channel == Config.emptyChannel ||
+            if (config.Channel == null ||
                 config.TwitchAPISecret == null || config.TwitchAPIClientId == null)
             {
                 ColorLog.LogError("Разберись с конфигом ебать");
                 return;
+            }
+
+            if (config.Conversion != null)
+            {
+                ffmpeg = new Ffmpeg(config.Conversion);
             }
 
             twitchAPI = new TwitchAPI();
@@ -95,23 +87,13 @@ namespace TwitchVor
 
                 config.ChannelId = callrsult.Users[0].Id;
 
-                File.WriteAllText(configPath, JsonConvert.SerializeObject(config, Formatting.Indented));
+                await config.SaveAsync();
 
                 ColorLog.Log($"Обновлён айди канала");
             }
 
             //q
             ColorLog.Log($"Качество {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
-
-            // //youtube
-            // if (config.YouTube != null)
-            // {
-            //     ColorLog.Log("Ютуб добавлен");
-            // }
-            // else
-            // {
-            //     ColorLog.Log("Без ютуба");
-            // }
 
             //vk
             if (config.Vk != null)
@@ -123,27 +105,9 @@ namespace TwitchVor
                 ColorLog.Log("Без вк");
             }
 
-            //do
-            if (config.Ocean != null)
-            {
-                ColorLog.Log("ДО добавлен");
-
-                var do_client = new DigitalOcean.API.DigitalOceanClient(config.Ocean.ApiToken);
-
-                var droplet = do_client.Droplets.Get(config.Ocean.DropletId).GetAwaiter().GetResult();
-
-                config.Ocean.Region = droplet.Region.Slug;
-
-                ColorLog.Log($"Регион дроплетов: {config.Ocean.Region}");
-            }
-            else
-            {
-                ColorLog.Log("Без ДО");
-            }
-
             if (config.Conversion is ConversionConfig conversion)
             {
-                ColorLog.Log($"Конвертируем в {conversion.TargetFormat} с параметрами \"{conversion.Arguments}\" ({conversion.FfmpegPath})");
+                ColorLog.Log($"Конвертируем ({conversion.FfmpegPath})");
 
                 if (!File.Exists(conversion.FfmpegPath))
                 {
@@ -156,24 +120,15 @@ namespace TwitchVor
                 ColorLog.Log("Без конверсии");
             }
 
-            // if (config.Ocean != null && (config.YouTube == null || config.Vk == null))
-            // {
-            //     ColorLog.Log("Чего блять?");
-            //     return;
-            // }
-            if (config.Ocean != null && config.Vk == null)
-            {
-                ColorLog.Log("Чего блять?");
-                return;
-            }
-
-            if (config.Downloader?.SubCheck != null)
+            if (config.Downloader.SubCheck != null)
             {
                 ColorLog.Log($"Чекаем сабгифтера");
 
+                subChecker = new SubChecker(config.ChannelId, config.Downloader.SubCheck);
+
                 if (config.Downloader.SubCheck.CheckSubOnStart)
                 {
-                    SubChecker.GetSub(config.ChannelId!, config.Downloader.SubCheck.AppSecret, config.Downloader.SubCheck.AppClientId, config.Downloader.SubCheck.UserId, config.Downloader.SubCheck.RefreshToken).GetAwaiter().GetResult();
+                    await subChecker.GetSubAsync();
                 }
             }
 
@@ -181,22 +136,16 @@ namespace TwitchVor
 
             streamsManager = new();
 
-            if (!Directory.Exists(config.VideosDirectoryName))
+            if (!Directory.Exists(config.CacheDirectoryName))
             {
-                Directory.CreateDirectory(config.VideosDirectoryName);
-                ColorLog.Log("Создана папка для видео.");
-            }
-
-            if (!Directory.Exists(config.LocalDescriptionsDirectoryName))
-            {
-                Directory.CreateDirectory(config.LocalDescriptionsDirectoryName);
-                ColorLog.Log("Создана папка для локальных описаний.");
+                Directory.CreateDirectory(config.CacheDirectoryName);
+                ColorLog.Log("Создана папка для кеша.");
             }
 
             if (config.Email != null)
             {
                 emailer = new Emailer(config.Email);
-                if (emailer.ValidateAsync().GetAwaiter().GetResult())
+                if (await emailer.ValidateAsync())
                 {
                     ColorLog.Log("Емейл в поряде");
                 }
@@ -246,25 +195,6 @@ namespace TwitchVor
                     shutdown = true;
                     ColorLog.Log("ок");
                 }
-            }
-        }
-
-        static void Great()
-        {
-            ConsoleColor[] colors = new ConsoleColor[]
-            {
-                ConsoleColor.Red,
-                ConsoleColor.DarkYellow,
-                ConsoleColor.Yellow,
-                ConsoleColor.Green,
-                ConsoleColor.Blue,
-                ConsoleColor.DarkBlue,
-                ConsoleColor.Magenta,
-            };
-
-            foreach (var color in colors)
-            {
-                ColorLog.Log("Ты пидор.", null, color);
             }
         }
     }

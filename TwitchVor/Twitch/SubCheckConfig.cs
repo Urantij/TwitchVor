@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace TwitchVor.Configuration
+namespace TwitchVor.Twitch
 {
     class SubCheckConfig
     {
