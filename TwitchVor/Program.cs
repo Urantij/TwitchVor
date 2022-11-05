@@ -123,6 +123,16 @@ namespace TwitchVor
                 ColorLog.Log("Без ДО");
             }
 
+            //timeweb
+            if (config.Timeweb != null)
+            {
+                ColorLog.Log("Таймвеб добавлен");
+            }
+            else
+            {
+                ColorLog.Log("Без таймвеба");
+            }
+
             if (config.Conversion is ConversionConfig conversion)
             {
                 ColorLog.Log($"Конвертируем ({conversion.FfmpegPath})");
