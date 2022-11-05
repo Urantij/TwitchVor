@@ -1,159 +1,151 @@
-// using DigitalOcean.API;
-// using TwitchVor.Utility;
+using DigitalOcean.API;
+using TwitchVor.Utility;
 
-// namespace TwitchVor.Space.OceanDigital
-// {
-//     /// <summary>
-//     /// Создаёт пульт от дроплета.
-//     /// Разделил, тому шо не хотелось ебаться с нуллабл полями
-//     /// </summary>
-//     class DigitalOceanVolumeCreator
-//     {
-//         readonly OceanCreds oceanCreds;
+namespace TwitchVor.Space.OceanDigital
+{
+    /// <summary>
+    /// Создаёт пульт от дроплета.
+    /// Разделил, тому шо не хотелось ебаться с нуллабл полями
+    /// </summary>
+    class DigitalOceanVolumeCreator
+    {
+        readonly OceanCreds oceanCreds;
 
-//         readonly DigitalOceanClient client;
+        readonly DigitalOceanClient client;
 
-//         public readonly string volumeName;
-//         public readonly int dropletSizeGB;
+        public readonly string volumeName;
+        public readonly int dropletSizeGB;
 
-//         public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName, int dropletSizeGB)
-//         {
-//             this.oceanCreds = oceanCreds;
-//             this.volumeName = volumeName;
-//             this.dropletSizeGB = dropletSizeGB;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="oceanCreds"></param>
+        /// <param name="volumeName">Must be lowercase and be composed only of numbers, letters and "-", up to a limit of 64 characters.</param>
+        /// <param name="dropletSizeGB"></param>
+        public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName, int dropletSizeGB)
+        {
+            this.oceanCreds = oceanCreds;
+            this.volumeName = volumeName;
+            this.dropletSizeGB = dropletSizeGB;
 
-//             client = new DigitalOceanClient(oceanCreds.ApiToken);
-//         }
+            client = new DigitalOceanClient(oceanCreds.ApiToken);
+        }
 
-//         static void Log(string message)
-//         {
-//             ColorLog.Log(message, "OceanCreator", ConsoleColor.Blue);
-//         }
+        static void Log(string message)
+        {
+            ColorLog.Log(message, "OceanCreator", ConsoleColor.Blue);
+        }
 
-//         static void LogError(string message)
-//         {
-//             ColorLog.LogError(message, "OceanCreator");
-//         }
+        static void LogError(string message)
+        {
+            ColorLog.LogError(message, "OceanCreator");
+        }
 
-//         /// <summary>
-//         /// 
-//         /// </summary>
-//         /// <returns></returns>
-//         /// <exception cref="Exception">Если не удалось атач сделать</exception>
-//         public async Task<DigitalOceanVolumeOperator> CreateAsync()
-//         {
-//             DigitalOcean.API.Models.Requests.Volume requestVolume = new()
-//             {
-//                 Name = volumeName,
-//                 Description = $"Created by vorishka {DateTime.Now:HH:mm:ss dd.MM}",
-//                 SizeGigabytes = dropletSizeGB,
-//                 FilesystemType = "ext4",
-//                 Region = oceanCreds.Region,
-//             };
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception">Если не удалось атач сделать</exception>
+        public async Task<DigitalOceanVolumeOperator> CreateAsync()
+        {
+            DigitalOcean.API.Models.Requests.Volume requestVolume = new()
+            {
+                Name = volumeName,
+                Description = $"Created by vorishka {DateTime.Now:HH:mm:ss dd.MM}",
+                SizeGigabytes = dropletSizeGB,
+                FilesystemType = "ext4",
+                Region = oceanCreds.Region,
+            };
 
-//             DigitalOcean.API.Models.Responses.Volume? responseVolume = null;
-//             while (responseVolume == null)
-//             {
-//                 bool sentEmail = false;
+            DigitalOcean.API.Models.Responses.Volume? responseVolume = await client.Volumes.Create(requestVolume);
 
-//                 try
-//                 {
-//                     responseVolume = await client.Volumes.Create(requestVolume);
-//                 }
-//                 catch (Exception e)
-//                 {
-//                     LogError($"Exception on volume creation.\n{e}");
+            string volumeId = responseVolume.Id;
 
-//                     if (Program.emailer != null && !sentEmail)
-//                     {
-//                         await Program.emailer.SendCriticalErrorAsync("Исключение при создании места.");
+            Log($"Created volume {volumeId}");
 
-//                         sentEmail = true;
-//                     }
+            DigitalOcean.API.Models.Responses.Action? attachAction = null;
 
-//                     await Task.Delay(TimeSpan.FromSeconds(10));
-//                 }
-//             }
+            while (attachAction == null)
+            {
+                bool sentEmail = false;
 
-//             string volumeId = responseVolume.Id;
+                try
+                {
+                    attachAction = await client.VolumeActions.Attach(responseVolume.Id, oceanCreds.DropletId, oceanCreds.Region);
+                }
+                catch (Exception e)
+                {
+                    LogError($"Exception on volume attachment.\n{e}");
 
-//             Log($"Created volume {volumeId}");
+                    if (CheckVolumeExtremeCreation())
+                    {
+                        goto end;
+                    }
+                    else
+                    {
+                        Log($"To continue, create {GetExtremePath()} file");
+                    }
 
-//             DigitalOcean.API.Models.Responses.Action? attachAction = null;
+                    if (Program.emailer != null && !sentEmail)
+                    {
+                        await Program.emailer.SendCriticalErrorAsync("Исключение при присоединении места.");
 
-//             while (attachAction == null)
-//             {
-//                 bool sentEmail = false;
+                        sentEmail = true;
+                    }
 
-//                 try
-//                 {
-//                     attachAction = await client.VolumeActions.Attach(responseVolume.Id, oceanCreds.DropletId, oceanCreds.Region);
-//                 }
-//                 catch (Exception e)
-//                 {
-//                     LogError($"Exception on volume attachment.\n{e}");
+                    await Task.Delay(TimeSpan.FromSeconds(10));
+                }
+            }
 
-//                     if (CheckVolumeExtremeCreation())
-//                     {
-//                         goto end;
-//                     }
-//                     else
-//                     {
-//                         Log($"To continue, create /mnt/{volumeName}/ok file");
-//                     }
+            var attachActionId = attachAction.Id;
 
-//                     if (Program.emailer != null && !sentEmail)
-//                     {
-//                         await Program.emailer.SendCriticalErrorAsync("Исключение при присоединении места.");
+            Log($"Attaching... {attachAction.Id}");
 
-//                         sentEmail = true;
-//                     }
+            //TODO получше
+            while (true)
+            {
+                if (attachAction.Status == "completed")
+                {
+                    break;
+                }
+                else if (attachAction.Status == "in-progress")
+                {
+                    Log("Progress...");
+                    await Task.Delay(5000);
 
-//                     await Task.Delay(TimeSpan.FromSeconds(10));
-//                 }
-//             }
+                    attachAction = await client.VolumeActions.GetAction(volumeId, attachActionId);
+                }
+                else
+                {
+                    throw new Exception($"Attach error: \"{attachAction.Status}\"");
+                }
+            }
 
-//             var attachActionId = attachAction.Id;
+        end:;
 
-//             Log($"Attaching... {attachAction.Id}");
+            Log($"Attached!");
 
-//             //TODO получше
-//             while (true)
-//             {
-//                 if (attachAction.Status == "completed")
-//                 {
-//                     break;
-//                 }
-//                 else if (attachAction.Status == "in-progress")
-//                 {
-//                     Log("Progress...");
-//                     await Task.Delay(5000);
+            return new DigitalOceanVolumeOperator(client, oceanCreds.DropletId, volumeId, oceanCreds.Region, volumeName);
+        }
 
-//                     attachAction = await client.VolumeActions.GetAction(volumeId, attachActionId);
-//                 }
-//                 else
-//                 {
-//                     var ex = new Exception($"Attach error: \"{attachAction.Status}\"");
-//                     throw ex;
-//                 }
-//             }
+        bool CheckVolumeExtremeCreation()
+        {
+            return File.Exists(GetExtremePath());
+        }
 
-//             end:;
+        string GetExtremePath()
+        {
+            return Path.Combine(GetVolumePath(), "ok");
+        }
 
-//             Log($"Attached!");
+        public string GetVolumePath()
+        {
+            return GetVolumePath(volumeName);
+        }
 
-//             return new DigitalOceanVolumeOperator(client, oceanCreds.DropletId, volumeId, oceanCreds.Region, volumeName);
-//         }
-
-//         bool CheckVolumeExtremeCreation()
-//         {
-//             return File.Exists($"/mnt/{volumeName}/ok");
-//         }
-
-//         public static string GenerateVolumeName(DateTime date)
-//         {
-//             //Must be lowercase and be composed only of numbers, letters and "-", up to a limit of 64 characters.
-//             return $"temp{date:MM}{date:dd}{date:HH}{date:mm}{date:ss}";
-//         }
-//     }
-// }
+        public static string GetVolumePath(string volumeName)
+        {
+            return Path.Combine("/mnt", volumeName);
+        }
+    }
+}

@@ -1,102 +1,107 @@
-// using System;
-// using System.Collections.Generic;
-// using System.Linq;
-// using System.Threading.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using TwitchVor.Space.Local;
+using TwitchVor.Utility;
 
-// namespace TwitchVor.Space.OceanDigital
-// {
-//     public class DigitalOceanSpaceProvider : BaseSpaceProvider
-//     {
-//         public Task InitAsync()
-//         {
-//             throw new NotImplementedException();
-//         }
+namespace TwitchVor.Space.OceanDigital
+{
+    class DigitalOceanSpaceProvider : BaseSpaceProvider
+    {
+        readonly OceanCreds creds;
 
-//         public Task PutDataAsync(Stream contentStream)
-//         {
-//             throw new NotImplementedException();
-//         }
+        DigitalOceanVolumeOperator? volumeOperator;
 
-//         public Task CloseAsync()
-//         {
-//             throw new NotImplementedException();
-//         }
+        LocalSpaceProvider? localSpaceProvider;
 
-//         async Task<bool> DestroyVolumes(List<DigitalOceanVolumeOperator> operators)
-//         {
-//             //расправа
+        public override bool AsyncUpload => false;
 
-//             List<Task<bool>> tasks = new();
-//             foreach (var op in operators)
-//             {
-//                 var task = Task.Run<bool>(async () =>
-//                 {
-//                     bool fine = false;
+        public DigitalOceanSpaceProvider(Guid guid, OceanCreds creds)
+            : base(guid)
+        {
+            this.creds = creds;
+        }
 
-//                     int retries = 0;
-//                     while (retries < 3)
-//                     {
-//                         try
-//                         {
-//                             await op.DetachAsync();
-//                             break;
-//                         }
-//                         catch (Exception e)
-//                         {
-//                             Log($"Не удалось отсоединить вольюм {op.volumeName}. Исключение:\n{e}");
+        public override async Task InitAsync()
+        {
+            DigitalOceanVolumeCreator volumeCreator = new(creds, guid.ToString("N")[..64].ToLower(), creds.SizeGigabytes);
 
-//                             retries++;
-//                             await Task.Delay(TimeSpan.FromSeconds(5));
-//                         }
-//                     }
+            volumeOperator = await volumeCreator.CreateAsync();
 
-//                     await Task.Delay(TimeSpan.FromSeconds(5));
+            var path = Path.Combine(volumeCreator.GetVolumePath(), guid.ToString("N") + ".ts");
 
-//                     retries = 0;
-//                     while (retries < 3)
-//                     {
-//                         try
-//                         {
-//                             await op.DeleteAsync();
+            localSpaceProvider = new LocalSpaceProvider(guid, path);
+            await localSpaceProvider.InitAsync();
 
-//                             fine = true;
-//                             break;
-//                         }
-//                         catch (Exception e)
-//                         {
-//                             Log($"Не удалось удалить вольюм {op.volumeName}. Исключение:\n{e}");
+            Ready = true;
+        }
 
-//                             retries++;
-//                             await Task.Delay(TimeSpan.FromSeconds(5));
-//                         }
-//                     }
+        public override async Task PutDataAsync(int id, Stream contentStream, long length)
+        {
+            if (localSpaceProvider == null)
+                throw new NullReferenceException($"{nameof(localSpaceProvider)} is null");
 
-//                     await Task.Delay(TimeSpan.FromSeconds(5));
+            await localSpaceProvider.PutDataAsync(id, contentStream, length);
+        }
 
-//                     //хз че будет, если не удалённому вольюму удалить папку, но мне похуй
-//                     try
-//                     {
-//                         Directory.Delete($"/mnt/{op.volumeName}");
-//                         Log($"Папка {op.volumeName} удалена");
-//                     }
-//                     catch (Exception e)
-//                     {
-//                         Log($"Не удалось удалить папку {op.volumeName}: {e.Message}");
-//                     }
+        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream)
+        {
+            if (localSpaceProvider == null)
+                throw new NullReferenceException($"{nameof(localSpaceProvider)} is null");
 
-//                     await Task.Delay(TimeSpan.FromSeconds(5));
+            await localSpaceProvider.ReadDataAsync(id, offset, length, inputStream);
+        }
 
-//                     return fine;
-//                 });
+        public override async Task CloseAsync()
+        {
+            if (localSpaceProvider != null)
+            {
+                await localSpaceProvider.CloseAsync();
+            }
+        }
 
-//                 tasks.Add(task);
+        public override async Task DestroyAsync()
+        {
+            if (localSpaceProvider != null)
+            {
+                await localSpaceProvider.DestroyAsync();
+            }
 
-//                 await Task.Delay(TimeSpan.FromSeconds(1));
-//             }
+            if (volumeOperator == null)
+                return;
 
-//             Task.WaitAll(tasks.ToArray());
+            await volumeOperator.DetachAsync();
 
-//             return tasks.All(t => t.Result);
-//         }
-//     }
-// }
+            await Task.Delay(TimeSpan.FromSeconds(5));
+
+            {
+                bool fine = false;
+
+                int retries = 0;
+                while (retries < 3)
+                {
+                    try
+                    {
+                        await volumeOperator.DeleteAsync();
+                        fine = true;
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                        ColorLog.LogError($"Не удалось удалить вольюм {volumeOperator.volumeName}. Исключение:\n{e}", nameof(DigitalOceanSpaceProvider));
+
+                        retries++;
+                        await Task.Delay(TimeSpan.FromSeconds(10));
+                    }
+                }
+
+                if (!fine)
+                    throw new Exception("Не удалось удалить вольюм");
+            }
+
+            Directory.Delete(volumeOperator.GetVolumePath());
+            ColorLog.LogError($"Всё удалено.", nameof(DigitalOceanSpaceProvider));
+        }
+    }
+}

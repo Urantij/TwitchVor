@@ -105,6 +105,24 @@ namespace TwitchVor
                 ColorLog.Log("Без вк");
             }
 
+            //do
+            if (config.Ocean != null)
+            {
+                ColorLog.Log("ДО добавлен");
+
+                var do_client = new DigitalOcean.API.DigitalOceanClient(config.Ocean.ApiToken);
+
+                DigitalOcean.API.Models.Responses.Droplet droplet = await do_client.Droplets.Get(config.Ocean.DropletId);
+
+                config.Ocean.Region = droplet.Region.Slug;
+
+                ColorLog.Log($"Регион дроплетов: {config.Ocean.Region}");
+            }
+            else
+            {
+                ColorLog.Log("Без ДО");
+            }
+
             if (config.Conversion is ConversionConfig conversion)
             {
                 ColorLog.Log($"Конвертируем ({conversion.FfmpegPath})");
