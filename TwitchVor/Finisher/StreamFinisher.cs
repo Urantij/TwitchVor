@@ -219,22 +219,22 @@ namespace TwitchVor.Finisher
 
                 inputPipe = conversionHandler.InputStream;
 
-                // // Читать ффмпег
-                // _ = Task.Run(async () =>
-                // {
-                //     while (true)
-                //     {
-                //         var line = await conversionHandler.TextStream.ReadLineAsync();
+                // Читать ффмпег
+                _ = Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        var line = await conversionHandler.TextStream.ReadLineAsync();
 
-                //         if (line == null)
-                //         {
-                //             System.Console.WriteLine("ффмпег закончил говорить.");
-                //             return;
-                //         }
+                        if (line == null)
+                        {
+                            System.Console.WriteLine("ффмпег закончил говорить.");
+                            return;
+                        }
 
-                //         System.Console.WriteLine(line);
-                //     }
-                // });
+                        // System.Console.WriteLine(line);
+                    }
+                });
 
                 // Перенаправление выхода ффмпега в сервер.
                 _ = Task.Run(async () =>
