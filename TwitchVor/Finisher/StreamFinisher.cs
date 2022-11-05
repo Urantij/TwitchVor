@@ -265,7 +265,14 @@ namespace TwitchVor.Finisher
 
                     foreach (var segment in segments)
                     {
-                        await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                        try
+                        {
+                            await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                        }
+                        catch (Exception e)
+                        {
+                            System.Console.WriteLine("Read ex\n" + e);
+                        }
 
                         offset += segment.Size;
                     }
