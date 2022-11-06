@@ -51,8 +51,8 @@ namespace TwitchVor.Configuration
         [JsonProperty(Required = Required.AllowNull)]
         public string? TwitchAPISecret { get; set; } = null;
 
-        public string PreferedVideoQuality { get; set; } = "720p";
-        public string PreferedVideoFps { get; set; } = "p60";
+        public string PreferedVideoResolution { get; set; } = "1280x720";
+        public float PreferedVideoFps { get; set; } = 60;
         public bool TakeOnlyPrefered { get; set; } = false;
 
         [JsonProperty(Required = Required.Default)]

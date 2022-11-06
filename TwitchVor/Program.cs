@@ -129,7 +129,7 @@ namespace TwitchVor
             }
 
             //q
-            logger.LogInformation("Качество {quality} {fps}", Program.config.PreferedVideoQuality, Program.config.PreferedVideoFps);
+            logger.LogInformation("Качество {resolution} {fps}", Program.config.PreferedVideoResolution, Program.config.PreferedVideoFps);
 
             //vk
             if (config.Vk != null)

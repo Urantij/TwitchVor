@@ -64,7 +64,7 @@ namespace TwitchVor.Twitch.Downloader
             var settings = new SegmentsDownloaderSettings()
             {
                 preferredFps = Program.config.PreferedVideoFps,
-                preferredQuality = Program.config.PreferedVideoQuality,
+                preferredResolution = Program.config.PreferedVideoResolution,
 
                 takeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
             };
@@ -312,18 +312,19 @@ namespace TwitchVor.Twitch.Downloader
             //да не может он быть нулл.
             var downloader = (SegmentsDownloader)sender!;
 
-            if (downloader.LastVideo == e.streamInfTag.video)
+            if (downloader.LastStreamResolution == e.streamInfTag.resolution && 
+                downloader.LastStreamFramerate == e.streamInfTag.frameRate)
                 return;
 
             db.AddVideoFormat(e.streamInfTag.video!, DateTimeOffset.UtcNow);
 
-            if (downloader.LastVideo == null)
+            if (downloader.LastStreamResolution == null)
             {
-                _logger.LogInformation("Quality selected: {video}", e.streamInfTag.video);
+                _logger.LogInformation("Quality selected: {resolution}:{fps}", e.streamInfTag.resolution, e.streamInfTag.frameRate);
             }
             else
             {
-                _logger.LogWarning("New quality selected: {video} ({lastVideo})", e.streamInfTag.video, downloader.LastVideo);
+                _logger.LogWarning("New quality selected: {resolution}:{fps} ({lastResolution}:{lastFps})", e.streamInfTag.resolution, e.streamInfTag.frameRate, downloader.LastStreamResolution, downloader.LastStreamFramerate);
             }
         }
 
