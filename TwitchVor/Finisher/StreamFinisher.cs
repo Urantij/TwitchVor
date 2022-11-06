@@ -146,6 +146,8 @@ namespace TwitchVor.Finisher
                     }
                     catch (Exception e)
                     {
+                        _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
+
                         success = false;
                     }
 
