@@ -137,7 +137,17 @@ namespace TwitchVor.Finisher
 
                     var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
 
-                    bool success = await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
+                    bool success;
+                    try
+                    {
+                        await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
+
+                        success = true;
+                    }
+                    catch (Exception e)
+                    {
+                        success = false;
+                    }
 
                     if (!success)
                         allSuccess = false;
@@ -152,7 +162,7 @@ namespace TwitchVor.Finisher
 
             _logger.LogInformation("С видосами закончили...");
 
-            await streamHandler.DestroyAsync(destroySpace: allSuccess);
+            await streamHandler.DestroyAsync(destroySegments: allSuccess);
 
             if (Program.emailer != null)
             {
@@ -218,22 +228,22 @@ namespace TwitchVor.Finisher
 
                 inputPipe = conversionHandler.InputStream;
 
-                // // Читать ффмпег
-                // _ = Task.Run(async () =>
-                // {
-                //     while (true)
-                //     {
-                //         var line = await conversionHandler.TextStream.ReadLineAsync();
+                // Читать ффмпег
+                _ = Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        var line = await conversionHandler.TextStream.ReadLineAsync();
 
-                //         if (line == null)
-                //         {
-                //             System.Console.WriteLine("ффмпег закончил говорить.");
-                //             return;
-                //         }
+                        if (line == null)
+                        {
+                            System.Console.WriteLine("ффмпег закончил говорить.");
+                            return;
+                        }
 
-                //         System.Console.WriteLine(line);
-                //     }
-                // });
+                        // System.Console.WriteLine(line);
+                    }
+                });
 
                 // Перенаправление выхода ффмпега в сервер.
                 _ = Task.Run(async () =>
@@ -264,7 +274,14 @@ namespace TwitchVor.Finisher
 
                     foreach (var segment in segments)
                     {
-                        await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                        try
+                        {
+                            await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                        }
+                        catch (Exception e)
+                        {
+                            System.Console.WriteLine("Read ex\n" + e);
+                        }
 
                         offset += segment.Size;
                     }
