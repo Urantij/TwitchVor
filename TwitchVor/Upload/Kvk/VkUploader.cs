@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using VkNet;
 using VkNet.Model;
 
@@ -15,14 +16,16 @@ namespace TwitchVor.Upload.Kvk
 
         public override TimeSpan DurationLimit => TimeSpan.MaxValue;
 
-        public VkUploader(Guid guid, VkCreds creds)
-            : base(guid)
+        public VkUploader(Guid guid, ILoggerFactory loggerFactory, VkCreds creds)
+            : base(guid, loggerFactory)
         {
             this.creds = creds;
         }
 
         public override async Task<bool> UploadAsync(string name, string description, string fileName, long size, Stream content)
         {
+            _logger.LogInformation("Авторизуемся...");
+
             VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
@@ -30,6 +33,8 @@ namespace TwitchVor.Upload.Kvk
                 AccessToken = creds.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
+
+            _logger.LogInformation("Просим...");
 
             var saveResult = await api.Video.SaveAsync(new VkNet.Model.RequestParams.VideoSaveParams()
             {
@@ -47,18 +52,18 @@ namespace TwitchVor.Upload.Kvk
 
             httpContent.Headers.ContentLength = size + 185;
 
-            System.Console.WriteLine("начинает загрузку вк");
+            _logger.LogInformation("Начинаем загрузку...");
 
             var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
 
             if (!response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
-                System.Console.WriteLine("Vk neudachno\n" + responseContent);
+                _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
                 return false;
             }
 
-            System.Console.WriteLine("закончил загрузку вк");
+            _logger.LogInformation("Закончили загрузку.");
 
             return true;
         }

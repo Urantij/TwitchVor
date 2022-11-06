@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
@@ -13,6 +14,7 @@ namespace TwitchVor.Twitch.Checker
         private readonly static TimeSpan trustTime = TimeSpan.FromSeconds(60);
 
         TwitchCheckInfo? lastCheckInfo = null;
+        readonly ILogger _logger;
 
         public readonly HelixChecker helixChecker;
         public readonly PubsubChecker pubsubChecker;
@@ -22,15 +24,12 @@ namespace TwitchVor.Twitch.Checker
         public event EventHandler? ChannelWentOnline;
         public event EventHandler? ChannelWentOffline;
 
-        public TwitchStatuser()
+        public TwitchStatuser(ILoggerFactory loggerFactory)
         {
-            helixChecker = new HelixChecker(this);
-            pubsubChecker = new PubsubChecker(this);
-        }
+            _logger = loggerFactory.CreateLogger(this.GetType());
 
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "TwitchStatuser");
+            helixChecker = new HelixChecker(this, loggerFactory);
+            pubsubChecker = new PubsubChecker(this, loggerFactory);
         }
 
         public void Init()
@@ -52,7 +51,7 @@ namespace TwitchVor.Twitch.Checker
                 lastCheckInfo = check;
             }
 
-            Log($"StreamUp. {nameof(trustworthy)}: {trustworthy}");
+            _logger.LogInformation("StreamUp. {propname}: {value}", nameof(trustworthy), trustworthy);
 
             ChannelWentOnline?.Invoke(this, EventArgs.Empty);
         }
@@ -73,7 +72,7 @@ namespace TwitchVor.Twitch.Checker
                 lastCheckInfo = check;
             }
 
-            Log($"StreamDown. {nameof(trustworthy)}: {trustworthy}");
+            _logger.LogInformation("StreamDown. {propname}: {value}", nameof(trustworthy), trustworthy);
 
             ChannelWentOffline?.Invoke(this, EventArgs.Empty);
         }

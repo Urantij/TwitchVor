@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Conversion;
 using TwitchVor.Data;
 using TwitchVor.Data.Models;
@@ -18,25 +19,27 @@ namespace TwitchVor.Finisher
     {
         const int takeCount = 200;
 
+        readonly ILogger _logger;
+
         readonly Ffmpeg? ffmpeg;
 
         readonly StreamHandler streamHandler;
+        readonly ILoggerFactory _loggerFactory;
+
         readonly StreamDatabase db;
         readonly BaseSpaceProvider space;
 
-        public StreamFinisher(StreamHandler streamHandler)
+        public StreamFinisher(StreamHandler streamHandler, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             ffmpeg = Program.ffmpeg;
 
             this.streamHandler = streamHandler;
+            _loggerFactory = loggerFactory;
+
             db = streamHandler.db;
             space = streamHandler.space;
-        }
-
-        void Log(string message)
-        {
-            //TODO айди
-            ColorLog.Log(message, "Finisher");
         }
 
         public async Task DoAsync()
@@ -44,7 +47,7 @@ namespace TwitchVor.Finisher
             long sizeLimit;
             TimeSpan durationLimit;
             {
-                var _uploader = DependencyProvider.GetUploader(Guid.Empty);
+                var _uploader = DependencyProvider.GetUploader(Guid.Empty, _loggerFactory);
 
                 sizeLimit = _uploader.SizeLimit;
                 durationLimit = _uploader.DurationLimit;
@@ -132,7 +135,7 @@ namespace TwitchVor.Finisher
 
                     bool singleVideo = videoNumber == 0 && totalSegmentsCount == videoTook;
 
-                    var uploader = DependencyProvider.GetUploader(streamHandler.guid);
+                    var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
 
                     bool success = await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
 
@@ -147,10 +150,14 @@ namespace TwitchVor.Finisher
                 }
             }
 
+            _logger.LogInformation("С видосами закончили...");
+
             await streamHandler.DestroyAsync(destroySpace: allSuccess);
 
             if (Program.emailer != null)
             {
+                _logger.LogInformation("Отправляем весточку.");
+
                 if (allSuccess)
                 {
                     await Program.emailer.SendFinishSuccessAsync();
@@ -163,7 +170,7 @@ namespace TwitchVor.Finisher
 
             if (Program.shutdown)
             {
-                Log("Shutdown...");
+                _logger.LogInformation("Shutdown...");
                 using Process pr = new();
 
                 pr.StartInfo.FileName = "shutdown";
@@ -175,8 +182,8 @@ namespace TwitchVor.Finisher
                 pr.StartInfo.CreateNoWindow = true;
                 pr.Start();
 
-                pr.OutputDataReceived += (s, e) => { Log(e.Data); };
-                pr.ErrorDataReceived += (s, e) => { Log(e.Data); };
+                pr.OutputDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
+                pr.ErrorDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
 
                 pr.BeginOutputReadLine();
                 pr.BeginErrorReadLine();
@@ -187,6 +194,8 @@ namespace TwitchVor.Finisher
 
         async Task<bool> DoVideo(int videoNumber, int startTookIndex, int videoTook, long size, BaseUploader uploader, bool singleVideo, DateTimeOffset startDate, DateTimeOffset endDate)
         {
+            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", videoNumber, videoTook, startTookIndex);
+
             int limitIndex = startTookIndex + videoTook;
 
             string filename = $"result{videoNumber}." + (ffmpeg != null ? "mp4" : "ts");
@@ -234,7 +243,7 @@ namespace TwitchVor.Finisher
 
                     await serverPipe.DisposeAsync();
 
-                    System.Console.WriteLine("Закончился выход у ффмпега.");
+                    _logger.LogInformation("Закончился выход у ффмпега.");
                 });
             }
             else
@@ -263,6 +272,8 @@ namespace TwitchVor.Finisher
 
                 await inputPipe.FlushAsync();
                 await inputPipe.DisposeAsync();
+
+                _logger.LogInformation("Всё прочитали.");
             });
 
             var skips = await db.LoadSkipsAsync();
@@ -283,6 +294,8 @@ namespace TwitchVor.Finisher
 
                 conversionHandler.Dispose();
             }
+
+            _logger.LogInformation("Видос всё.");
 
             return success;
         }

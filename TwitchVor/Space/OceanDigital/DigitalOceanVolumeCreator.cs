@@ -1,4 +1,5 @@
 using DigitalOcean.API;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Space.OceanDigital
@@ -9,6 +10,9 @@ namespace TwitchVor.Space.OceanDigital
     /// </summary>
     class DigitalOceanVolumeCreator
     {
+        readonly ILogger _logger;
+        readonly ILoggerFactory loggerFactory;
+
         readonly OceanCreds oceanCreds;
 
         readonly DigitalOceanClient client;
@@ -22,23 +26,16 @@ namespace TwitchVor.Space.OceanDigital
         /// <param name="oceanCreds"></param>
         /// <param name="volumeName">Must be lowercase and be composed only of numbers, letters and "-", up to a limit of 64 characters.</param>
         /// <param name="dropletSizeGB"></param>
-        public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName, int dropletSizeGB)
+        public DigitalOceanVolumeCreator(OceanCreds oceanCreds, string volumeName, int dropletSizeGB, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+            this.loggerFactory = loggerFactory;
+
             this.oceanCreds = oceanCreds;
             this.volumeName = volumeName;
             this.dropletSizeGB = dropletSizeGB;
 
             client = new DigitalOceanClient(oceanCreds.ApiToken);
-        }
-
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "OceanCreator", ConsoleColor.Blue);
-        }
-
-        static void LogError(string message)
-        {
-            ColorLog.LogError(message, "OceanCreator");
         }
 
         /// <summary>
@@ -61,7 +58,7 @@ namespace TwitchVor.Space.OceanDigital
 
             string volumeId = responseVolume.Id;
 
-            Log($"Created volume {volumeId}");
+            _logger.LogInformation("Created volume {volumeId}", volumeId);
 
             DigitalOcean.API.Models.Responses.Action? attachAction = null;
 
@@ -75,7 +72,7 @@ namespace TwitchVor.Space.OceanDigital
                 }
                 catch (Exception e)
                 {
-                    LogError($"Exception on volume attachment.\n{e}");
+                    _logger.LogError(e, "Exception on volume attachment.");
 
                     if (CheckVolumeExtremeCreation())
                     {
@@ -83,7 +80,7 @@ namespace TwitchVor.Space.OceanDigital
                     }
                     else
                     {
-                        Log($"To continue, create {GetExtremePath()} file");
+                        _logger.LogCritical("To continue, create {path} file", GetExtremePath());
                     }
 
                     if (Program.emailer != null && !sentEmail)
@@ -99,7 +96,7 @@ namespace TwitchVor.Space.OceanDigital
 
             var attachActionId = attachAction.Id;
 
-            Log($"Attaching... {attachAction.Id}");
+            _logger.LogInformation("Attaching... {attachActionId}", attachAction.Id);
 
             //TODO получше
             while (true)
@@ -110,7 +107,7 @@ namespace TwitchVor.Space.OceanDigital
                 }
                 else if (attachAction.Status == "in-progress")
                 {
-                    Log("Progress...");
+                    _logger.LogInformation("Progress...");
                     await Task.Delay(5000);
 
                     attachAction = await client.VolumeActions.GetAction(volumeId, attachActionId);
@@ -123,9 +120,9 @@ namespace TwitchVor.Space.OceanDigital
 
         end:;
 
-            Log($"Attached!");
+            _logger.LogInformation($"Attached!");
 
-            return new DigitalOceanVolumeOperator(client, oceanCreds.DropletId, volumeId, oceanCreds.Region, volumeName);
+            return new DigitalOceanVolumeOperator(client, oceanCreds.DropletId, volumeId, oceanCreds.Region, volumeName, loggerFactory);
         }
 
         bool CheckVolumeExtremeCreation()

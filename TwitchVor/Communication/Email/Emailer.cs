@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MailKit.Net.Smtp;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 using TwitchVor.Configuration;
 using TwitchVor.Utility;
@@ -11,18 +12,17 @@ namespace TwitchVor.Communication.Email
 {
     public class Emailer
     {
+        readonly ILogger _logger;
+
         readonly EmailConfig config;
 
         const string subjectBase = "TwitchVor";
 
-        public Emailer(EmailConfig config)
+        public Emailer(EmailConfig config, ILoggerFactory loggerFactory)
         {
-            this.config = config;
-        }
+            _logger = loggerFactory.CreateLogger(this.GetType());
 
-        static void LogError(string message)
-        {
-            ColorLog.LogError(message, "Emailer");
+            this.config = config;
         }
 
         public async Task<bool> ValidateAsync()
@@ -44,7 +44,7 @@ namespace TwitchVor.Communication.Email
             }
             catch (Exception e)
             {
-                LogError($"Could not validate email.\n{e}");
+                _logger.LogError(e, "Could not validate email.");
                 return false;
             }
         }
@@ -94,7 +94,7 @@ namespace TwitchVor.Communication.Email
             }
             catch (Exception e)
             {
-                LogError($"Could not send email.\n{e}");
+                _logger.LogError(e, "Could not send email.");
             }
         }
     }

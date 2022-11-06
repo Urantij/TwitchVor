@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ExtM3UPlaylistParser.Models;
+using Microsoft.Extensions.Logging;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
@@ -22,6 +23,8 @@ namespace TwitchVor.Twitch.Downloader
     /// </summary>
     public class StreamDownloader
     {
+        readonly ILogger _logger;
+
         readonly Guid guid;
         readonly StreamDatabase db;
 
@@ -32,6 +35,7 @@ namespace TwitchVor.Twitch.Downloader
 
         LocalSpaceProvider? tempSpace;
         readonly BaseSpaceProvider space;
+        readonly ILoggerFactory _loggerFactory;
 
         public bool Working { get; private set; }
 
@@ -43,12 +47,14 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal TimeSpan AdvertismentTime { get; private set; } = TimeSpan.Zero;
 
-        public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space)
+        public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.guid = guid;
             this.db = db;
             this.space = space;
-
+            this._loggerFactory = loggerFactory;
             httpClient = new HttpClient(new HttpClientHandler()
             {
                 Proxy = null,
@@ -82,27 +88,9 @@ namespace TwitchVor.Twitch.Downloader
             segmentsDownloader.SegmentArrived += SegmentArrived;
         }
 
-        void Log(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.Log(message, $"StreamDownloader");
-        }
-
-        void LogWarning(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.LogWarning(message, $"StreamDownloader");
-        }
-
-        void LogError(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.LogError(message, $"StreamDownloader");
-        }
-
         internal void Start()
         {
-            Log("Starting...");
+            _logger.LogInformation("Starting...");
 
             Working = true;
 
@@ -206,7 +194,7 @@ namespace TwitchVor.Twitch.Downloader
                         {
                             // Место только стало доступным
                             // Значит, нам нужно прочитать из базы сегменты, читать их из файла и перенаправить
-                            Log("Space created, moving file to new home");
+                            _logger.LogInformation("Space created, moving file to new home");
 
                             TransferSpaceContentAsync(space).GetAwaiter().GetResult();
 
@@ -217,7 +205,7 @@ namespace TwitchVor.Twitch.Downloader
                     {
                         if (tempSpace == null)
                         {
-                            tempSpace = new LocalSpaceProvider(guid, DependencyProvider.MakeLocalSpacePath(guid, true));
+                            tempSpace = new LocalSpaceProvider(guid, _loggerFactory, DependencyProvider.MakeLocalSpacePath(guid, true));
                             tempSpace.InitAsync().GetAwaiter().GetResult();
                         }
 
@@ -249,7 +237,7 @@ namespace TwitchVor.Twitch.Downloader
 
                         if (difference >= Program.config.MinimumSegmentSkipDelay)
                         {
-                            Log($"Skip Detected! Skipped {difference.TotalSeconds:N0} seconds :(");
+                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds :(", difference.TotalSeconds);
 
                             await db.AddSkipAsync(lastSegmentEnd.Value, qItem.segment.programDate);
                         }
@@ -261,7 +249,7 @@ namespace TwitchVor.Twitch.Downloader
                 {
                     // пропущен сегмент
 
-                    Log($"Missing downloading segment {qItem.segment.title}");
+                    _logger.LogWarning("Missing downloading segment {title}", qItem.segment.title);
                 }
             }
             finally
@@ -281,11 +269,11 @@ namespace TwitchVor.Twitch.Downloader
             {
                 if (Program.config.DownloaderForceTokenChange)
                 {
-                    LogError($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
+                    _logger.LogError("Got no playback token! {fails}", fails);
                 }
                 else
                 {
-                    LogWarning($"Got playback token! no {nameof(e.parsedValue.expires)}" + fails);
+                    _logger.LogWarning("Got no playback token! {fails}", fails);
                 }
 
                 return;
@@ -293,7 +281,7 @@ namespace TwitchVor.Twitch.Downloader
 
             var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
 
-            Log($"Got playback token! left {left.TotalMinutes} minutes" + fails);
+            _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes ({fails})", left.TotalMinutes, fails);
 
             if (!Program.config.DownloaderForceTokenChange)
                 return;
@@ -312,7 +300,7 @@ namespace TwitchVor.Twitch.Downloader
                 if (downloader.Disposed || !Working)
                     return;
 
-                Log("Dropping access token on schedule...");
+                _logger.LogInformation("Dropping access token on schedule...");
                 downloader.DropToken();
             });
         }
@@ -327,18 +315,25 @@ namespace TwitchVor.Twitch.Downloader
 
             db.AddVideoFormat(e.streamInfTag.video!, DateTimeOffset.UtcNow);
 
-            Log($"New quality selected: {e.streamInfTag.video} ({downloader.LastVideo ?? "null"})");
+            if (downloader.LastVideo == null)
+            {
+                _logger.LogInformation("Quality selected: {video}", e.streamInfTag.video);
+            }
+            else
+            {
+                _logger.LogWarning("New quality selected: {video} ({lastVideo})", e.streamInfTag.video, downloader.LastVideo);
+            }
         }
 
         #region Logs
         private void UnknownPlaylistLineFound(object? sender, LineEventArgs e)
         {
-            Log($"Unknown line ({e.Master}): \"{e.Line}\"");
+            _logger.LogWarning("Unknown line ({master}): \"{line}\"", e.Master, e.Line);
         }
 
         private void CommentPlaylistLineFound(object? sender, LineEventArgs e)
         {
-            Log($"Comment line ({e.Master}): \"{e.Line}\"");
+            _logger.LogWarning("Comment line ({master}): \"{line}\"", e.Master, e.Line);
         }
 
         private void MasterPlaylistExceptionOccured(object? sender, Exception e)
@@ -366,14 +361,14 @@ namespace TwitchVor.Twitch.Downloader
 
         private void PlaylistEnded(object? sender, EventArgs e)
         {
-            Log("Playlist End");
+            _logger.LogInformation("Playlist End");
         }
 
         private void LogException(string message, Exception e)
         {
             if (e is BadCodeException be)
             {
-                LogError($"{message} Bad Code ({be.statusCode})");
+                _logger.LogError("{message} Bad Code ({statusCode})", message, be.statusCode);
             }
             else if (e is HttpRequestException re)
             {
@@ -381,21 +376,21 @@ namespace TwitchVor.Twitch.Downloader
                 {
                     if (io.Message == "Unable to read data from the transport connection: Connection reset by peer.")
                     {
-                        LogError($"{message} Connection reset by peer.");
+                        _logger.LogError("{message} Connection reset by peer.", message);
                     }
                     else
                     {
-                        LogError($"{message} HttpRequestException.IOException: \"{io.Message}\"");
+                        _logger.LogError("{message} HttpRequestException.IOException: \"{ioMessage}\"", message, io.Message);
                     }
                 }
                 else
                 {
-                    LogError($"{message} HttpRequestException\n{re}");
+                    _logger.LogError(re, "{message}", message);
                 }
             }
             else
             {
-                LogError($"{message}\n{e}");
+                _logger.LogError(e, "{message}", message);
             }
         }
         #endregion

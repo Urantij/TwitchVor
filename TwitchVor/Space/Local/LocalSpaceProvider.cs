@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Space.Local
@@ -14,8 +15,8 @@ namespace TwitchVor.Space.Local
 
         public override bool AsyncUpload => false;
 
-        public LocalSpaceProvider(Guid guid, string path)
-            : base(guid)
+        public LocalSpaceProvider(Guid guid, ILoggerFactory loggerFactory, string path)
+            : base(guid, loggerFactory)
         {
             this.path = path;
         }
@@ -30,6 +31,8 @@ namespace TwitchVor.Space.Local
             Fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
 
             Ready = true;
+
+            _logger.LogInformation("Создан {path}", path);
 
             return Task.CompletedTask;
         }
@@ -80,6 +83,8 @@ namespace TwitchVor.Space.Local
             }
 
             File.Delete(path);
+
+            _logger.LogInformation("Удалён {path}", path);
         }
     }
 }

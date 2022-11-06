@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchVor.Utility;
 
@@ -17,18 +18,17 @@ namespace TwitchVor.Twitch
 
     class SubChecker
     {
+        readonly ILogger _logger;
+
         readonly string channelId;
         readonly SubCheckConfig config;
 
-        public SubChecker(string channelId, SubCheckConfig config)
+        public SubChecker(string channelId, SubCheckConfig config, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.channelId = channelId;
             this.config = config;
-        }
-
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "SubChecker");
         }
 
         public async Task<SubCheck?> GetSubAsync()
@@ -55,23 +55,23 @@ namespace TwitchVor.Twitch
                 }
                 catch (TwitchLib.Api.Core.Exceptions.BadResourceException)
                 {
-                    Log($"We have no sub");
+                    _logger.LogInformation($"We have no sub");
                     return new SubCheck(false, null);
                 }
 
                 if (!subscription.IsGift)
                 {
-                    Log("We have sub, but no subgifter");
+                    _logger.LogInformation("We have sub, but no subgifter");
                     return new SubCheck(true, null);
                 }
 
-                Log($"Our sub is {subscription.GifterName} !");
+                _logger.LogInformation("Our sub is {name} !", subscription.GifterName);
 
                 return new SubCheck(true, subscription);
             }
             catch (Exception e)
             {
-                Log($"Could not fetch sub info:\n{e}");
+                _logger.LogError(e, "Could not fetch sub info.");
                 return null;
             }
         }

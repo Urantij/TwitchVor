@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace TwitchVor.Space
 {
     public abstract class BaseSpaceProvider
     {
+        protected readonly ILogger _logger;
+
         protected readonly Guid guid;
 
         public bool Ready { get; protected set; }
@@ -18,8 +21,10 @@ namespace TwitchVor.Space
         /// </summary>
         public abstract bool AsyncUpload { get; }
 
-        protected BaseSpaceProvider(Guid guid)
+        protected BaseSpaceProvider(Guid guid, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.guid = guid;
         }
 

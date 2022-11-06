@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TwitchVor.Finisher;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Utility;
@@ -10,29 +11,25 @@ namespace TwitchVor.Twitch.Downloader
     /// </summary>
     class StreamsManager
     {
+        readonly ILogger _logger;
+        readonly ILoggerFactory _loggerFactory;
+
         CancellationTokenSource? currentStreamOfflineCancelSource;
         StreamHandler? currentStream;
         Timestamper currentStamper;
 
         private readonly object locker = new();
 
-        public StreamsManager()
+        public StreamsManager(ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+            _loggerFactory = loggerFactory;
+
             currentStamper = new();
             Program.statuser.helixChecker.ChannelChecked += currentStamper.HelixChecker_ChannelChecked;
 
             Program.statuser.ChannelWentOnline += StatuserOnline;
             Program.statuser.ChannelWentOffline += StatuserOffline;
-        }
-
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "SM");
-        }
-
-        static void LogError(string message)
-        {
-            ColorLog.LogError(message, "SM");
         }
 
         public void EndStream()
@@ -41,13 +38,13 @@ namespace TwitchVor.Twitch.Downloader
             {
                 if (currentStream == null)
                 {
-                    Log("There is no stream.");
+                    _logger.LogWarning("There is no stream.");
                     return;
                 }
 
                 if (!currentStream.Suspended)
                 {
-                    Log("Stream isnt suspended.");
+                    _logger.LogWarning("Stream isnt suspended.");
                     return;
                 }
 
@@ -78,14 +75,18 @@ namespace TwitchVor.Twitch.Downloader
             {
                 try
                 {
+                    _logger.LogInformation("Завершаем стрим {guid}...", finishingStream.guid);
+
                     await finishingStream.FinishAsync();
 
-                    StreamFinisher finisher = new(finishingStream);
+                    StreamFinisher finisher = new(finishingStream, _loggerFactory);
                     await finisher.DoAsync();
+
+                    _logger.LogInformation("Стрим {guid} завершён.", finishingStream.guid);
                 }
                 catch (Exception e)
                 {
-                    LogError($"Не удалось зафинишировать стрим. Исключение:\n{e}");
+                    _logger.LogCritical(e, "Не удалось зафинишировать стрим.");
 
                     if (Program.emailer != null)
                         await Program.emailer.SendCriticalErrorAsync("Не получилось зафинишировать стрим");
@@ -112,7 +113,7 @@ namespace TwitchVor.Twitch.Downloader
                 }
                 else
                 {
-                    currentStream = new StreamHandler(currentStamper);
+                    currentStream = new StreamHandler(currentStamper, _loggerFactory);
                     _ = currentStream.StartAsync();
                 }
             }

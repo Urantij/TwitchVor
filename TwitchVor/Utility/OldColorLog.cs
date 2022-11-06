@@ -2,7 +2,7 @@ using System;
 
 namespace TwitchVor.Utility
 {
-    static class ColorLog
+    static class OldColorLog
     {
         private static readonly ConsoleColor defFColor = ConsoleColor.Gray;
         private static readonly ConsoleColor defBColor = ConsoleColor.Black;
