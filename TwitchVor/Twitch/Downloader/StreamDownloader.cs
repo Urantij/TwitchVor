@@ -39,7 +39,7 @@ namespace TwitchVor.Twitch.Downloader
 
         public bool Working { get; private set; }
 
-        DateTimeOffset? lastSegmentEnd = null;
+        StreamSegment? lastSegment = null;
 
         /// <summary>
         /// Сколько секунд рекламы поели.
@@ -231,19 +231,21 @@ namespace TwitchVor.Twitch.Downloader
                         LogException("Unable to putdata", exception);
                     }
 
-                    if (lastSegmentEnd != null)
+                    if (lastSegment != null)
                     {
-                        var difference = qItem.segment.programDate - lastSegmentEnd.Value;
+                        var lastSegmentEnd = lastSegment.programDate.AddSeconds(lastSegment.duration);
+
+                        var difference = qItem.segment.programDate - lastSegmentEnd;
 
                         if (difference >= Program.config.MinimumSegmentSkipDelay)
                         {
-                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds :(", difference.TotalSeconds);
+                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(", difference.TotalSeconds, lastSegment.mediaSequenceNumber, qItem.segment.mediaSequenceNumber);
 
-                            await db.AddSkipAsync(lastSegmentEnd.Value, qItem.segment.programDate);
+                            await db.AddSkipAsync(lastSegmentEnd, qItem.segment.programDate);
                         }
                     }
 
-                    lastSegmentEnd = qItem.segment.programDate.AddSeconds(qItem.segment.duration);
+                    lastSegment = qItem.segment;
                 }
                 else
                 {
