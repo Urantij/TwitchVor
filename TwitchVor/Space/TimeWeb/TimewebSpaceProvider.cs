@@ -32,10 +32,20 @@ namespace TwitchVor.Space.TimeWeb
 
         public override async Task InitAsync()
         {
-            _logger.LogInformation("Получаем токен...");
+            if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
+            {
+                _logger.LogInformation("Обновляем токен...");
 
-            config.RefreshToken = await api.GetTokenAsync(this.config.RefreshToken);
-            await Program.config.SaveAsync();
+                var auth = await api.GetTokenAsync(config.RefreshToken);
+
+                config.RefreshToken = auth.Refresh_token;
+                config.AccessToken = auth.Access_token;
+                config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
+
+                await Program.config.SaveAsync();
+
+                _logger.LogInformation("Обновили");
+            }
 
             {
                 _logger.LogInformation("Создаём ведро...");
