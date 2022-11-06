@@ -28,6 +28,7 @@ namespace TwitchVor.Space.TimeWeb
             this.config = config;
 
             this.api = new TimeWebApi();
+            api.SetAccessToken(config.AccessToken);
         }
 
         public override async Task InitAsync()
