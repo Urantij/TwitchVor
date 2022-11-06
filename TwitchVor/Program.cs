@@ -47,16 +47,25 @@ namespace TwitchVor
             }
 #endif
 
-            ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
             {
-                builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(typeof(ColoredConsoleOptions), new ColoredConsoleOptions(new List<ColoredConsoleOptions.ColoredCategory>())));
+                builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(typeof(ColoredConsoleOptions), typeof(ColoredConsoleOptions), Microsoft.Extensions.DependencyInjection.ServiceLifetime.Singleton));
 
-                builder.AddConsole().AddConsoleFormatter<ColoredConsoleFormatter, ColoredConsoleOptions>(options =>
+                builder.AddConsoleFormatter<ColoredConsoleFormatter, ColoredConsoleOptions>(options =>
                 {
                     options.TimestampFormat = "[HH:mm:ss] ";
 
-                    options.Colors.Add(new ColoredConsoleOptions.ColoredCategory(typeof(Greater).Name, fgColor: "#000000", bgColor: "#FFFFFF"));
+                    options.Colors = new List<ColoredConsoleOptions.ColoredCategory>()
+                    {
+                        new ColoredConsoleOptions.ColoredCategory()
+                        {
+                            Category =typeof(Greater).FullName,
+                            FgColor = "#000000",
+                            BgColor = "#FFFFFF"
+                        }
+                    };
                 });
+                builder.AddConsole(b => b.FormatterName = nameof(ColoredConsoleFormatter));
 
                 if (debug)
                     builder.SetMinimumLevel(LogLevel.Debug);

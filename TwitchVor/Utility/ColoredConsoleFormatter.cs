@@ -5,59 +5,58 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Pastel;
 
 namespace TwitchVor.Utility
 {
+    // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Console/src/SimpleConsoleFormatter.cs
+    // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Console/src/AnsiParser.cs
+
     public class ColoredConsoleOptions : ConsoleFormatterOptions
     {
         public class ColoredCategory
         {
-            public string Category { get; set; }
+            public string? Category { get; set; }
             public string? FgColor { get; set; }
             public string? BgColor { get; set; }
-
-            public ColoredCategory(string category, string? fgColor, string? bgColor)
-            {
-                Category = category;
-                FgColor = fgColor;
-                BgColor = bgColor;
-            }
         }
 
-        public ICollection<ColoredCategory> Colors { get; set; }
-
-        public ColoredConsoleOptions(ICollection<ColoredCategory> colors)
-        {
-            Colors = colors;
-        }
+        public ICollection<ColoredCategory>? Colors { get; set; }
     }
 
-    public class ColoredConsoleFormatter : ConsoleFormatter
+    public class ColoredConsoleFormatter : ConsoleFormatter, IDisposable
     {
-        private readonly ColoredConsoleOptions options;
+        readonly IDisposable optionsReloadToken;
 
-        public ColoredConsoleFormatter(ColoredConsoleOptions options)
-            : base("ColoredConsole")
+        private ColoredConsoleOptions options;
+
+        public ColoredConsoleFormatter(IOptionsMonitor<ColoredConsoleOptions> options)
+            : base(nameof(ColoredConsoleFormatter))
         {
-            this.options = options;
+            optionsReloadToken = options.OnChange(ReloadLoggerOptions);
+            this.options = options.CurrentValue;
         }
+
+        private void ReloadLoggerOptions(ColoredConsoleOptions options) => this.options = options;
 
         public override void Write<TState>(in LogEntry<TState> logEntry, IExternalScopeProvider scopeProvider, TextWriter textWriter)
         {
             string category = logEntry.Category;
-            var colored = options.Colors.FirstOrDefault(c => c.Category == category);
+            var colored = options.Colors?.FirstOrDefault(c => c.Category == category);
 
-            var (fg, bg) = logEntry.LogLevel switch
+            string? timestampFormat = options.TimestampFormat;
+            if (timestampFormat != null)
             {
-                LogLevel.Error => ("#000000", "#FF0000"),
-                LogLevel.Warning => ("#FFFF00", "#000000"),
-                LogLevel.Information => ("#00FF00", "#000000"),
+                DateTimeOffset currentDate = GetCurrentDateTime();
+                string timestamp = currentDate.ToString(timestampFormat);
 
-                _ => ("#FFFFFF", "#000000")
-            };
+                textWriter.Write(timestamp);
+            }
 
-            textWriter.Write(logEntry.LogLevel.ToString()[..4].Pastel(fg).PastelBg(bg));
+            var levelInfo = GetLevelInfo(logEntry.LogLevel);
+
+            textWriter.Write(levelInfo.text.Pastel(levelInfo.fgColor).PastelBg(levelInfo.bgColor));
 
             textWriter.Write(": ");
 
@@ -77,6 +76,31 @@ namespace TwitchVor.Utility
             {
                 textWriter.WriteLine(logEntry.Formatter.Invoke(logEntry.State, logEntry.Exception));
             }
+        }
+
+        private DateTimeOffset GetCurrentDateTime()
+        {
+            return options.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
+        }
+
+        static (string text, string fgColor, string bgColor) GetLevelInfo(LogLevel logLevel)
+        {
+            return logLevel switch
+            {
+                LogLevel.Information => ("info", "#008000", "#000000"),
+                LogLevel.Warning => ("warn", "#FFFF00", "#000000"),
+                LogLevel.Error => ("fail", "#000000", "#800000"),
+                LogLevel.Critical => ("crit", "#FFFFFF", "#800000"),
+                LogLevel.Trace => ("trce", "#C0C0C0", "#000000"),
+                LogLevel.Debug => ("dbug", "#C0C0C0", "#000000"),
+
+                _ => (logLevel.ToString(), "#FFFFFF", "#000000")
+            };
+        }
+
+        public void Dispose()
+        {
+            optionsReloadToken.Dispose();
         }
     }
 }
