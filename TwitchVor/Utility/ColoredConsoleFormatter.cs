@@ -10,8 +10,7 @@ using Pastel;
 
 namespace TwitchVor.Utility
 {
-    // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Console/src/SimpleConsoleFormatter.cs
-    // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Console/src/AnsiParser.cs
+    // https://github.com/dotnet/runtime/blob/d3ab95d3be895a1950a46c559397780dbb3e9807/src/libraries/Microsoft.Extensions.Logging.Console/src/SimpleConsoleFormatter.cs
 
     public class ColoredConsoleOptions : ConsoleFormatterOptions
     {
@@ -56,7 +55,7 @@ namespace TwitchVor.Utility
 
             var levelInfo = GetLevelInfo(logEntry.LogLevel);
 
-            textWriter.Write(levelInfo.text.Pastel(levelInfo.fgColor).PastelBg(levelInfo.bgColor));
+            textWriter.WriteColoredMessage(levelInfo.text, foreground: levelInfo.fgColor, background: levelInfo.bgColor);
 
             textWriter.Write(": ");
 
@@ -83,18 +82,18 @@ namespace TwitchVor.Utility
             return options.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
         }
 
-        static (string text, string fgColor, string bgColor) GetLevelInfo(LogLevel logLevel)
+        static (string text, ConsoleColor fgColor, ConsoleColor bgColor) GetLevelInfo(LogLevel logLevel)
         {
             return logLevel switch
             {
-                LogLevel.Information => ("info", "#008000", "#000000"),
-                LogLevel.Warning => ("warn", "#FFFF00", "#000000"),
-                LogLevel.Error => ("fail", "#000000", "#800000"),
-                LogLevel.Critical => ("crit", "#FFFFFF", "#800000"),
-                LogLevel.Trace => ("trce", "#C0C0C0", "#000000"),
-                LogLevel.Debug => ("dbug", "#C0C0C0", "#000000"),
+                LogLevel.Information => ("info", ConsoleColor.DarkGreen, ConsoleColor.Black),
+                LogLevel.Warning => ("warn", ConsoleColor.Yellow, ConsoleColor.Black),
+                LogLevel.Error => ("fail", ConsoleColor.Black, ConsoleColor.DarkRed),
+                LogLevel.Critical => ("crit", ConsoleColor.White, ConsoleColor.DarkRed),
+                LogLevel.Trace => ("trce", ConsoleColor.Gray, ConsoleColor.Black),
+                LogLevel.Debug => ("dbug", ConsoleColor.Gray, ConsoleColor.Black),
 
-                _ => (logLevel.ToString(), "#FFFFFF", "#000000")
+                _ => (logLevel.ToString(), ConsoleColor.White, ConsoleColor.Black)
             };
         }
 
