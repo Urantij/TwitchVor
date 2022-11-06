@@ -45,6 +45,8 @@ namespace TwitchVor.Upload.Kvk
             });
 
             using HttpClient client = new();
+            client.Timeout = TimeSpan.FromHours(4);
+
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent = new(content);
 
