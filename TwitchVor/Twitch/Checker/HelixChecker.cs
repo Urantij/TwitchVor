@@ -1,29 +1,24 @@
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
 {
     class HelixChecker
     {
+        readonly ILogger _logger;
+
         private readonly TwitchStatuser statuser;
 
         private readonly Dictionary<string, string> gameIdToGameName = new();
 
         public event EventHandler<HelixCheck>? ChannelChecked;
 
-        public HelixChecker(TwitchStatuser statuser)
+        public HelixChecker(TwitchStatuser statuser, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.statuser = statuser;
-        }
-
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "HelixChecker");
-        }
-
-        static void LogError(string message)
-        {
-            ColorLog.LogError(message, "HelixChecker");
         }
 
         public void Start()
@@ -55,7 +50,7 @@ namespace TwitchVor.Twitch.Checker
                 }
                 catch (Exception e)
                 {
-                    LogError($"TwitchHelixChecker CheckLoop Exception\n{e}");
+                    _logger.LogError(e, "CheckLoop");
                 }
 
                 await Task.Delay(Program.config.HelixCheckDelay);
@@ -100,25 +95,25 @@ namespace TwitchVor.Twitch.Checker
             }
             catch (TwitchLib.Api.Core.Exceptions.BadScopeException)
             {
-                Log($"CheckChannel exception опять BadScopeException");
+                _logger.LogWarning($"CheckChannel exception опять BadScopeException");
 
                 return null;
             }
             catch (TwitchLib.Api.Core.Exceptions.InternalServerErrorException)
             {
-                Log($"CheckChannel exception опять InternalServerErrorException");
+                _logger.LogWarning($"CheckChannel exception опять InternalServerErrorException");
 
                 return null;
             }
             catch (HttpRequestException e) when (e.InnerException is IOException io)
             {
-                LogError($"CheckChannel HttpRequestException.IOException: \"{io.Message}\"");
+                _logger.LogWarning("CheckChannel HttpRequestException.IOException: \"{Message}\"", io.Message);
 
                 return null;
             }
             catch (Exception e)
             {
-                LogError($"CheckChannel exception\n{e}");
+                _logger.LogError(e, "CheckChannel");
 
                 return null;
             }
@@ -139,7 +134,7 @@ namespace TwitchVor.Twitch.Checker
             }
             catch (Exception e)
             {
-                LogError($"CheckChannel Game exception\n{e}");
+                _logger.LogError(e, "CheckChannel Game exception");
             }
 
             return result;

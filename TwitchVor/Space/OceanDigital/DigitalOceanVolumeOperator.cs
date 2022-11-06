@@ -1,4 +1,5 @@
 using DigitalOcean.API;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Space.OceanDigital
@@ -8,6 +9,8 @@ namespace TwitchVor.Space.OceanDigital
     /// </summary>
     class DigitalOceanVolumeOperator
     {
+        readonly ILogger _logger;
+
         readonly DigitalOceanClient client;
 
         readonly long dropletId;
@@ -16,8 +19,10 @@ namespace TwitchVor.Space.OceanDigital
 
         public readonly string volumeName;
 
-        public DigitalOceanVolumeOperator(DigitalOceanClient client, long dropletId, string volumeId, string region, string volumeName)
+        public DigitalOceanVolumeOperator(DigitalOceanClient client, long dropletId, string volumeId, string region, string volumeName, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.client = client;
             this.dropletId = dropletId;
             this.volumeId = volumeId;
@@ -25,23 +30,18 @@ namespace TwitchVor.Space.OceanDigital
             this.volumeName = volumeName;
         }
 
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "OceanOperator", ConsoleColor.Blue);
-        }
-
         public async Task DetachAsync()
         {
-            Log($"Detaching {volumeId}...");
+            _logger.LogInformation("Detaching {volumeId}...", volumeId);
             await client.VolumeActions.Detach(volumeId, dropletId, region);
-            Log($"Detached {volumeId}.");
+            _logger.LogInformation("Detached {volumeId}.", volumeId);
         }
 
         public async Task DeleteAsync()
         {
-            Log($"Deleting {volumeId}...");
+            _logger.LogInformation("Deleting {volumeId}...", volumeId);
             await client.Volumes.Delete(volumeId);
-            Log($"Deleted {volumeId}.");
+            _logger.LogInformation("Deleted {volumeId}.", volumeId);
         }
 
         public string GetVolumePath()

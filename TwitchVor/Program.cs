@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TwitchLib.Api;
 using TwitchVor.Communication.Email;
@@ -28,7 +29,6 @@ namespace TwitchVor
         public static Config config;
 #nullable enable
 
-
         public static SubChecker? subChecker;
         public static Ffmpeg? ffmpeg;
 
@@ -39,12 +39,38 @@ namespace TwitchVor
 
         static async Task Main(string[] appArgs)
         {
-            Greater.Great();
-
             debug = appArgs.Contains("--debug");
+
+#if DEBUG
+            {
+                debug = true;
+            }
+#endif
+
+            ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(typeof(ColoredConsoleOptions), new ColoredConsoleOptions(new List<ColoredConsoleOptions.ColoredCategory>())));
+
+                builder.AddConsole().AddConsoleFormatter<ColoredConsoleFormatter, ColoredConsoleOptions>(options =>
+                {
+                    options.TimestampFormat = "[HH:mm:ss] ";
+
+                    options.Colors.Add(new ColoredConsoleOptions.ColoredCategory(typeof(Greater).Name, fgColor: "#000000", bgColor: "#FFFFFF"));
+                });
+
+                if (debug)
+                    builder.SetMinimumLevel(LogLevel.Debug);
+            });
+
+            Greater.Great(loggerFactory);
+
+            ILogger logger = loggerFactory.CreateLogger(typeof(Program));
+
+            DescriptionMaker.SetLogger(loggerFactory);
+
             if (debug)
             {
-                ColorLog.LogWarning("Дыбажым");
+                logger.LogWarning("Дыбажым");
             }
 
             if (File.Exists(configPath))
@@ -56,13 +82,13 @@ namespace TwitchVor
                 config = new Config(configPath);
                 await config.SaveAsync();
 
-                ColorLog.Log("Создали конфиг.");
+                logger.LogInformation("Создали конфиг.");
             }
 
             if (config.Channel == null ||
                 config.TwitchAPISecret == null || config.TwitchAPIClientId == null)
             {
-                ColorLog.LogError("Разберись с конфигом ебать");
+                logger.LogError("Разберись с конфигом ебать");
                 return;
             }
 
@@ -81,7 +107,7 @@ namespace TwitchVor
 
                 if (callrsult.Users.Length == 0)
                 {
-                    ColorLog.Log($"Нет такого юзера");
+                    logger.LogCritical($"Нет такого юзера");
                     return;
                 }
 
@@ -89,26 +115,26 @@ namespace TwitchVor
 
                 await config.SaveAsync();
 
-                ColorLog.Log($"Обновлён айди канала");
+                logger.LogInformation($"Обновлён айди канала");
             }
 
             //q
-            ColorLog.Log($"Качество {Program.config.PreferedVideoQuality} {Program.config.PreferedVideoFps}");
+            logger.LogInformation("Качество {quality} {fps}", Program.config.PreferedVideoQuality, Program.config.PreferedVideoFps);
 
             //vk
             if (config.Vk != null)
             {
-                ColorLog.Log("Вк добавлен");
+                logger.LogInformation("Вк добавлен");
             }
             else
             {
-                ColorLog.Log("Без вк");
+                logger.LogInformation("Без вк");
             }
 
             //do
             if (config.Ocean != null)
             {
-                ColorLog.Log("ДО добавлен");
+                logger.LogInformation("ДО добавлен");
 
                 var do_client = new DigitalOcean.API.DigitalOceanClient(config.Ocean.ApiToken);
 
@@ -116,43 +142,43 @@ namespace TwitchVor
 
                 config.Ocean.Region = droplet.Region.Slug;
 
-                ColorLog.Log($"Регион дроплетов: {config.Ocean.Region}");
+                logger.LogInformation("Регион дроплетов: {region}", config.Ocean.Region);
             }
             else
             {
-                ColorLog.Log("Без ДО");
+                logger.LogInformation("Без ДО");
             }
 
             //timeweb
             if (config.Timeweb != null)
             {
-                ColorLog.Log("Таймвеб добавлен");
+                logger.LogInformation("Таймвеб добавлен");
             }
             else
             {
-                ColorLog.Log("Без таймвеба");
+                logger.LogInformation("Без таймвеба");
             }
 
             if (config.Conversion is ConversionConfig conversion)
             {
-                ColorLog.Log($"Конвертируем ({conversion.FfmpegPath})");
+                logger.LogInformation("Конвертируем ({path})", conversion.FfmpegPath);
 
                 if (!File.Exists(conversion.FfmpegPath))
                 {
-                    ColorLog.Log("Не удаётся найти ффмпег");
+                    logger.LogCritical("Не удаётся найти ффмпег");
                     return;
                 }
             }
             else
             {
-                ColorLog.Log("Без конверсии");
+                logger.LogInformation("Без конверсии");
             }
 
             if (config.Downloader.SubCheck != null)
             {
-                ColorLog.Log($"Чекаем сабгифтера");
+                logger.LogInformation($"Чекаем сабгифтера");
 
-                subChecker = new SubChecker(config.ChannelId, config.Downloader.SubCheck);
+                subChecker = new SubChecker(config.ChannelId, config.Downloader.SubCheck, loggerFactory);
 
                 if (config.Downloader.SubCheck.CheckSubOnStart)
                 {
@@ -160,26 +186,26 @@ namespace TwitchVor
                 }
             }
 
-            statuser = new TwitchStatuser();
+            statuser = new TwitchStatuser(loggerFactory);
 
-            streamsManager = new();
+            streamsManager = new(loggerFactory);
 
             if (!Directory.Exists(config.CacheDirectoryName))
             {
                 Directory.CreateDirectory(config.CacheDirectoryName);
-                ColorLog.Log("Создана папка для кеша.");
+                logger.LogInformation("Создана папка для кеша.");
             }
 
             if (config.Email != null)
             {
-                emailer = new Emailer(config.Email);
+                emailer = new Emailer(config.Email, loggerFactory);
                 if (await emailer.ValidateAsync())
                 {
-                    ColorLog.Log("Емейл в поряде");
+                    logger.LogInformation("Емейл в поряде");
                 }
                 else
                 {
-                    ColorLog.LogError("Емейл каличный");
+                    logger.LogCritical("Емейл каличный");
                     return;
                 }
             }
@@ -199,29 +225,29 @@ namespace TwitchVor
                 {
                     debug = !debug;
 
-                    ColorLog.Log($"дыбаг теперь {debug}");
+                    logger.LogInformation("дыбаг теперь {debug}", debug);
                 }
                 else if (line == "pubsub")
                 {
                     if (statuser.pubsubChecker.debug_LastStreamEvent == null)
                     {
-                        ColorLog.Log($"{nameof(statuser.pubsubChecker.debug_LastStreamEvent)} is null");
+                        logger.LogInformation("{name} is null", nameof(statuser.pubsubChecker.debug_LastStreamEvent));
                         continue;
                     }
 
                     var passed = DateTime.UtcNow - statuser.pubsubChecker.debug_LastStreamEvent.Value;
 
-                    ColorLog.Log($"{statuser.pubsubChecker.debug_LastStreamEvent} - {passed}");
+                    logger.LogInformation("{date} - {passed}", statuser.pubsubChecker.debug_LastStreamEvent, passed);
                 }
                 else if (line == "finish")
                 {
                     streamsManager.EndStream();
-                    ColorLog.Log("ок");
+                    logger.LogInformation("ок");
                 }
                 else if (line == "shutdown")
                 {
                     shutdown = true;
-                    ColorLog.Log("ок");
+                    logger.LogInformation("ок");
                 }
             }
         }

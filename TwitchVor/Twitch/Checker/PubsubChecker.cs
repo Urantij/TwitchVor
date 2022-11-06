@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TwitchLib.PubSub;
 using TwitchLib.PubSub.Events;
 using TwitchVor.Utility;
@@ -6,24 +7,18 @@ namespace TwitchVor.Twitch.Checker
 {
     class PubsubChecker
     {
+        readonly ILogger _logger;
+
         private readonly TwitchStatuser statuser;
         private TwitchPubSub? client;
 
         public DateTime? debug_LastStreamEvent = null;
 
-        public PubsubChecker(TwitchStatuser statuser)
+        public PubsubChecker(TwitchStatuser statuser, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             this.statuser = statuser;
-        }
-
-        static void Log(string message)
-        {
-            ColorLog.Log(message, "PubsubChecker");
-        }
-
-        static void LogError(string message)
-        {
-            ColorLog.LogError(message, "PubsubChecker");
         }
 
         public void Start()
@@ -39,7 +34,7 @@ namespace TwitchVor.Twitch.Checker
 
             client.ListenToVideoPlayback(Program.config.ChannelId);
 
-            Log("Connecting...");
+            _logger.LogInformation("Connecting...");
             client.Connect();
         }
 
@@ -49,7 +44,7 @@ namespace TwitchVor.Twitch.Checker
             if (senderClient != client || client == null)
                 return;
 
-            Log("Connected. Sending topics.");
+            _logger.LogInformation("Connected. Sending topics.");
             senderClient!.SendTopics(); //не может быть нул, сверху проверка
         }
 
@@ -57,11 +52,11 @@ namespace TwitchVor.Twitch.Checker
         {
             if (e.Successful)
             {
-                Log($"Listening ({e.Topic})");
+                _logger.LogInformation("Listening ({Topic})", e.Topic);
             }
             else
             {
-                LogError($"Failed to listen! Response: ({e.Topic})");
+                _logger.LogError("Failed to listen! Response: ({Topic})", e.Topic);
             }
         }
 
@@ -71,7 +66,7 @@ namespace TwitchVor.Twitch.Checker
             if (senderClient != client || client == null)
                 return;
 
-            Log($"Closed.");
+            _logger.LogInformation($"Closed.");
             client = null;
             senderClient!.Disconnect(); //не может быть нул. Сверху проверка
 
@@ -89,7 +84,7 @@ namespace TwitchVor.Twitch.Checker
 
         private void PubSubServiceError(object? sender, OnPubSubServiceErrorArgs e)
         {
-            LogError(e.Exception.ToString());
+            _logger.LogError(e.Exception, "PubSubServiceError");
         }
 
         private void StreamUp(object? sender, OnStreamUpArgs e)
@@ -104,14 +99,14 @@ namespace TwitchVor.Twitch.Checker
             }
             catch (Exception ex)
             {
-                LogError($"TwitchPubSubChecker onStreamUp Exception\n{ex}");
+                _logger.LogError(ex, "onStreamUp");
             }
         }
 
         private void StreamDown(object? sender, OnStreamDownArgs e)
         {
             debug_LastStreamEvent = DateTime.UtcNow;
-            
+
             var checkInfo = new TwitchCheckInfo(false, DateTime.UtcNow);
 
             try
@@ -120,7 +115,7 @@ namespace TwitchVor.Twitch.Checker
             }
             catch (Exception ex)
             {
-                LogError($"TwitchPubSubChecker onStreamDown Exception\n{ex}");
+                _logger.LogError(ex, "onStreamDown");
             }
         }
     }

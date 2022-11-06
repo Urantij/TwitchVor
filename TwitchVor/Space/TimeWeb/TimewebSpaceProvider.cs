@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Minio;
 using TimewebNet.Models;
 using TimeWebNet;
@@ -21,8 +22,8 @@ namespace TwitchVor.Space.TimeWeb
 
         public override bool AsyncUpload => true;
 
-        public TimewebSpaceProvider(Guid guid, TimewebConfig config)
-            : base(guid)
+        public TimewebSpaceProvider(Guid guid, ILoggerFactory loggerFactory, TimewebConfig config)
+            : base(guid, loggerFactory)
         {
             this.config = config;
 
@@ -31,12 +32,17 @@ namespace TwitchVor.Space.TimeWeb
 
         public override async Task InitAsync()
         {
+            _logger.LogInformation("Получаем токен...");
+
             config.RefreshToken = await api.GetTokenAsync(this.config.RefreshToken);
             await Program.config.SaveAsync();
 
             {
+                _logger.LogInformation("Создаём ведро...");
+
                 long bucketId = await api.CreateBucketAsync(guid.ToString("N"), S3ServiceType.Start);
 
+                _logger.LogInformation("Ищем ведро...");
                 while (true)
                 {
                     await Task.Delay(5000);
@@ -58,6 +64,8 @@ namespace TwitchVor.Space.TimeWeb
                                         .WithRegion(bucket.Region)
                                         .WithSSL()
                                         .Build();
+
+            _logger.LogInformation("Дело сделано.");
 
             Ready = true;
         }
@@ -97,7 +105,11 @@ namespace TwitchVor.Space.TimeWeb
         {
             if (bucket != null)
             {
+                _logger.LogInformation("Удаляем ведро...");
+
                 await api.DeleteBucketAsync(bucket.Id);
+
+                _logger.LogInformation("Ведро удалили.");
             }
 
             api.Dispose();

@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Net.Http;
 using ExtM3UPlaylistParser.Models;
+using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
@@ -26,6 +27,8 @@ namespace TwitchVor.Twitch.Downloader
         internal bool Finished { get; private set; } = false;
         internal bool Suspended { get; private set; } = false;
 
+        readonly ILogger _logger;
+
         public readonly Guid guid;
 
         public readonly StreamDatabase db;
@@ -42,8 +45,10 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal readonly DateTime handlerCreationDate;
 
-        public StreamHandler(Timestamper timestamper)
+        public StreamHandler(Timestamper timestamper, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+
             guid = Guid.NewGuid();
 
             this.timestamper = timestamper;
@@ -52,32 +57,14 @@ namespace TwitchVor.Twitch.Downloader
 
             db = new StreamDatabase(MakeDbPath(guid));
 
-            space = DependencyProvider.GetSpaceProvider(guid);
-            
-            streamDownloader = new StreamDownloader(guid, db, space);
-        }
+            space = DependencyProvider.GetSpaceProvider(guid, loggerFactory);
 
-        void Log(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.Log(message, $"StreamHandler{handlerCreationDate:ss}");
-        }
-
-        void LogWarning(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.LogWarning(message, $"StreamHandler{handlerCreationDate:ss}");
-        }
-
-        void LogError(string message)
-        {
-            //TODO сделать норм идентификатор
-            ColorLog.LogError(message, $"StreamHandler{handlerCreationDate:ss}");
+            streamDownloader = new StreamDownloader(guid, db, space, loggerFactory);
         }
 
         internal async Task StartAsync()
         {
-            Log("Starting...");
+            _logger.LogInformation("Starting...");
 
             await db.InitAsync();
 
@@ -102,7 +89,10 @@ namespace TwitchVor.Twitch.Downloader
                         }
                         else
                         {
-                            await Task.Delay(TimeSpan.FromMinutes(30));
+                            TimeSpan delay = TimeSpan.FromMinutes(30);
+
+                            _logger.LogWarning("Не удалось получить инфу о сабке, продолжим через {minutes:N0}", delay.TotalMinutes);
+                            await Task.Delay(delay);
                         }
                     }
                 });
@@ -114,7 +104,7 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal void Suspend()
         {
-            Log("Suspending...");
+            _logger.LogInformation("Suspending...");
 
             Suspended = true;
 
@@ -126,7 +116,7 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal void Resume()
         {
-            Log("Resuming...");
+            _logger.LogInformation("Resuming...");
 
             Suspended = false;
 
@@ -138,7 +128,7 @@ namespace TwitchVor.Twitch.Downloader
         /// </summary>
         internal async Task FinishAsync()
         {
-            Log("Finishing...");
+            _logger.LogInformation("Finishing...");
 
             Finished = true;
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Data.Models;
 using TwitchVor.Twitch;
 using TwitchVor.Utility;
@@ -13,9 +14,11 @@ namespace TwitchVor.Finisher
 {
     static class DescriptionMaker
     {
-        static void Log(string message)
+        static ILogger? _logger;
+
+        public static void SetLogger(ILoggerFactory loggerFactory)
         {
-            ColorLog.Log(message, nameof(DescriptionMaker));
+            _logger = loggerFactory.CreateLogger(typeof(DescriptionMaker));
         }
 
         public static async Task<string[]> GetDisplaySubgiftersAsync(SubCheck? streamSubcheck)
@@ -50,7 +53,7 @@ namespace TwitchVor.Finisher
 
                            }).ToArray();
         }
-    
+
         /// <summary>
         /// 
         /// </summary>
@@ -164,7 +167,7 @@ namespace TwitchVor.Finisher
 
             return builder.ToString();
         }
-        
+
         /// <summary>
         /// 
         /// </summary>
@@ -192,14 +195,14 @@ namespace TwitchVor.Finisher
 
             return null;
         }
-        
+
         private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate, IEnumerable<SkipDb> skips)
         {
             TimeSpan onVideoTime = GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
 
             if (onVideoTime.Ticks < 0)
             {
-                Log($"Ticks < 0 {timestamp.timestamp}");
+                _logger?.LogWarning("Ticks < 0 {timestamp}", timestamp.timestamp);
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
@@ -212,7 +215,7 @@ namespace TwitchVor.Finisher
 
             return $"{timeStr} {content}";
         }
-        
+
         /// <summary>
         /// 
         /// </summary>

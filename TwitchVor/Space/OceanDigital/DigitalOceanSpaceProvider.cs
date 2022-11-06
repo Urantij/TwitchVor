@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TwitchVor.Space.Local;
 using TwitchVor.Utility;
 
@@ -9,6 +10,8 @@ namespace TwitchVor.Space.OceanDigital
 {
     class DigitalOceanSpaceProvider : BaseSpaceProvider
     {
+        readonly ILoggerFactory _loggerFactory;
+
         readonly OceanCreds creds;
 
         DigitalOceanVolumeOperator? volumeOperator;
@@ -17,21 +20,22 @@ namespace TwitchVor.Space.OceanDigital
 
         public override bool AsyncUpload => false;
 
-        public DigitalOceanSpaceProvider(Guid guid, OceanCreds creds)
-            : base(guid)
+        public DigitalOceanSpaceProvider(Guid guid, ILoggerFactory loggerFactory, OceanCreds creds)
+            : base(guid, loggerFactory)
         {
+            _loggerFactory = loggerFactory;
             this.creds = creds;
         }
 
         public override async Task InitAsync()
         {
-            DigitalOceanVolumeCreator volumeCreator = new(creds, guid.ToString("N")[..64].ToLower(), creds.SizeGigabytes);
+            DigitalOceanVolumeCreator volumeCreator = new(creds, guid.ToString("N")[..64].ToLower(), creds.SizeGigabytes, _loggerFactory);
 
             volumeOperator = await volumeCreator.CreateAsync();
 
             var path = Path.Combine(volumeCreator.GetVolumePath(), guid.ToString("N") + ".ts");
 
-            localSpaceProvider = new LocalSpaceProvider(guid, path);
+            localSpaceProvider = new LocalSpaceProvider(guid, _loggerFactory, path);
             await localSpaceProvider.InitAsync();
 
             Ready = true;
@@ -89,7 +93,7 @@ namespace TwitchVor.Space.OceanDigital
                     }
                     catch (Exception e)
                     {
-                        ColorLog.LogError($"Не удалось удалить вольюм {volumeOperator.volumeName}. Исключение:\n{e}", nameof(DigitalOceanSpaceProvider));
+                        _logger.LogError(e, "Не удалось удалить вольюм {volumeName}.", volumeOperator.volumeName);
 
                         retries++;
                         await Task.Delay(TimeSpan.FromSeconds(10));
@@ -101,7 +105,8 @@ namespace TwitchVor.Space.OceanDigital
             }
 
             Directory.Delete(volumeOperator.GetVolumePath());
-            ColorLog.LogError($"Всё удалено.", nameof(DigitalOceanSpaceProvider));
+
+            _logger.LogInformation("Всё удалено.");
         }
     }
 }
