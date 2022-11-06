@@ -239,7 +239,7 @@ namespace TwitchVor.Finisher
 
                         if (line == null)
                         {
-                            System.Console.WriteLine("ффмпег закончил говорить.");
+                            _logger.LogInformation("ффмпег закончил говорить.");
                             return;
                         }
 
@@ -282,7 +282,7 @@ namespace TwitchVor.Finisher
                         }
                         catch (Exception e)
                         {
-                            System.Console.WriteLine("Read ex\n" + e);
+                            _logger.LogError(e, "DoVideo ReadDataAsync");
                         }
 
                         offset += segment.Size;
