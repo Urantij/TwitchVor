@@ -64,7 +64,11 @@ namespace TwitchVor.Utility
             }
             textWriter.Write(category);
 
-            textWriter.Write("[{0}]", logEntry.EventId);
+            if (logEntry.EventId.Id != 0)
+            {
+                textWriter.Write("[{0}]", logEntry.EventId);
+            }
+            
             textWriter.Write("\n      ");
 
             if (logEntry.Formatter != null)
