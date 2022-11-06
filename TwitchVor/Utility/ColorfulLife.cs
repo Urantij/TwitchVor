@@ -8,7 +8,7 @@ namespace TwitchVor.Utility
     // https://github.com/dotnet/runtime/blob/d3ab95d3be895a1950a46c559397780dbb3e9807/src/libraries/Microsoft.Extensions.Logging.Console/src/TextWriterExtensions.cs
     // https://github.com/dotnet/runtime/blob/d3ab95d3be895a1950a46c559397780dbb3e9807/src/libraries/Microsoft.Extensions.Logging.Console/src/AnsiParser.cs
 
-    public static class TextWriterExtensions
+    public static class ColorfulLife
     {
         internal const string DefaultForegroundColor = "\x1B[39m\x1B[22m"; // reset to default foreground color
         internal const string DefaultBackgroundColor = "\x1B[49m"; // reset to the background color
@@ -74,6 +74,24 @@ namespace TwitchVor.Utility
             {
                 textWriter.Write(DefaultBackgroundColor); // reset to the background color
             }
+        }
+
+        public static string ColorMe(this string str, ConsoleColor? background = null, ConsoleColor? foreground = null)
+        {
+            // Этот цирк написан фо фан.
+            // Можно мне просто порадоваться?
+
+            if (background != null)
+            {
+                if (foreground != null)
+                    return $"{GetBackgroundColorEscapeCode(background.Value)}{GetForegroundColorEscapeCode(foreground.Value)}{str}{DefaultForegroundColor}{DefaultBackgroundColor}";
+
+                return $"{GetBackgroundColorEscapeCode(background.Value)}{str}{DefaultBackgroundColor}";
+            }
+            else if (foreground != null)
+                return $"{GetForegroundColorEscapeCode(foreground.Value)}{str}{DefaultForegroundColor}";
+
+            return str;
         }
     }
 }

@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
-using Pastel;
 
 namespace TwitchVor.Utility
 {
@@ -17,8 +16,8 @@ namespace TwitchVor.Utility
         public class ColoredCategory
         {
             public string? Category { get; set; }
-            public string? FgColor { get; set; }
-            public string? BgColor { get; set; }
+            public ConsoleColor? FgColor { get; set; }
+            public ConsoleColor? BgColor { get; set; }
         }
 
         public ICollection<ColoredCategory>? Colors { get; set; }
@@ -61,10 +60,7 @@ namespace TwitchVor.Utility
 
             if (colored != null)
             {
-                if (colored.FgColor != null)
-                    category = category.Pastel(colored.FgColor);
-                if (colored.BgColor != null)
-                    category = category.PastelBg(colored.BgColor);
+                category = category.ColorMe(foreground: colored.FgColor, background: colored.BgColor);
             }
             textWriter.Write(category);
 

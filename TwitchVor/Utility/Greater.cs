@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Pastel;
 using TwitchVor.Utility;
 
 namespace TwitchVor.Utility
@@ -14,20 +13,20 @@ namespace TwitchVor.Utility
         {
             ILogger logger = loggerFactory.CreateLogger(typeof(Greater));
 
-            string[] colors = new string[]
+            ConsoleColor[] colors = new ConsoleColor[]
             {
-                "#FF0000",
-                "#FFA500",
-                "#fdfd96",
-                "#00FF00",
-                "#87ceeb",
-                "#0000FF",
-                "#FF00FF",
+                ConsoleColor.Red,
+                ConsoleColor.DarkYellow,
+                ConsoleColor.Yellow,
+                ConsoleColor.Green,
+                ConsoleColor.Blue,
+                ConsoleColor.DarkBlue,
+                ConsoleColor.Magenta,
             };
 
             foreach (var color in colors)
             {
-                string value = "пидор".Pastel(color);
+                string value = "пидор".ColorMe(foreground: color);
 
                 logger.LogInformation("Я думаю, ты {value}.", value);
             }

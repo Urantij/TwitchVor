@@ -60,8 +60,8 @@ namespace TwitchVor
                         new ColoredConsoleOptions.ColoredCategory()
                         {
                             Category =typeof(Greater).FullName,
-                            FgColor = "#000000",
-                            BgColor = "#FFFFFF"
+                            FgColor = ConsoleColor.Black,
+                            BgColor = ConsoleColor.White
                         }
                     };
                 });
