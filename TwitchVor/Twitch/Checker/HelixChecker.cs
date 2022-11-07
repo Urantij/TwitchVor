@@ -8,17 +8,13 @@ namespace TwitchVor.Twitch.Checker
     {
         readonly ILogger _logger;
 
-        private readonly TwitchStatuser statuser;
-
         private readonly Dictionary<string, string> gameIdToGameName = new();
 
         public event EventHandler<HelixCheck>? ChannelChecked;
 
-        public HelixChecker(TwitchStatuser statuser, ILoggerFactory loggerFactory)
+        public HelixChecker(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger(this.GetType());
-
-            this.statuser = statuser;
         }
 
         public void Start()
@@ -41,11 +37,6 @@ namespace TwitchVor.Twitch.Checker
 
                 try
                 {
-                    if (helixCheck.check.online)
-                        statuser.StreamUp(helixCheck.check, false);
-                    else
-                        statuser.StreamDown(helixCheck.check, false);
-
                     ChannelChecked?.Invoke(this, helixCheck);
                 }
                 catch (Exception e)
@@ -77,10 +68,11 @@ namespace TwitchVor.Twitch.Checker
 
                 var stream = response.Streams[0];
 
-                if (stream.Type.ToLower() != "live") return new HelixCheck(new TwitchCheckInfo(false, DateTime.UtcNow))
-                {
-                    info = null,
-                };
+                if (!stream.Type.Equals("live", StringComparison.OrdinalIgnoreCase))
+                    return new HelixCheck(new TwitchCheckInfo(false, DateTime.UtcNow))
+                    {
+                        info = null,
+                    };
 
                 result = new HelixCheck(new TwitchCheckInfo(true, DateTime.UtcNow))
                 {
