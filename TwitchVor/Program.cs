@@ -135,6 +135,9 @@ namespace TwitchVor
             if (config.Vk != null)
             {
                 logger.LogInformation("Вк добавлен");
+
+                Upload.Kvk.VkUploader vk = new(Guid.Empty, loggerFactory, config.Vk);
+                await vk.TestAsync();
             }
             else
             {

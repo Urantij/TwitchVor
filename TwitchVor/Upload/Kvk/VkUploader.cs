@@ -22,11 +22,28 @@ namespace TwitchVor.Upload.Kvk
             this.creds = creds;
         }
 
+        public async Task TestAsync()
+        {
+            _logger.LogInformation("Авторизуемся...");
+
+            using VkApi api = new();
+            await api.AuthorizeAsync(new ApiAuthParams()
+            {
+                ApplicationId = creds.ApplicationId,
+                AccessToken = creds.ApiToken,
+                Settings = VkNet.Enums.Filters.Settings.All
+            });
+
+            await api.Video.GetAlbumsAsync();
+
+            _logger.LogInformation("Авторизовались.");
+        }
+
         public override async Task<bool> UploadAsync(string name, string description, string fileName, long size, Stream content)
         {
             _logger.LogInformation("Авторизуемся...");
 
-            VkApi api = new();
+            using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
                 ApplicationId = creds.ApplicationId,
