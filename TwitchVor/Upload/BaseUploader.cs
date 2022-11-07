@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Finisher;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Vvideo;
 
@@ -28,6 +29,6 @@ namespace TwitchVor.Upload
             this.guid = guid;
         }
 
-        public abstract Task<bool> UploadAsync(string name, string description, string fileName, long size, Stream content);
+        public abstract Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content);
     }
 }

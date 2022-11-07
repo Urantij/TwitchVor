@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Finisher;
 using VkNet;
 using VkNet.Model;
 
@@ -10,6 +11,8 @@ namespace TwitchVor.Upload.Kvk
 {
     class VkUploader : BaseUploader
     {
+        readonly ILoggerFactory _loggerFactory;
+
         readonly VkCreds creds;
 
         public override long SizeLimit => 256L * 1024L * 1024L * 1024L;
@@ -18,9 +21,14 @@ namespace TwitchVor.Upload.Kvk
         public VkUploader(Guid guid, ILoggerFactory loggerFactory, VkCreds creds)
             : base(guid, loggerFactory)
         {
+            _loggerFactory = loggerFactory;
             this.creds = creds;
         }
 
+        /// <summary>
+        /// Проверит и аплоадера, и волранера.
+        /// </summary>
+        /// <returns></returns>
         public async Task TestAsync()
         {
             await TestUploaderAsync();
@@ -71,7 +79,7 @@ namespace TwitchVor.Upload.Kvk
             _logger.LogInformation("Авторизовались.");
         }
 
-        public override async Task<bool> UploadAsync(string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
             _logger.LogInformation("Авторизуемся...");
 
@@ -115,6 +123,50 @@ namespace TwitchVor.Upload.Kvk
             }
 
             _logger.LogInformation("Закончили загрузку.");
+
+            if (saveResult.Id != null)
+            {
+                lock (processingHandler.trashcan)
+                    processingHandler.trashcan.Add(new VkVideoInfo(video, saveResult.Id.Value));
+            }
+            else
+            {
+                _logger.LogCritical("Id видео нулл");
+            }
+
+            if (creds.WallRunner != null && processingHandler.videos.FirstOrDefault() == video)
+            {
+                // Пусть только первый видос запускает постобработку.
+                // И всё видосы одним постом выложатся.
+
+                VkWaller waller = new(_loggerFactory, creds);
+
+                _ = Task.Run(async () =>
+                {
+                    _logger.LogInformation("Запущен постобработчик.");
+
+                    await processingHandler.ProcessTask;
+
+                    VkVideoInfo[] videoInfos;
+                    lock (processingHandler.trashcan)
+                        videoInfos = processingHandler.trashcan.OfType<VkVideoInfo>().Where(v => v.video.success == true).ToArray();
+
+                    if (videoInfos.Length == 0)
+                    {
+                        _logger.LogWarning("Постобработка нашла 0 видео.");
+                        return;
+                    }
+
+                    try
+                    {
+                        await waller.MakePostAsync(videoInfos.Select(i => i.id).ToArray());
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Не удалось сделать пост.");
+                    }
+                });
+            }
 
             return true;
         }

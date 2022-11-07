@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Finisher;
 using TwitchVor.Vvideo;
 
 namespace TwitchVor.Upload.FileSystem
@@ -20,7 +21,7 @@ namespace TwitchVor.Upload.FileSystem
             this.path = path;
         }
 
-        public override async Task<bool> UploadAsync(string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
             _logger.LogInformation("Пишем...");
 

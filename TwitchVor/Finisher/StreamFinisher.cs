@@ -46,39 +46,47 @@ namespace TwitchVor.Finisher
         {
             ProcessingHandler processingHandler;
             {
-                var videos = await CutToVideosAsync();
+                var skips = await db.LoadSkipsAsync();
 
-                processingHandler = new(videos.ToArray());
+                var videos = await CutToVideosAsync(skips);
+
+                TimeSpan totalLoss = TimeSpan.FromTicks(videos.Sum(v => v.loss.Ticks));
+
+                processingHandler = new(streamHandler.streamDownloader.AdvertismentTime, totalLoss, skips, videos.ToArray());
             }
 
-            bool allSuccess = true;
             foreach (var video in processingHandler.videos)
             {
                 var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
 
-                bool success;
                 video.uploadStart = DateTimeOffset.UtcNow;
                 try
                 {
-                    await DoVideo(video, uploader, singleVideo: processingHandler.videos.Length == 1);
+                    await DoVideo(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
 
-                    success = true;
+                    video.success = true;
                 }
                 catch (Exception e)
                 {
                     _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
 
-                    success = false;
+                    video.success = false;
                 }
                 video.uploadEnd = DateTimeOffset.UtcNow;
-
-                if (!success)
-                    allSuccess = false;
             }
 
             processingHandler.SetResult();
 
-            _logger.LogInformation("С видосами закончили...");
+            bool allSuccess = processingHandler.videos.All(v => v.success == true);
+
+            if (allSuccess)
+            {
+                _logger.LogInformation("С видосами закончили, всё нормально.");
+            }
+            else
+            {
+                _logger.LogInformation("С видосами закончили, всё хуёво.");
+            }
 
             await streamHandler.DestroyAsync(destroySegments: allSuccess);
 
@@ -120,7 +128,7 @@ namespace TwitchVor.Finisher
             }
         }
 
-        async Task<List<ProcessingVideo>> CutToVideosAsync()
+        async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips)
         {
             long sizeLimit;
             TimeSpan durationLimit;
@@ -208,7 +216,17 @@ namespace TwitchVor.Finisher
                     DateTimeOffset startDate = startSegment!.ProgramDate;
                     DateTimeOffset endDate = endSegment!.ProgramDate.AddSeconds(endSegment.Duration);
 
-                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate, endDate));
+                    var relatedSkips = skips.Where(skip => skip.EndDate > startDate && skip.StartDate < endDate).ToArray();
+
+                    TimeSpan loss = TimeSpan.FromTicks(relatedSkips.Sum(s =>
+                    {
+                        DateTimeOffset start = s.StartDate > startDate ? s.StartDate : startDate;
+                        DateTimeOffset end = s.EndDate < endDate ? s.EndDate : endDate;
+
+                        return (end - start).Ticks;
+                    }));
+
+                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate, endDate, loss));
 
                     videoNumber++;
                 }
@@ -221,7 +239,7 @@ namespace TwitchVor.Finisher
             return videos;
         }
 
-        async Task<bool> DoVideo(ProcessingVideo video, BaseUploader uploader, bool singleVideo)
+        async Task<bool> DoVideo(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo)
         {
             _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsLength, video.segmentStart);
 
@@ -310,17 +328,13 @@ namespace TwitchVor.Finisher
                 _logger.LogInformation("Всё прочитали.");
             });
 
-            var skips = await db.LoadSkipsAsync();
-
             string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, streamHandler.timestamper.timestamps);
 
-            TimeSpan totalLostTime = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
+            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss);
 
-            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, totalLostTime);
-
-            bool success = await uploader.UploadAsync(videoName, description, filename, video.size, clientPipe);
+            bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, video.size, clientPipe);
 
             if (conversionHandler != null)
             {
