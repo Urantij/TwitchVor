@@ -17,7 +17,7 @@ namespace TwitchVor.Finisher
 {
     class StreamFinisher
     {
-        const int takeCount = 200;
+        const int takeCount = 250;
 
         readonly ILogger _logger;
 
@@ -44,6 +44,84 @@ namespace TwitchVor.Finisher
 
         public async Task DoAsync()
         {
+            ProcessingHandler processingHandler;
+            {
+                var videos = await CutToVideosAsync();
+
+                processingHandler = new(videos.ToArray());
+            }
+
+            bool allSuccess = true;
+            foreach (var video in processingHandler.videos)
+            {
+                var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
+
+                bool success;
+                video.uploadStart = DateTimeOffset.UtcNow;
+                try
+                {
+                    await DoVideo(video, uploader, singleVideo: processingHandler.videos.Length == 1);
+
+                    success = true;
+                }
+                catch (Exception e)
+                {
+                    _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
+
+                    success = false;
+                }
+                video.uploadEnd = DateTimeOffset.UtcNow;
+
+                if (!success)
+                    allSuccess = false;
+            }
+
+            processingHandler.SetResult();
+
+            _logger.LogInformation("С видосами закончили...");
+
+            await streamHandler.DestroyAsync(destroySegments: allSuccess);
+
+            if (Program.emailer != null)
+            {
+                _logger.LogInformation("Отправляем весточку.");
+
+                if (allSuccess)
+                {
+                    await Program.emailer.SendFinishSuccessAsync();
+                }
+                else
+                {
+                    await Program.emailer.SendCriticalErrorAsync("Не получилось нормально закончить стрим...");
+                }
+            }
+
+            if (Program.shutdown)
+            {
+                _logger.LogInformation("Shutdown...");
+                using Process pr = new();
+
+                pr.StartInfo.FileName = "shutdown";
+
+                pr.StartInfo.UseShellExecute = false;
+                pr.StartInfo.RedirectStandardOutput = true;
+                pr.StartInfo.RedirectStandardError = true;
+                pr.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                pr.StartInfo.CreateNoWindow = true;
+                pr.Start();
+
+                pr.OutputDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
+                pr.ErrorDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
+
+                pr.BeginOutputReadLine();
+                pr.BeginErrorReadLine();
+
+                pr.WaitForExit();
+            }
+        }
+
+        async Task<List<ProcessingVideo>> CutToVideosAsync()
+        {
             long sizeLimit;
             TimeSpan durationLimit;
             {
@@ -59,10 +137,7 @@ namespace TwitchVor.Finisher
 
             formats.TryDequeue(out VideoFormatDb? nextFormat);
 
-            int totalSegmentsCount = await db.CountSegmentsAsync();
-
-            bool allSuccess = true;
-
+            List<ProcessingVideo> videos = new();
             int tookCount = 0;
             int videoNumber = 0;
             while (true)
@@ -133,26 +208,7 @@ namespace TwitchVor.Finisher
                     DateTimeOffset startDate = startSegment!.ProgramDate;
                     DateTimeOffset endDate = endSegment!.ProgramDate.AddSeconds(endSegment.Duration);
 
-                    bool singleVideo = videoNumber == 0 && totalSegmentsCount == videoTook;
-
-                    var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
-
-                    bool success;
-                    try
-                    {
-                        await DoVideo(videoNumber, startTookIndex, videoTook, currentSize, uploader, singleVideo, startDate, endDate);
-
-                        success = true;
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
-
-                        success = false;
-                    }
-
-                    if (!success)
-                        allSuccess = false;
+                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate, endDate));
 
                     videoNumber++;
                 }
@@ -162,55 +218,16 @@ namespace TwitchVor.Finisher
                 }
             }
 
-            _logger.LogInformation("С видосами закончили...");
-
-            await streamHandler.DestroyAsync(destroySegments: allSuccess);
-
-            if (Program.emailer != null)
-            {
-                _logger.LogInformation("Отправляем весточку.");
-
-                if (allSuccess)
-                {
-                    await Program.emailer.SendFinishSuccessAsync();
-                }
-                else
-                {
-                    await Program.emailer.SendCriticalErrorAsync("Не получилось нормально закончить стрим...");
-                }
-            }
-
-            if (Program.shutdown)
-            {
-                _logger.LogInformation("Shutdown...");
-                using Process pr = new();
-
-                pr.StartInfo.FileName = "shutdown";
-
-                pr.StartInfo.UseShellExecute = false;
-                pr.StartInfo.RedirectStandardOutput = true;
-                pr.StartInfo.RedirectStandardError = true;
-                pr.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                pr.StartInfo.CreateNoWindow = true;
-                pr.Start();
-
-                pr.OutputDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
-                pr.ErrorDataReceived += (s, e) => { _logger.LogInformation(e.Data); };
-
-                pr.BeginOutputReadLine();
-                pr.BeginErrorReadLine();
-
-                pr.WaitForExit();
-            }
+            return videos;
         }
 
-        async Task<bool> DoVideo(int videoNumber, int startTookIndex, int videoTook, long size, BaseUploader uploader, bool singleVideo, DateTimeOffset startDate, DateTimeOffset endDate)
+        async Task<bool> DoVideo(ProcessingVideo video, BaseUploader uploader, bool singleVideo)
         {
-            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", videoNumber, videoTook, startTookIndex);
+            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsLength, video.segmentStart);
 
-            int limitIndex = startTookIndex + videoTook;
+            int limitIndex = video.segmentStart + video.segmentsLength;
 
-            string filename = $"result{videoNumber}." + (ffmpeg != null ? "mp4" : "ts");
+            string filename = $"result{video.number}." + (ffmpeg != null ? "mp4" : "ts");
 
             // Сюда пишем то, что будет читать аплоадер.
             // Когда закончим писать, его нужно будет закрыть.
@@ -242,8 +259,6 @@ namespace TwitchVor.Finisher
                             _logger.LogInformation("ффмпег закончил говорить.");
                             return;
                         }
-
-                        // System.Console.WriteLine(line);
                     }
                 });
 
@@ -266,9 +281,9 @@ namespace TwitchVor.Finisher
             // Чтение сегментов, перенаправление в инпут.
             _ = Task.Run(async () =>
             {
-                long offset = await db.CalculateOffsetAsync(startTookIndex);
+                long offset = await db.CalculateOffsetAsync(video.segmentStart);
 
-                for (int index = startTookIndex; index < limitIndex; index += takeCount)
+                for (int index = video.segmentStart; index < limitIndex; index += takeCount)
                 {
                     int take = Math.Min(takeCount, limitIndex - index);
 
@@ -299,13 +314,13 @@ namespace TwitchVor.Finisher
 
             string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
 
-            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : videoNumber, 100, streamHandler.timestamper.timestamps);
+            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, streamHandler.timestamper.timestamps);
 
             TimeSpan totalLostTime = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
 
-            string description = DescriptionMaker.FormDescription(startDate, streamHandler.timestamper.timestamps, skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, totalLostTime);
+            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, totalLostTime);
 
-            bool success = await uploader.UploadAsync(videoName, description, filename, size, clientPipe);
+            bool success = await uploader.UploadAsync(videoName, description, filename, video.size, clientPipe);
 
             if (conversionHandler != null)
             {
