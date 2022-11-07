@@ -25,7 +25,7 @@ namespace TwitchVor.Twitch.Downloader
             _logger = loggerFactory.CreateLogger(this.GetType());
             _loggerFactory = loggerFactory;
 
-            currentStamper = new();
+            currentStamper = new(_loggerFactory);
             Program.statuser.helixChecker.ChannelChecked += currentStamper.HelixChecker_ChannelChecked;
 
             Program.statuser.ChannelWentOnline += StatuserOnline;
@@ -68,7 +68,7 @@ namespace TwitchVor.Twitch.Downloader
 
                 Program.statuser.helixChecker.ChannelChecked -= currentStamper.HelixChecker_ChannelChecked;
 
-                currentStamper = new();
+                currentStamper = new(_loggerFactory);
             }
 
             _ = Task.Run(async () =>

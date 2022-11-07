@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Vvideo.Timestamps;
 
@@ -9,9 +10,16 @@ namespace TwitchVor.Vvideo
     /// </summary>
     class Timestamper
     {
+        readonly ILogger _logger;
+
         public readonly List<BaseTimestamp> timestamps = new();
 
         HelixCheck? lastHelixCheck;
+
+        public Timestamper(ILoggerFactory loggerFactory)
+        {
+            _logger = loggerFactory.CreateLogger(this.GetType());
+        }
 
         private void AddTimestamp(BaseTimestamp timestamp)
         {
@@ -19,6 +27,8 @@ namespace TwitchVor.Vvideo
             {
                 timestamps.Add(timestamp);
             }
+
+            _logger.LogInformation("Добавлен таймстамп \"{content}\"", timestamp.ToString());
         }
 
         public void HelixChecker_ChannelChecked(object? sender, HelixCheck e)
