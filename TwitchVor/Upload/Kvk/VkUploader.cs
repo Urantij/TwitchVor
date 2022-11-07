@@ -13,7 +13,6 @@ namespace TwitchVor.Upload.Kvk
         readonly VkCreds creds;
 
         public override long SizeLimit => 256L * 1024L * 1024L * 1024L;
-
         public override TimeSpan DurationLimit => TimeSpan.MaxValue;
 
         public VkUploader(Guid guid, ILoggerFactory loggerFactory, VkCreds creds)
@@ -24,17 +23,50 @@ namespace TwitchVor.Upload.Kvk
 
         public async Task TestAsync()
         {
-            _logger.LogInformation("Авторизуемся...");
+            await TestUploaderAsync();
+            if (creds.WallRunner != null)
+                await TestWallRunnerAsync();
+        }
+
+        async Task TestUploaderAsync()
+        {
+            _logger.LogInformation("Авторизуем аплоадера...");
 
             using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.ApplicationId,
-                AccessToken = creds.ApiToken,
+                ApplicationId = creds.Uploader.ApplicationId,
+                AccessToken = creds.Uploader.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
             await api.Video.GetAlbumsAsync();
+
+            _logger.LogInformation("Авторизовались.");
+        }
+
+        async Task TestWallRunnerAsync()
+        {
+            if (creds.WallRunner == null)
+            {
+                throw new NullReferenceException();
+            }
+
+            _logger.LogInformation("Авторизуем бегущего по стене...");
+
+            using VkApi vkApi = new();
+            await vkApi.AuthorizeAsync(new ApiAuthParams()
+            {
+                ApplicationId = creds.WallRunner.ApplicationId,
+                AccessToken = creds.WallRunner.ApiToken,
+                Settings = VkNet.Enums.Filters.Settings.Wall
+            });
+
+            await vkApi.Wall.GetAsync(new VkNet.Model.RequestParams.WallGetParams()
+            {
+                OwnerId = -creds.GroupId,
+                Count = 1,
+            });
 
             _logger.LogInformation("Авторизовались.");
         }
@@ -46,8 +78,8 @@ namespace TwitchVor.Upload.Kvk
             using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.ApplicationId,
-                AccessToken = creds.ApiToken,
+                ApplicationId = creds.Uploader.ApplicationId,
+                AccessToken = creds.Uploader.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
