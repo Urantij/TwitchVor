@@ -28,8 +28,11 @@ namespace TwitchVor.Twitch.Checker
         {
             _logger = loggerFactory.CreateLogger(this.GetType());
 
-            helixChecker = new HelixChecker(this, loggerFactory);
-            pubsubChecker = new PubsubChecker(this, loggerFactory);
+            helixChecker = new HelixChecker(loggerFactory);
+            pubsubChecker = new PubsubChecker(loggerFactory);
+
+            helixChecker.ChannelChecked += HelixChecked;
+            pubsubChecker.ChannelChecked += PubsubChecked;
         }
 
         public void Init()
@@ -38,7 +41,31 @@ namespace TwitchVor.Twitch.Checker
             pubsubChecker.Start();
         }
 
-        public void StreamUp(TwitchCheckInfo check, bool trustworthy)
+        private void HelixChecked(object? sender, HelixCheck arg)
+        {
+            if (arg.check.online)
+            {
+                StreamUp(arg.check, false);
+            }
+            else
+            {
+                StreamDown(arg.check, false);
+            }
+        }
+
+        private void PubsubChecked(object? sender, TwitchCheckInfo arg)
+        {
+            if (arg.online)
+            {
+                StreamUp(arg, true);
+            }
+            else
+            {
+                StreamDown(arg, true);
+            }
+        }
+
+        void StreamUp(TwitchCheckInfo check, bool trustworthy)
         {
             lock (locker)
             {
@@ -56,7 +83,7 @@ namespace TwitchVor.Twitch.Checker
             ChannelWentOnline?.Invoke(this, EventArgs.Empty);
         }
 
-        public void StreamDown(TwitchCheckInfo check, bool trustworthy)
+        void StreamDown(TwitchCheckInfo check, bool trustworthy)
         {
             lock (locker)
             {

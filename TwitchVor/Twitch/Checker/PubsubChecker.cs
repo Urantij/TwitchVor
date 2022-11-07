@@ -9,16 +9,15 @@ namespace TwitchVor.Twitch.Checker
     {
         readonly ILogger _logger;
 
-        private readonly TwitchStatuser statuser;
         private TwitchPubSub? client;
 
         public DateTime? debug_LastStreamEvent = null;
 
-        public PubsubChecker(TwitchStatuser statuser, ILoggerFactory loggerFactory)
+        public event EventHandler<TwitchCheckInfo>? ChannelChecked;
+
+        public PubsubChecker(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger(this.GetType());
-
-            this.statuser = statuser;
         }
 
         public void Start()
@@ -95,7 +94,7 @@ namespace TwitchVor.Twitch.Checker
 
             try
             {
-                statuser.StreamUp(checkInfo, true);
+                ChannelChecked?.Invoke(this, checkInfo);
             }
             catch (Exception ex)
             {
@@ -111,7 +110,7 @@ namespace TwitchVor.Twitch.Checker
 
             try
             {
-                statuser.StreamDown(checkInfo, true);
+                ChannelChecked?.Invoke(this, checkInfo);
             }
             catch (Exception ex)
             {
