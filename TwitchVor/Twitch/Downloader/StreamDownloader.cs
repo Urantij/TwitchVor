@@ -265,17 +265,15 @@ namespace TwitchVor.Twitch.Downloader
             //да не может он быть нулл.
             var downloader = (SegmentsDownloader)sender!;
 
-            string fails = $" ({downloader.TokenAcquiranceFailedAttempts} failed)";
-
             if (e.parsedValue.expires == null)
             {
                 if (Program.config.DownloaderForceTokenChange)
                 {
-                    _logger.LogError("Got no playback token! {fails}", fails);
+                    _logger.LogError("Got no playback token! ({fails} failed)", downloader.TokenAcquiranceFailedAttempts);
                 }
                 else
                 {
-                    _logger.LogWarning("Got no playback token! {fails}", fails);
+                    _logger.LogWarning("Got no playback token! ({fails} failed)", downloader.TokenAcquiranceFailedAttempts);
                 }
 
                 return;
@@ -283,7 +281,7 @@ namespace TwitchVor.Twitch.Downloader
 
             var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
 
-            _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes ({fails})", left.TotalMinutes, fails);
+            _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes ({fails} failed)", left.TotalMinutes, downloader.TokenAcquiranceFailedAttempts);
 
             if (!Program.config.DownloaderForceTokenChange)
                 return;
@@ -315,15 +313,19 @@ namespace TwitchVor.Twitch.Downloader
             if (downloader.LastStreamQuality?.Same(args.Quality) == true)
                 return;
 
-            db.AddVideoFormat($"{args.Quality.resolution.width}x{args.Quality.resolution.height}:{args.Quality.fps}", DateTimeOffset.UtcNow);
+            string format = SomeUtis.MakeFormat(args.Quality);
+
+            db.AddVideoFormat(format, DateTimeOffset.UtcNow);
 
             if (downloader.LastStreamQuality == null)
             {
-                _logger.LogInformation("Quality selected: {height}:{fps}", args.Quality.resolution.height, args.Quality.fps);
+                _logger.LogInformation("Quality selected: {format}", format);
             }
             else
             {
-                _logger.LogWarning("New quality selected: {height}:{fps} ({lastHeight}:{lastFps})", args.Quality.resolution.height, args.Quality.fps, downloader.LastStreamQuality.resolution.height, downloader.LastStreamQuality.fps);
+                string oldFormat = SomeUtis.MakeFormat(downloader.LastStreamQuality);
+
+                _logger.LogWarning("New quality selected: {format} ({oldFormat})", format, oldFormat);
             }
         }
 
