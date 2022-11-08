@@ -12,6 +12,7 @@ using TwitchVor.Space;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;
 using TwitchVor.Utility;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Finisher
 {
@@ -52,7 +53,13 @@ namespace TwitchVor.Finisher
 
                 TimeSpan totalLoss = TimeSpan.FromTicks(videos.Sum(v => v.loss.Ticks));
 
-                processingHandler = new(streamHandler.streamDownloader.AdvertismentTime, totalLoss, skips, videos.ToArray());
+                List<Bill> bills = new();
+                if (Program.pricer != null)
+                    bills.Add(Program.pricer.GetCost(DateTimeOffset.UtcNow));
+                if (streamHandler.space.pricer != null)
+                    bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
+
+                processingHandler = new(streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), skips, videos.ToArray());
             }
 
             foreach (var video in processingHandler.videos)
@@ -332,7 +339,7 @@ namespace TwitchVor.Finisher
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, streamHandler.timestamper.timestamps);
 
-            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss);
+            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss, processingHandler.bills);
 
             bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, video.size, clientPipe);
 

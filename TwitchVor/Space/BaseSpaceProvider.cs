@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Space
 {
@@ -20,6 +21,8 @@ namespace TwitchVor.Space
         /// В ином случае он кидает их в один файл. Зато по порядку.
         /// </summary>
         public abstract bool AsyncUpload { get; }
+
+        public IPricer? pricer;
 
         protected BaseSpaceProvider(Guid guid, ILoggerFactory loggerFactory)
         {

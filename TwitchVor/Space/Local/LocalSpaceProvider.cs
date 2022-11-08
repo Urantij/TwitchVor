@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Utility;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Space.Local
 {

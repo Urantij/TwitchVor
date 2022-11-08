@@ -8,6 +8,7 @@ using TwitchVor.Data.Models;
 using TwitchVor.Twitch;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
+using TwitchVor.Vvideo.Money;
 using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
@@ -118,7 +119,7 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime)
+        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -164,6 +165,24 @@ namespace TwitchVor.Finisher
 
             builder.AppendLine($"Пропущено секунд всего: {totalLostTime.TotalSeconds:N0}");
             builder.AppendLine($"Пропущено секунд из-за рекламы: {advertismentTime.TotalSeconds:N0}");
+
+            if (bills.Length > 0)
+            {
+                var sumBills = bills.GroupBy(b => b.currency)
+                                    .Select(g => new Bill(g.Key, g.Sum(b => b.count)))
+                                    .Where(t => t.count > 0M)
+                                    .Select(t => t.Format())
+                                    .ToArray();
+
+                if (sumBills.Length > 0)
+                {
+                    builder.AppendLine();
+
+                    var result = string.Join(", ", sumBills);
+
+                    builder.AppendLine($"Примерная стоимость создания записи стрима: ${result}");
+                }
+            }
 
             return builder.ToString();
         }
