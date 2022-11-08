@@ -6,11 +6,15 @@ using Microsoft.Extensions.Logging;
 using Minio;
 using TimewebNet.Models;
 using TimeWebNet;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Space.TimeWeb
 {
     public class TimewebSpaceProvider : BaseSpaceProvider
     {
+        const decimal perHourCost = 639M / 30M / 24M;
+        const S3ServiceType s3Type = S3ServiceType.Start;
+
         private const string endpoint = "s3.timeweb.com";
 
         readonly TimewebConfig config;
@@ -51,7 +55,7 @@ namespace TwitchVor.Space.TimeWeb
             {
                 _logger.LogInformation("Создаём ведро...");
 
-                long bucketId = await api.CreateBucketAsync(guid.ToString("N"), S3ServiceType.Start);
+                long bucketId = await api.CreateBucketAsync(guid.ToString("N"), s3Type);
 
                 _logger.LogInformation("Ищем ведро...");
                 while (true)
@@ -65,6 +69,8 @@ namespace TwitchVor.Space.TimeWeb
                     if (bucket != null)
                         break;
                 }
+
+                pricer = new TimeBasedPricer(DateTimeOffset.UtcNow, new Bill(Currency.RUB, perHourCost));
             }
 
             string username = bucket.Name.Split('-')[0];

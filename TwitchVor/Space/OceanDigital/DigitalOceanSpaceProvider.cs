@@ -5,11 +5,15 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Space.Local;
 using TwitchVor.Utility;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Space.OceanDigital
 {
     class DigitalOceanSpaceProvider : BaseSpaceProvider
     {
+        const decimal taxesMult = 1.2M;
+        const decimal volumeCostPerGBPerHour = 0.00015M;
+
         readonly ILoggerFactory _loggerFactory;
 
         readonly OceanCreds creds;
@@ -32,6 +36,8 @@ namespace TwitchVor.Space.OceanDigital
             DigitalOceanVolumeCreator volumeCreator = new(creds, guid.ToString("N")[..64].ToLower(), creds.SizeGigabytes, _loggerFactory);
 
             volumeOperator = await volumeCreator.CreateAsync();
+
+            pricer = new TimeBasedPricer(DateTimeOffset.UtcNow, new Bill(Currency.USD, volumeCostPerGBPerHour * volumeCreator.dropletSizeGB * taxesMult));
 
             var path = Path.Combine(volumeCreator.GetVolumePath(), guid.ToString("N") + ".ts");
 

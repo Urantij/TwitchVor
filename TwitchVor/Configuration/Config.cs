@@ -5,6 +5,7 @@ using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
 using TwitchVor.Upload.Kvk;
+using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Configuration
 {
@@ -40,6 +41,9 @@ namespace TwitchVor.Configuration
 
             return config;
         }
+
+        [JsonProperty(Required = Required.Default)]
+        public MoneyConfig Money { get; set; }
 
         [JsonProperty(Required = Required.Always)]
         public string? Channel { get; set; } = null;
