@@ -215,6 +215,21 @@ namespace TwitchVor.Twitch.Downloader
                     int id = db.AddSegment(qItem.segment.mediaSequenceNumber, qItem.segment.programDate, qItem.bufferWriteStream.Length, qItem.segment.duration);
                     qItem.bufferWriteStream.Position = 0;
 
+                    if (lastSegment != null)
+                    {
+                        var lastSegmentEnd = lastSegment.programDate.AddSeconds(lastSegment.duration);
+
+                        var difference = qItem.segment.programDate - lastSegmentEnd;
+
+                        if (difference >= Program.config.MinimumSegmentSkipDelay)
+                        {
+                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(", difference.TotalSeconds, lastSegment.mediaSequenceNumber, qItem.segment.mediaSequenceNumber);
+
+                            db.AddSkip(lastSegmentEnd, qItem.segment.programDate);
+                        }
+                    }
+                    lastSegment = qItem.segment;
+
                     try
                     {
                         if (spaceToWrite.AsyncUpload)
@@ -230,22 +245,6 @@ namespace TwitchVor.Twitch.Downloader
                     {
                         LogException("Unable to putdata", exception);
                     }
-
-                    if (lastSegment != null)
-                    {
-                        var lastSegmentEnd = lastSegment.programDate.AddSeconds(lastSegment.duration);
-
-                        var difference = qItem.segment.programDate - lastSegmentEnd;
-
-                        if (difference >= Program.config.MinimumSegmentSkipDelay)
-                        {
-                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(", difference.TotalSeconds, lastSegment.mediaSequenceNumber, qItem.segment.mediaSequenceNumber);
-
-                            await db.AddSkipAsync(lastSegmentEnd, qItem.segment.programDate);
-                        }
-                    }
-
-                    lastSegment = qItem.segment;
                 }
                 else
                 {

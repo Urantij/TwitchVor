@@ -76,6 +76,21 @@ namespace TwitchVor.Data
             return segment.Id;
         }
 
+        public void AddSkip(DateTimeOffset startDate, DateTimeOffset endDate)
+        {
+            using var context = CreateContext();
+
+            SkipDb segment = new()
+            {
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            context.Skips.Add(segment);
+
+            context.SaveChanges();
+        }
+
         public async Task AddSkipAsync(DateTimeOffset startDate, DateTimeOffset endDate)
         {
             using var context = CreateContext();
