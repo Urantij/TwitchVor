@@ -14,6 +14,7 @@ using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo.Money;
+using static TwitchVor.Utility.ColoredConsoleOptions;
 
 namespace TwitchVor
 {
@@ -59,14 +60,17 @@ namespace TwitchVor
                 {
                     options.TimestampFormat = "[HH:mm:ss] ";
 
-                    options.Colors = new List<ColoredConsoleOptions.ColoredCategory>()
+                    options.Colors = new List<ColoredCategory>()
                     {
-                        new ColoredConsoleOptions.ColoredCategory()
-                        {
-                            Category =typeof(Greater).FullName,
-                            FgColor = ConsoleColor.Black,
-                            BgColor = ConsoleColor.White
-                        }
+                        new ColoredCategory(typeof(Greater), ConsoleColor.Yellow, ConsoleColor.DarkYellow),
+
+                        new ColoredCategory(typeof(Upload.Kvk.VkUploader), ConsoleColor.White, ConsoleColor.DarkBlue),
+                        new ColoredCategory(typeof(Upload.Kvk.VkWaller), ConsoleColor.White, ConsoleColor.DarkBlue),
+
+                        new ColoredCategory(typeof(Space.Local.LocalSpaceProvider), ConsoleColor.DarkGreen),
+                        new ColoredCategory(typeof(Space.TimeWeb.TimewebSpaceProvider), ConsoleColor.DarkMagenta, ConsoleColor.Gray),
+
+                        new ColoredCategory(typeof(StreamDownloader), ConsoleColor.Magenta),
                     };
                 });
                 builder.AddConsole(b => b.FormatterName = nameof(ColoredConsoleFormatter));

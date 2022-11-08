@@ -18,6 +18,16 @@ namespace TwitchVor.Utility
             public string? Category { get; set; }
             public ConsoleColor? FgColor { get; set; }
             public ConsoleColor? BgColor { get; set; }
+
+            public ColoredCategory() { }
+
+            public ColoredCategory(Type type, ConsoleColor? fgColor = null, ConsoleColor? bgColor = null)
+            {
+                Category = type.FullName;
+
+                FgColor = fgColor;
+                BgColor = bgColor;
+            }
         }
 
         public ICollection<ColoredCategory>? Colors { get; set; }
@@ -68,7 +78,7 @@ namespace TwitchVor.Utility
             {
                 textWriter.Write("[{0}]", logEntry.EventId);
             }
-            
+
             textWriter.Write("\n      ");
 
             if (logEntry.Formatter != null)
