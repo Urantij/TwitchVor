@@ -12,7 +12,7 @@ namespace TwitchVor.Data.Models
         public int Id { get; set; }
 
         /// <summary>
-        /// 720p60
+        /// 1280x720:60
         /// </summary>
         [Required]
         public string Format { get; set; }

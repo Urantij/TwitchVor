@@ -64,7 +64,7 @@ namespace TwitchVor.Twitch.Downloader
             var settings = new SegmentsDownloaderSettings()
             {
                 preferredFps = Program.config.PreferedVideoFps,
-                preferredResolution = Program.config.PreferedVideoResolution,
+                preferredResolution = Resolution.Parse(Program.config.PreferedVideoResolution),
 
                 takeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
             };
@@ -307,24 +307,23 @@ namespace TwitchVor.Twitch.Downloader
             });
         }
 
-        private void MediaQualitySelected(object? sender, VariantStream e)
+        private void MediaQualitySelected(object? sender, MediaQualitySelectedEventArgs args)
         {
             //да не может он быть нулл.
             var downloader = (SegmentsDownloader)sender!;
 
-            if (downloader.LastStreamResolution == e.streamInfTag.resolution && 
-                downloader.LastStreamFramerate == e.streamInfTag.frameRate)
+            if (downloader.LastStreamQuality?.Same(args.Quality) == true)
                 return;
 
-            db.AddVideoFormat(e.streamInfTag.video!, DateTimeOffset.UtcNow);
+            db.AddVideoFormat($"{args.Quality.resolution.width}x{args.Quality.resolution.height}:{args.Quality.fps}", DateTimeOffset.UtcNow);
 
-            if (downloader.LastStreamResolution == null)
+            if (downloader.LastStreamQuality == null)
             {
-                _logger.LogInformation("Quality selected: {resolution}:{fps}", e.streamInfTag.resolution, e.streamInfTag.frameRate);
+                _logger.LogInformation("Quality selected: {height}:{fps}", args.Quality.resolution.height, args.Quality.fps);
             }
             else
             {
-                _logger.LogWarning("New quality selected: {resolution}:{fps} ({lastResolution}:{lastFps})", e.streamInfTag.resolution, e.streamInfTag.frameRate, downloader.LastStreamResolution, downloader.LastStreamFramerate);
+                _logger.LogWarning("New quality selected: {height}:{fps} ({lastHeight}:{lastFps})", args.Quality.resolution.height, args.Quality.fps, downloader.LastStreamQuality.resolution.height, downloader.LastStreamQuality.fps);
             }
         }
 
