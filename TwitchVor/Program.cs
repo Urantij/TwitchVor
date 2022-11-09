@@ -109,11 +109,6 @@ namespace TwitchVor
                 return;
             }
 
-            if (config.Conversion != null)
-            {
-                ffmpeg = new Ffmpeg(config.Conversion);
-            }
-
             twitchAPI = new TwitchAPI();
             twitchAPI.Settings.ClientId = config.TwitchAPIClientId;
             twitchAPI.Settings.Secret = config.TwitchAPISecret;
@@ -222,9 +217,10 @@ namespace TwitchVor
             {
                 logger.LogInformation("Конвертируем ({path})", conversion.FfmpegPath);
 
-                if (!File.Exists(conversion.FfmpegPath))
+                ffmpeg = new Ffmpeg(config.Conversion, loggerFactory);
+
+                if (!await ffmpeg.CheckAsync())
                 {
-                    logger.LogCritical("Не удаётся найти ффмпег");
                     return;
                 }
             }
