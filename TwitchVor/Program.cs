@@ -77,11 +77,13 @@ namespace TwitchVor
                     builder.SetMinimumLevel(LogLevel.Debug);
             });
 
-            Greater.Great(loggerFactory);
+            Greater.SetLogger(loggerFactory);
+            DescriptionMaker.SetLogger(loggerFactory);
+
+            for (int i = 0; i < Greater.ColorsLength; i++)
+                Greater.Great();
 
             ILogger logger = loggerFactory.CreateLogger(typeof(Program));
-
-            DescriptionMaker.SetLogger(loggerFactory);
 
             if (debug)
             {
@@ -271,12 +273,12 @@ namespace TwitchVor
 
             while (true)
             {
-                Console.WriteLine("Пошёл нахуй. debug pubsub finish shutdown");
+                Greater.Great();
+                Console.WriteLine("debug; pubsub; finish; shutdown");
+
                 string? line = Console.ReadLine();
                 if (line == null)
-                {
                     continue;
-                }
 
                 if (line == "debug")
                 {

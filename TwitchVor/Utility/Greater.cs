@@ -10,12 +10,19 @@ namespace TwitchVor.Utility
 {
     public static class Greater
     {
-        public static void Great(ILoggerFactory loggerFactory)
-        {
-            ILogger logger = loggerFactory.CreateLogger(typeof(Greater));
-
-            string[] guesses = new string[]
+        static readonly ConsoleColor[] colors = new ConsoleColor[]
             {
+                ConsoleColor.Red,
+                ConsoleColor.DarkYellow,
+                ConsoleColor.Yellow,
+                ConsoleColor.Green,
+                ConsoleColor.Blue,
+                ConsoleColor.DarkBlue,
+                ConsoleColor.Magenta,
+            };
+
+        static readonly string[] guesses = new string[]
+        {
                 "Я думаю",
                 "Я считаю",
                 // "Я предполагаю",
@@ -30,38 +37,42 @@ namespace TwitchVor.Utility
                 // "Предположительно",
                 "Возможно",
                 "Наверное"
-            };
+        };
 
-            string[] values = new string[]
-            {
+        static readonly string[] values = new string[]
+        {
                 "чудо",
                 "молодец",
                 "умница"
-            };
+        };
 
-            ConsoleColor[] colors = new ConsoleColor[]
-            {
-                ConsoleColor.Red,
-                ConsoleColor.DarkYellow,
-                ConsoleColor.Yellow,
-                ConsoleColor.Green,
-                ConsoleColor.Blue,
-                ConsoleColor.DarkBlue,
-                ConsoleColor.Magenta,
-            };
+        static readonly int targetGuessLength = guesses.Max(g => g.Length);
+        
+        static ILogger? _logger;
 
-            int targetLength = guesses.Max(g => g.Length);
+        static int currentIndex = 0;
 
-            foreach (var color in colors)
-            {
-                string guess = guesses[RandomNumberGenerator.GetInt32(guesses.Length)];
-                guess += ',';
-                guess = guess.PadRight(targetLength + 1);
+        public static int ColorsLength => colors.Length;
 
-                string value = values[RandomNumberGenerator.GetInt32(values.Length)].ColorMe(foreground: color);
+        public static void SetLogger(ILoggerFactory loggerFactory)
+        {
+            _logger = loggerFactory.CreateLogger(typeof(Greater));
+        }
 
-                logger.LogInformation("{guess} ты {value}.", guess, value);
-            }
+        public static void Great()
+        {
+            ConsoleColor color = colors[currentIndex];
+
+            if (++currentIndex >= colors.Length)
+                currentIndex = 0;
+
+            string guess = guesses[RandomNumberGenerator.GetInt32(guesses.Length)];
+            guess += ',';
+            guess = guess.PadRight(targetGuessLength + 1);
+
+            string value = values[RandomNumberGenerator.GetInt32(values.Length)].ColorMe(foreground: color);
+
+            _logger?.LogInformation("{guess} ты {value}.", guess, value);
         }
     }
 }
