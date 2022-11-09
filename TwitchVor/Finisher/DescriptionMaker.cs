@@ -180,7 +180,7 @@ namespace TwitchVor.Finisher
 
                     var result = string.Join(", ", sumBills);
 
-                    builder.AppendLine($"Примерная стоимость создания записи стрима: ${result}");
+                    builder.AppendLine($"Примерная стоимость создания записи стрима: {result}");
                 }
             }
 
