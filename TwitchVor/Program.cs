@@ -178,7 +178,7 @@ namespace TwitchVor
                     bool update = false;
                     try
                     {
-                        await api.ListBucketsAsync();
+                        await api.S3Bucket.ListBucketsAsync();
                     }
                     catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
                     {

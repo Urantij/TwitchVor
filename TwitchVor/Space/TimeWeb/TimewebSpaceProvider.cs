@@ -12,8 +12,8 @@ namespace TwitchVor.Space.TimeWeb
 {
     public class TimewebSpaceProvider : BaseSpaceProvider
     {
-        const decimal perHourCost = 639M / 30M / 24M;
-        const S3ServiceType s3Type = S3ServiceType.Start;
+        const decimal perHourCost = 349M / 30M / 24M;
+        const S3ServiceType s3Type = S3ServiceType.Lite;
 
         private const string endpoint = "s3.timeweb.com";
 
@@ -55,16 +55,16 @@ namespace TwitchVor.Space.TimeWeb
             {
                 _logger.LogInformation("Создаём ведро...");
 
-                long bucketId = await api.CreateBucketAsync(guid.ToString("N"), s3Type);
+                var createResponse = await api.S3Bucket.CreateBucketAsync(guid.ToString("N"), true, s3Type);
 
                 _logger.LogInformation("Ищем ведро...");
                 while (true)
                 {
                     await Task.Delay(5000);
 
-                    var list = await api.ListBucketsAsync();
+                    var listResponse = await api.S3Bucket.ListBucketsAsync();
 
-                    bucket = list.FirstOrDefault(i => i.Id == bucketId);
+                    bucket = listResponse.Storages.FirstOrDefault(i => i.Id == createResponse.Storage.Id);
 
                     if (bucket != null)
                         break;
@@ -124,7 +124,7 @@ namespace TwitchVor.Space.TimeWeb
             {
                 _logger.LogInformation("Удаляем ведро...");
 
-                await api.DeleteBucketAsync(bucket.Id);
+                await api.S3Bucket.DeleteBucketAsync(bucket.Id);
 
                 _logger.LogInformation("Ведро удалили.");
             }
