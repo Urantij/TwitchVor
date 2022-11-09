@@ -29,6 +29,8 @@ namespace TwitchVor.Communication.Email
         {
             try
             {
+                _logger.LogInformation("Авторизуемся...");
+
                 using (var client = new SmtpClient())
                 {
                     client.Timeout = 10000;
@@ -39,6 +41,8 @@ namespace TwitchVor.Communication.Email
 
                     await client.DisconnectAsync(true);
                 }
+
+                _logger.LogInformation("Авторизовались.");
 
                 return true;
             }

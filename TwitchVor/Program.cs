@@ -266,14 +266,11 @@ namespace TwitchVor
 
             if (config.Email != null)
             {
+                logger.LogInformation("Емейл добавлен.");
+
                 emailer = new Emailer(config.Email, loggerFactory);
-                if (await emailer.ValidateAsync())
+                if (!await emailer.ValidateAsync())
                 {
-                    logger.LogInformation("Емейл в поряде");
-                }
-                else
-                {
-                    logger.LogCritical("Емейл каличный");
                     return;
                 }
             }
