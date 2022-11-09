@@ -85,16 +85,14 @@ namespace TwitchVor.Communication.Email
                     Text = messageText
                 };
 
-                using (var client = new SmtpClient())
-                {
-                    client.Connect("smtp.gmail.com", 465, true);
+                using var client = new SmtpClient();
+                client.Connect("smtp.gmail.com", 465, true);
 
-                    // Note: only needed if the SMTP server requires authentication
-                    await client.AuthenticateAsync(config.Email, config.Password);
+                // Note: only needed if the SMTP server requires authentication
+                await client.AuthenticateAsync(config.Email, config.Password);
 
-                    await client.SendAsync(message);
-                    await client.DisconnectAsync(true);
-                }
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
             }
             catch (Exception e)
             {

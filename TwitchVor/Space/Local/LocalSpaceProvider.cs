@@ -65,10 +65,7 @@ namespace TwitchVor.Space.Local
 
         public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream)
         {
-            if (Fs == null)
-            {
-                Fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-            }
+            Fs ??= new FileStream(path, FileMode.Open, FileAccess.Read);
 
             Fs.Seek(offset, SeekOrigin.Begin);
 

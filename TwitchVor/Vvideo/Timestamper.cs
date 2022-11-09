@@ -39,7 +39,7 @@ namespace TwitchVor.Vvideo
                 {
                     if (e.check.online)
                     {
-                        //если онлайн, то всегда есть инфо
+                        // Если онлайн, то всегда есть инфо.
                         AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
                     }
                     else
@@ -56,8 +56,8 @@ namespace TwitchVor.Vvideo
             {
                 if (e.check.online)
                 {
-                    //если онлайн, то всегда есть инфо
-                    //TODO сделать раздельные классы для офлаин и онлайн чеков? заебало как то
+                    // Если онлайн, то всегда есть инфо.
+                    // TODO сделать раздельные классы для офлаин и онлайн чеков?
                     AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
                 }
             }

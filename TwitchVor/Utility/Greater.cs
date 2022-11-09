@@ -32,6 +32,13 @@ namespace TwitchVor.Utility
                 "Наверное"
             };
 
+            string[] values = new string[]
+            {
+                "чудо",
+                "молодец",
+                "умница"
+            };
+
             ConsoleColor[] colors = new ConsoleColor[]
             {
                 ConsoleColor.Red,
@@ -51,7 +58,7 @@ namespace TwitchVor.Utility
                 guess += ',';
                 guess = guess.PadRight(targetLength + 1);
 
-                string value = "пидор".ColorMe(foreground: color);
+                string value = values[RandomNumberGenerator.GetInt32(values.Length)].ColorMe(foreground: color);
 
                 logger.LogInformation("{guess} ты {value}.", guess, value);
             }

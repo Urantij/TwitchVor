@@ -53,7 +53,7 @@ namespace TwitchVor.Twitch.Downloader
         }
 
         /// <summary>
-        /// Текущий стрим заменяется на нул и у него вызвыается финиш
+        /// Текущий стрим заменяется на нул и у него вызывается финиш
         /// </summary>
         private void StartStreamFinishing()
         {

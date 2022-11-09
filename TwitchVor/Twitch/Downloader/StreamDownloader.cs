@@ -282,26 +282,26 @@ namespace TwitchVor.Twitch.Downloader
 
             _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes ({fails} failed)", left.TotalMinutes, downloader.TokenAcquiranceFailedAttempts);
 
-            if (!Program.config.DownloaderForceTokenChange)
-                return;
-
-            Task.Run(async () =>
+            if (Program.config.DownloaderForceTokenChange)
             {
-                /* в тевории стрим может уже закончится, кстати.
-                 * но один лишний таск это похуй, я думаю
-                 * TODO Добавить локов, чтобы исключить околоневозможный шанс пересечения интересов */
-                await Task.Delay(left - TimeSpan.FromSeconds(5));
+                Task.Run(async () =>
+                {
+                    /* в тевории стрим может уже закончится, кстати.
+                     * но один лишний таск это не проблема, я думаю
+                     * TODO Добавить локов, чтобы исключить околоневозможный шанс пересечения интересов */
+                    await Task.Delay(left - TimeSpan.FromSeconds(5));
 
-                if (downloader.Access != e)
-                    return;
+                    if (downloader.Access != e)
+                        return;
 
-                //по факту лишние проверки, ну да ладно
-                if (downloader.Disposed || !Working)
-                    return;
+                    //по факту лишние проверки, ну да ладно
+                    if (downloader.Disposed || !Working)
+                        return;
 
-                _logger.LogInformation("Dropping access token on schedule...");
-                downloader.DropToken();
-            });
+                    _logger.LogInformation("Dropping access token on schedule...");
+                    downloader.DropToken();
+                });
+            }
         }
 
         private void MediaQualitySelected(object? sender, MediaQualitySelectedEventArgs args)
