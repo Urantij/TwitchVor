@@ -54,8 +54,11 @@ namespace TwitchVor.Finisher
                 TimeSpan totalLoss = TimeSpan.FromTicks(videos.Sum(v => v.loss.Ticks));
 
                 List<Bill> bills = new();
-                if (Program.pricer != null)
-                    bills.Add(Program.pricer.GetCost(DateTimeOffset.UtcNow));
+                if (Program.config.Money is MoneyConfig moneyConfig)
+                {
+                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
+                    bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
+                }
                 if (streamHandler.space.pricer != null)
                     bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
 

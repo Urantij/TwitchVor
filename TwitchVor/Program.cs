@@ -37,8 +37,6 @@ namespace TwitchVor
 
         public static Emailer? emailer;
 
-        public static IPricer? pricer;
-
         public static bool debug = false;
         public static bool shutdown = false;
 
@@ -244,8 +242,6 @@ namespace TwitchVor
             if (config.Money != null)
             {
                 var bill = new Bill(config.Money.Currency, config.Money.PerHourCost);
-
-                pricer = new TimeBasedPricer(DateTimeOffset.UtcNow, bill);
 
                 logger.LogInformation("Стоимость приложения в час: {formatBill}", bill.Format());
             }
