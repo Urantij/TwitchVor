@@ -1,0 +1,13 @@
+{
+  "Channel": "dreadztv",
+  "TwitchAPIClientId": "l1zcc45u80vc4704a4lo5ixe037die",
+  "TwitchAPISecret": "4rt1765s6lj8giftbg5p4bt2ienv70",
+  "Conversion": {
+    "FfmpegPath": "/home/ura/Downloads/ffmpeg-5.0.1-amd64-static/ffmpeg"
+  },
+  "Downloader": {
+    "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36"
+  },
+  "StreamContinuationCheckTime": "00:00:22",
+  "StreamRestartCheckTime": "01:00:00"
+}

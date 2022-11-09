@@ -81,10 +81,10 @@ namespace TwitchVor.Configuration
         /// <summary>
         /// Как часто хеликс проверяет стрим
         /// </summary>
-        [JsonProperty(Required = Required.Always)]
-        public TimeSpan HelixCheckDelay { get; set; } = TimeSpan.FromSeconds(25);
+        [JsonProperty(Required = Required.Default)]
+        public TimeSpan HelixCheckDelay { get; set; } = TimeSpan.FromSeconds(22);
 
-        [JsonProperty(Required = Required.Always)]
+        [JsonProperty(Required = Required.Default)]
         public TimeSpan PubsubReconnectDelay { get; set; } = TimeSpan.FromSeconds(10);
 
         //Stream
