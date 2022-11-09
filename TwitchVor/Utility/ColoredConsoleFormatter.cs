@@ -83,7 +83,11 @@ namespace TwitchVor.Utility
 
             if (logEntry.Formatter != null)
             {
-                textWriter.WriteLine(logEntry.Formatter.Invoke(logEntry.State, logEntry.Exception));
+                textWriter.WriteLine(logEntry.Formatter.Invoke(logEntry.State, null));
+                if (logEntry.Exception != null)
+                {
+                    textWriter.WriteLine(logEntry.Exception);
+                }
             }
         }
 
