@@ -268,11 +268,11 @@ namespace TwitchVor.Twitch.Downloader
             {
                 if (Program.config.DownloaderForceTokenChange)
                 {
-                    _logger.LogError("Got no playback token! ({fails} failed)", downloader.TokenAcquiranceFailedAttempts);
+                    _logger.LogError("Got no playback token!");
                 }
                 else
                 {
-                    _logger.LogWarning("Got no playback token! ({fails} failed)", downloader.TokenAcquiranceFailedAttempts);
+                    _logger.LogWarning("Got no playback token!");
                 }
 
                 return;
@@ -280,7 +280,7 @@ namespace TwitchVor.Twitch.Downloader
 
             var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
 
-            _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes ({fails} failed)", left.TotalMinutes, downloader.TokenAcquiranceFailedAttempts);
+            _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes", left.TotalMinutes);
 
             if (Program.config.DownloaderForceTokenChange)
             {
@@ -354,12 +354,12 @@ namespace TwitchVor.Twitch.Downloader
             LogException($"Segment Exception", e);
         }
 
-        private void TokenAcquiringExceptionOccured(object? sender, Exception e)
+        private void TokenAcquiringExceptionOccured(object? sender, TokenAcquiringExceptionEventArgs args)
         {
             //да не может он быть нулл.
             var downloader = (SegmentsDownloader)sender!;
 
-            LogException($"TokenAcq Failed ({downloader.TokenAcquiranceFailedAttempts})", e);
+            LogException($"TokenAcq Failed ({args.Attempts})", args.Exception);
         }
 
         private void PlaylistEnded(object? sender, EventArgs e)
