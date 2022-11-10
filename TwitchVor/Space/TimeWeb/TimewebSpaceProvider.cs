@@ -24,6 +24,7 @@ namespace TwitchVor.Space.TimeWeb
         ListBucketsResponseModel.StorageModel? bucket;
         MinioClient? s3Client;
 
+        public override bool Stable => false;
         public override bool AsyncUpload => true;
 
         public TimewebSpaceProvider(Guid guid, ILoggerFactory loggerFactory, TimewebConfig config)

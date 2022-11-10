@@ -22,6 +22,7 @@ namespace TwitchVor.Space.OceanDigital
 
         LocalSpaceProvider? localSpaceProvider;
 
+        public override bool Stable => true;
         public override bool AsyncUpload => false;
 
         public DigitalOceanSpaceProvider(Guid guid, ILoggerFactory loggerFactory, OceanCreds creds)

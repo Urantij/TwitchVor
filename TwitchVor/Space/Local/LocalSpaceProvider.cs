@@ -14,6 +14,7 @@ namespace TwitchVor.Space.Local
 
         public FileStream? Fs { get; private set; }
 
+        public override bool Stable => true;
         public override bool AsyncUpload => false;
 
         public LocalSpaceProvider(Guid guid, ILoggerFactory loggerFactory, string path)

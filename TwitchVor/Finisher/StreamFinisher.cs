@@ -311,6 +311,8 @@ namespace TwitchVor.Finisher
             {
                 long offset = await db.CalculateOffsetAsync(video.segmentStart);
 
+                using MemoryStream bufferStream = new();
+
                 for (int index = video.segmentStart; index < limitIndex; index += takeCount)
                 {
                     int take = Math.Min(takeCount, limitIndex - index);
@@ -319,13 +321,47 @@ namespace TwitchVor.Finisher
 
                     foreach (var segment in segments)
                     {
-                        try
+                        if (space.Stable)
                         {
-                            await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                            try
+                            {
+                                await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                            }
+                            catch (Exception e)
+                            {
+                                _logger.LogError(e, "DoVideo ReadDataAsync");
+                            }
                         }
-                        catch (Exception e)
+                        else
                         {
-                            _logger.LogError(e, "DoVideo ReadDataAsync");
+                            // Если может вылететь прямо во время загрузки, 
+                            // может записать часть байт в выходной стрим, закораптив его.
+                            // Тут либо переподрубать, учитывая оффсет, пока не выдаст
+                            // Либо юзать буфер.
+
+                            // Через ресет остаётся тот же capacity, что и был
+                            // То есть память будет более менее стабильно выделена и всё.
+                            bufferStream.Reset();
+
+                            bool downloaded = false;
+                            try
+                            {
+                                await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
+
+                                downloaded = true;
+                            }
+                            catch (Exception e)
+                            {
+                                _logger.LogError(e, "DoVideo ReadDataAsync");
+                            }
+
+                            if (downloaded)
+                            {
+                                bufferStream.Position = 0;
+
+                                await bufferStream.CopyToAsync(inputPipe);
+                                await bufferStream.FlushAsync();
+                            }
                         }
 
                         offset += segment.Size;

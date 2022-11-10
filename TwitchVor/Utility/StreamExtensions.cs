@@ -36,5 +36,12 @@ namespace TwitchVor.Utility
                 length -= read;
             }
         }
+
+        //https://stackoverflow.com/a/9958101
+        public static void Reset(this MemoryStream source)
+        {
+            source.Position = 0;
+            source.SetLength(0);
+        }
     }
 }

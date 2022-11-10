@@ -16,6 +16,11 @@ namespace TwitchVor.Space
         public bool Ready { get; protected set; }
 
         /// <summary>
+        /// Облачные технологии умеют выдавать ошибки порой
+        /// </summary>
+        public abstract bool Stable { get; }
+
+        /// <summary>
         /// Можно ли писать несколько сегментов сразу.
         /// То есть этот спейс держит сегменты раздельно, учитывая их id.
         /// В ином случае он кидает их в один файл. Зато по порядку.
