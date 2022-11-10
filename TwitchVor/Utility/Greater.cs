@@ -47,7 +47,7 @@ namespace TwitchVor.Utility
         };
 
         static readonly int targetGuessLength = guesses.Max(g => g.Length);
-        
+
         static ILogger? _logger;
 
         static int currentIndex = 0;
@@ -74,11 +74,11 @@ namespace TwitchVor.Utility
 
             if (nextString != null)
             {
-                _logger?.LogInformation("{guess} ты {value}.", guess, value);
+                _logger?.LogInformation("{guess} ты {value}.\n{nextString}", guess, value, nextString);
             }
             else
             {
-                _logger?.LogInformation("{guess} ты {value}.\n{nextString}", guess, value, nextString);
+                _logger?.LogInformation("{guess} ты {value}.", guess, value);
             }
         }
     }
