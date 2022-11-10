@@ -33,45 +33,62 @@ namespace TwitchVor.Space.TimeWeb
             this.config = config;
 
             this.api = new TimeWebApi();
-            api.SetAccessToken(config.AccessToken);
+        }
+
+        /// <summary>
+        /// Делает запрос с RefreshToken, пишет ответ в конфиг.
+        /// Кидает ошибки.
+        /// </summary>
+        /// <returns></returns>
+        async Task UpdateTokenAsync()
+        {
+            _logger.LogInformation("Обновляем токен...");
+
+            AuthResponseModel auth = await api.GetTokenAsync(config.RefreshToken);
+
+            config.RefreshToken = auth.Refresh_token;
+            config.AccessToken = auth.Access_token;
+            config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
+
+            await Program.config.SaveAsync();
+
+            _logger.LogInformation("Токен обновлён.");
         }
 
         public async Task TestAsync()
         {
             using var api = new TimeWebApi();
 
-            api.SetAccessToken(config.AccessToken);
-
             bool update = false;
-            try
-            {
-                await api.S3Bucket.ListBucketsAsync();
-            }
-            catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
+
+            if (config.AccessToken == null || config.AccessTokenExpirationDate == null)
             {
                 update = true;
-
-                _logger.LogWarning("Таймвеб форбиден.");
             }
-
-            if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
+            else
             {
-                update = true;
+                api.SetAccessToken(config.AccessToken);
+
+                try
+                {
+                    await api.S3Bucket.ListBucketsAsync();
+                }
+                catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
+                {
+                    update = true;
+
+                    _logger.LogWarning("Таймвеб форбиден.");
+                }
+
+                if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
+                {
+                    update = true;
+                }
             }
 
             if (update)
             {
-                _logger.LogInformation("Обновляем токен таймвеба...");
-
-                AuthResponseModel auth = await api.GetTokenAsync(config.RefreshToken);
-
-                config.RefreshToken = auth.Refresh_token;
-                config.AccessToken = auth.Access_token;
-                config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
-
-                await Program.config.SaveAsync();
-
-                _logger.LogInformation("Обновили.");
+                await UpdateTokenAsync();
             }
 
             _logger.LogInformation("Проверка успешно завершена.");
@@ -79,19 +96,14 @@ namespace TwitchVor.Space.TimeWeb
 
         public override async Task InitAsync()
         {
-            if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
+            if (config.AccessToken == null || config.AccessTokenExpirationDate == null ||
+                config.AccessTokenExpirationDate - DateTimeOffset.UtcNow < TimeSpan.FromDays(14))
             {
-                _logger.LogInformation("Обновляем токен...");
-
-                var auth = await api.GetTokenAsync(config.RefreshToken);
-
-                config.RefreshToken = auth.Refresh_token;
-                config.AccessToken = auth.Access_token;
-                config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
-
-                await Program.config.SaveAsync();
-
-                _logger.LogInformation("Обновили");
+                await UpdateTokenAsync();
+            }
+            else
+            {
+                api.SetAccessToken(config.AccessToken);
             }
 
             {
