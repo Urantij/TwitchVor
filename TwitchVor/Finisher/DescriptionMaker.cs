@@ -119,7 +119,7 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills)
+        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -161,6 +161,14 @@ namespace TwitchVor.Finisher
                 }
             }
 
+            string? uploadTimeSpentString = MakeTimeSpentString("Загрузка заняла:", videoUploadTime, totalUploadTime);
+            if (uploadTimeSpentString != null)
+            {
+                builder.AppendLine();
+
+                builder.AppendLine(uploadTimeSpentString);
+            }
+
             builder.AppendLine();
 
             builder.AppendLine($"Пропущено секунд всего: {totalLostTime.TotalSeconds:N0}");
@@ -191,21 +199,21 @@ namespace TwitchVor.Finisher
         /// 
         /// </summary>
         /// <param name="prefix"></param>
-        /// <param name="localTime">Времени потрачено на текущий видос</param>
+        /// <param name="videoTime">Времени потрачено на текущий видос</param>
         /// <param name="globalTime">Времени потрачено на все видосы</param>
         /// <returns></returns>
-        private static string? MakeTimeSpentString(string prefix, TimeSpan? localTime, TimeSpan? globalTime)
+        private static string? MakeTimeSpentString(string prefix, TimeSpan? videoTime, TimeSpan? globalTime)
         {
-            if (localTime != null && globalTime != null)
+            if (videoTime != null && globalTime != null)
             {
-                if (localTime.Value.Ticks != globalTime.Value.Ticks)
-                    return $"{prefix} {globalTime.Value.TotalMinutes:n2} ({localTime.Value.TotalMinutes:n2}) минут.";
+                if (videoTime.Value.Ticks != globalTime.Value.Ticks)
+                    return $"{prefix} {globalTime.Value.TotalMinutes:n2} ({videoTime.Value.TotalMinutes:n2}) минут.";
                 else
                     return $"{prefix} {globalTime.Value.TotalMinutes:n2} минут.";
             }
-            else if (localTime != null)
+            else if (videoTime != null)
             {
-                return $"{prefix} ... ({localTime.Value.TotalMinutes:n2}) минут.";
+                return $"{prefix} ... ({videoTime.Value.TotalMinutes:n2}) минут.";
             }
             else if (globalTime != null)
             {

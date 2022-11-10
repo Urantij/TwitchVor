@@ -394,7 +394,7 @@ namespace TwitchVor.Finisher
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, streamHandler.timestamper.timestamps);
 
-            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss, processingHandler.bills);
+            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss, processingHandler.bills, null, null);
 
             bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, video.size, clientPipe);
 
