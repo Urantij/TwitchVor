@@ -36,6 +36,47 @@ namespace TwitchVor.Space.TimeWeb
             api.SetAccessToken(config.AccessToken);
         }
 
+        public async Task TestAsync()
+        {
+            using var api = new TimeWebApi();
+
+            api.SetAccessToken(config.AccessToken);
+
+            bool update = false;
+            try
+            {
+                await api.S3Bucket.ListBucketsAsync();
+            }
+            catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
+            {
+                update = true;
+
+                _logger.LogWarning("Таймвеб форбиден.");
+            }
+
+            if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
+            {
+                update = true;
+            }
+
+            if (update)
+            {
+                _logger.LogInformation("Обновляем токен таймвеба...");
+
+                AuthResponseModel auth = await api.GetTokenAsync(config.RefreshToken);
+
+                config.RefreshToken = auth.Refresh_token;
+                config.AccessToken = auth.Access_token;
+                config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
+
+                await Program.config.SaveAsync();
+
+                _logger.LogInformation("Обновили.");
+            }
+
+            _logger.LogInformation("Проверка успешно завершена.");
+        }
+
         public override async Task InitAsync()
         {
             if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))

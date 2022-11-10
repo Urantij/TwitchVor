@@ -171,41 +171,8 @@ namespace TwitchVor
 
                 if (config.Timeweb.ValidateTokenOnStart)
                 {
-                    using var api = new TimeWebApi();
-
-                    api.SetAccessToken(config.Timeweb.AccessToken);
-
-                    bool update = false;
-                    try
-                    {
-                        await api.S3Bucket.ListBucketsAsync();
-                    }
-                    catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
-                    {
-                        update = true;
-
-                        logger.LogWarning("Таймвеб форбиден.");
-                    }
-
-                    if ((config.Timeweb.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
-                    {
-                        update = true;
-                    }
-
-                    if (update)
-                    {
-                        logger.LogInformation("Обновляет токен таймвеба");
-
-                        var auth = await api.GetTokenAsync(config.Timeweb.RefreshToken);
-
-                        config.Timeweb.RefreshToken = auth.Refresh_token;
-                        config.Timeweb.AccessToken = auth.Access_token;
-                        config.Timeweb.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
-
-                        await config.SaveAsync();
-
-                        logger.LogInformation("Обновили");
-                    }
+                    Space.TimeWeb.TimewebSpaceProvider timeWeb = new(Guid.Empty, loggerFactory, config.Timeweb);
+                    await timeWeb.TestAsync();
                 }
             }
             else
