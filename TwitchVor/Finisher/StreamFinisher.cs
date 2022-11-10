@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using TwitchVor.Conversion;
 using TwitchVor.Data;
 using TwitchVor.Data.Models;
+using TwitchVor.EventIds;
 using TwitchVor.Space;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;
@@ -313,6 +314,10 @@ namespace TwitchVor.Finisher
 
                 using MemoryStream bufferStream = new();
 
+                TimeSpan notificationCooldown = TimeSpan.FromSeconds(20);
+                Stopwatch stopwatch = new();
+                stopwatch.Start();
+
                 for (int index = video.segmentStart; index < limitIndex; index += takeCount)
                 {
                     int take = Math.Min(takeCount, limitIndex - index);
@@ -343,7 +348,7 @@ namespace TwitchVor.Finisher
                             // То есть память будет более менее стабильно выделена и всё.
                             bufferStream.Reset();
 
-                            bool downloaded = false;
+                            bool downloaded;
                             try
                             {
                                 await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
@@ -353,6 +358,8 @@ namespace TwitchVor.Finisher
                             catch (Exception e)
                             {
                                 _logger.LogError(e, "DoVideo ReadDataAsync");
+
+                                downloaded = false;
                             }
 
                             if (downloaded)
@@ -365,6 +372,15 @@ namespace TwitchVor.Finisher
                         }
 
                         offset += segment.Size;
+
+                        if (stopwatch.Elapsed > notificationCooldown)
+                        {
+                            stopwatch.Restart();
+
+                            int segmentIndex = index + Array.IndexOf(segments, segment) - video.segmentStart;
+
+                            _logger.LogInformation(StreamFinisherEvents.UploadingEventId, "Идёт загрузка... ({index}/{total})", segmentIndex, video.segmentsLength);
+                        }
                     }
                 }
 
