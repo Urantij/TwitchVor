@@ -59,7 +59,7 @@ namespace TwitchVor.Utility
             _logger = loggerFactory.CreateLogger(typeof(Greater));
         }
 
-        public static void Great()
+        public static void Great(string? nextString = null)
         {
             ConsoleColor color = colors[currentIndex];
 
@@ -72,7 +72,14 @@ namespace TwitchVor.Utility
 
             string value = values[RandomNumberGenerator.GetInt32(values.Length)].ColorMe(foreground: color);
 
-            _logger?.LogInformation("{guess} ты {value}.", guess, value);
+            if (nextString != null)
+            {
+                _logger?.LogInformation("{guess} ты {value}.", guess, value);
+            }
+            else
+            {
+                _logger?.LogInformation("{guess} ты {value}.\n{nextString}", guess, value, nextString);
+            }
         }
     }
 }

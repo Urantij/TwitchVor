@@ -271,10 +271,11 @@ namespace TwitchVor
 
             statuser.Init();
 
+            logger.LogInformation("ServerGC is {status}", System.Runtime.GCSettings.IsServerGC);
+
             while (true)
             {
-                Greater.Great();
-                Console.WriteLine("debug; pubsub; finish; shutdown");
+                Greater.Great("debug; pubsub; finish; shutdown");
 
                 string? line = Console.ReadLine();
                 if (line == null)
