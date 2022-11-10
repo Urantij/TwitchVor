@@ -20,6 +20,11 @@ public class ProcessingVideo
 
     public readonly TimeSpan loss;
 
+    /// <summary>
+    /// true успешно загрузилось
+    /// false успешно не загрузилось
+    /// null ещё не закончилась загрузка
+    /// </summary>
     public bool? success;
 
     public DateTimeOffset? uploadStart;

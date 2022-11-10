@@ -63,7 +63,9 @@ namespace TwitchVor.Finisher
                 if (streamHandler.space.pricer != null)
                     bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
 
-                processingHandler = new(streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), skips, videos.ToArray());
+                string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
+
+                processingHandler = new(streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
             }
 
             foreach (var video in processingHandler.videos)
@@ -390,11 +392,9 @@ namespace TwitchVor.Finisher
                 _logger.LogInformation("Всё прочитали.");
             });
 
-            string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
+            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
 
-            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, streamHandler.timestamper.timestamps);
-
-            string description = DescriptionMaker.FormDescription(video.startDate, streamHandler.timestamper.timestamps, processingHandler.skips, subgifters, streamHandler.streamDownloader.AdvertismentTime, processingHandler.totalLoss, processingHandler.bills, null, null);
+            string description = processingHandler.MakeVideoDescription(video);
 
             bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, video.size, clientPipe);
 

@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TwitchVor.Data.Models;
+using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Finisher;
 
-public class ProcessingHandler
+/// <summary>
+/// Хранит необходимую для обработки стрима информацию.
+/// </summary>
+class ProcessingHandler
 {
     readonly TaskCompletionSource processTCS = new();
 
@@ -16,8 +20,11 @@ public class ProcessingHandler
 
     public readonly Bill[] bills;
 
+    public readonly IEnumerable<BaseTimestamp> timestamps;
     public readonly IEnumerable<SkipDb> skips;
     public readonly ProcessingVideo[] videos;
+
+    public readonly string[] subgifters;
 
     /// <summary>
     /// Сюда можно класть вещи, а потом копаться в них и брать нужное.
@@ -27,17 +34,39 @@ public class ProcessingHandler
 
     public Task ProcessTask => processTCS.Task;
 
-    public ProcessingHandler(TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<SkipDb> skips, ProcessingVideo[] videos)
+    public ProcessingHandler(TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)
     {
         this.advertismentLoss = advertismentLoss;
         this.totalLoss = totalLoss;
         this.bills = bills;
+        this.timestamps = timestamps;
         this.skips = skips;
         this.videos = videos;
+        this.subgifters = subgifters;
     }
 
     public void SetResult()
     {
         processTCS.SetResult();
+    }
+
+    public string MakeVideoDescription(ProcessingVideo video)
+    {
+        TimeSpan? videoUploadTime = video.uploadEnd - video.uploadStart;
+        TimeSpan? totalUploadTime = SumTotalUploadTime();
+
+        return DescriptionMaker.FormDescription(video.startDate, timestamps, skips, subgifters, advertismentLoss, totalLoss, bills, videoUploadTime, totalUploadTime);
+    }
+
+    TimeSpan? SumTotalUploadTime()
+    {
+        var uploads = videos.Where(v => v.uploadStart != null && v.uploadEnd != null)
+                            .Select(v => (v.uploadEnd!.Value - v.uploadStart!.Value).Ticks)
+                            .ToArray();
+
+        if (uploads.Length == 0)
+            return null;
+
+        return TimeSpan.FromTicks(uploads.Sum());
     }
 }
