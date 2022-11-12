@@ -38,6 +38,10 @@ namespace TwitchVor.Utility
         }
 
         //https://stackoverflow.com/a/9958101
+        /// <summary>
+        /// "Очищает" содержимое, оставляя прежний размер.
+        /// </summary>
+        /// <param name="source"></param>
         public static void Reset(this MemoryStream source)
         {
             source.Position = 0;

@@ -119,5 +119,7 @@ namespace TwitchVor.Configuration
         /// Но если больше, то мы потеряли контент
         /// </summary>
         public TimeSpan MinimumSegmentSkipDelay { get; set; } = TimeSpan.FromSeconds(0.2);
+
+        public int UnstableSpaceAttempsLimit { get; set; } = 3;
     }
 }
