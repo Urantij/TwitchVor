@@ -138,7 +138,21 @@ namespace TwitchVor.Twitch.Downloader
             {
                 try
                 {
-                    await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
+                    if (targetSpace.Stable)
+                    {
+                        await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
+                    }
+                    else
+                    {
+                        long position = fs.Position;
+                        await Attempter.DoAsync(_logger, async () =>
+                        {
+                            await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
+                        }, onRetryAction: () =>
+                        {
+                            fs.Seek(position, SeekOrigin.Begin);
+                        });
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -234,11 +248,37 @@ namespace TwitchVor.Twitch.Downloader
                     {
                         if (spaceToWrite.AsyncUpload)
                         {
-                            await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
+                            if (spaceToWrite.Stable)
+                            {
+                                await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
+                            }
+                            else
+                            {
+                                await Attempter.DoAsync(_logger, async () =>
+                                {
+                                    await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
+                                }, onRetryAction: () =>
+                                {
+                                    qItem.bufferWriteStream.Position = 0;
+                                });
+                            }
                         }
                         else
                         {
-                            spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
+                            if (spaceToWrite.Stable)
+                            {
+                                spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
+                            }
+                            else
+                            {
+                                Attempter.Do(_logger, () =>
+                                {
+                                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
+                                }, onRetryAction: () =>
+                                {
+                                    qItem.bufferWriteStream.Position = 0;
+                                });
+                            }
                         }
                     }
                     catch (Exception exception)

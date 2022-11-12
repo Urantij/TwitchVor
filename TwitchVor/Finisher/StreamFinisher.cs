@@ -349,12 +349,16 @@ namespace TwitchVor.Finisher
                             // Через ресет остаётся тот же capacity, что и был
                             // То есть память будет более менее стабильно выделена и всё.
                             bufferStream.Reset();
-
                             bool downloaded;
                             try
                             {
-                                await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
-
+                                await Attempter.DoAsync(_logger, async () =>
+                                {
+                                    await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
+                                }, onRetryAction: () =>
+                                {
+                                    bufferStream.Reset();
+                                });
                                 downloaded = true;
                             }
                             catch (Exception e)
