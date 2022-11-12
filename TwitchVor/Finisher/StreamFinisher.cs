@@ -75,7 +75,7 @@ namespace TwitchVor.Finisher
                 video.uploadStart = DateTimeOffset.UtcNow;
                 try
                 {
-                    await DoVideo(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
+                    await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
 
                     video.success = true;
                 }
@@ -252,7 +252,7 @@ namespace TwitchVor.Finisher
             return videos;
         }
 
-        async Task<bool> DoVideo(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo)
+        async Task<bool> DoVideoAsync(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo)
         {
             _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsLength, video.segmentStart);
 

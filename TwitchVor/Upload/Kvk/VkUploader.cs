@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO.Pipes;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -101,25 +102,74 @@ namespace TwitchVor.Upload.Kvk
                 GroupId = creds.GroupId,
             });
 
+            // Смотри #29 
+            long baseSize = CalculateBaseSize();
+
+            using var serverFakeContentPipe = new AnonymousPipeServerStream(PipeDirection.Out);
+            using var clientFakeContentPipe = new AnonymousPipeClientStream(PipeDirection.In, serverFakeContentPipe.ClientSafePipeHandle);
+
             using HttpClient client = new();
             client.Timeout = TimeSpan.FromHours(4);
 
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent = new(content);
+            using StreamContent streamFakeContent = new(clientFakeContentPipe);
 
             httpContent.Add(streamContent, "video_file", fileName);
+            httpContent.Add(streamFakeContent, "garbage", "helpme.txt");
 
-            httpContent.Headers.ContentLength = size + 185;
+            httpContent.Headers.ContentLength = baseSize + size;
+
+            // Отправка мусорного контента.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var bytes = System.Text.Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
+
+                    long leftSize = 1024 * 1024;
+                    long sent = 0;
+                    while (sent < leftSize)
+                    {
+                        long toPut = Math.Min(bytes.Length, leftSize - sent);
+
+                        await serverFakeContentPipe.WriteAsync(bytes.AsMemory(0, (int)toPut));
+
+                        sent += toPut;
+                    }
+
+                    await serverFakeContentPipe.FlushAsync();
+                    await serverFakeContentPipe.DisposeAsync();
+
+                    _logger.LogDebug("Мусорный контент отправлен.");
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Ошибка при отправке мусорного контента.");
+                }
+            });
 
             _logger.LogInformation("Начинаем загрузку...");
 
-            var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
-                return false;
+                var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
+                    return false;
+                }
+            }
+            catch (System.Net.Http.HttpRequestException e) when (e.Message.Contains(" request content bytes, but Content-Length promised "))
+            {
+                // Это благоприятный для нас расклад.
+                // Ещё было бы неплохо узнать, задиспоужен ли контент.
+            }
+            catch
+            {
+                throw;
             }
 
             _logger.LogInformation("Закончили загрузку.");
@@ -128,8 +178,6 @@ namespace TwitchVor.Upload.Kvk
             {
                 lock (processingHandler.trashcan)
                     processingHandler.trashcan.Add(new VkVideoInfo(video, saveResult.Id.Value));
-
-
 
                 _ = Task.Run(async () =>
                 {
@@ -205,6 +253,19 @@ namespace TwitchVor.Upload.Kvk
             }
 
             return true;
+        }
+
+        static long CalculateBaseSize()
+        {
+            using MemoryStream ms = new();
+            using MultipartFormDataContent httpContent = new();
+            using StreamContent streamContent1 = new(ms);
+            using StreamContent streamContent2 = new(ms);
+
+            httpContent.Add(streamContent1, "video_file", "result.mp4");
+            httpContent.Add(streamContent2, "garbage", "helpme.txt");
+
+            return httpContent.Headers.ContentLength!.Value;
         }
     }
 }
