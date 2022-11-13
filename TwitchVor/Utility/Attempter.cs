@@ -15,7 +15,7 @@ public static class Attempter
 
     public static void Do(int attemptsLimit, ILogger logger, Action attemptAction, Action onRetryAction)
     {
-        for (int attempt = 0; attempt < attemptsLimit; attempt++)
+        for (int attempt = 1; attempt <= attemptsLimit; attempt++)
         {
             try
             {
@@ -26,7 +26,7 @@ public static class Attempter
             {
                 logger.LogWarning(e, "Attempt {attempt}/{limit}...", attempt, attemptsLimit);
 
-                if (attempt + 1 == Program.config.UnstableSpaceAttempsLimit)
+                if (attempt == Program.config.UnstableSpaceAttempsLimit)
                 {
                     throw;
                 }
@@ -43,7 +43,7 @@ public static class Attempter
 
     public static async Task DoAsync(int attemptsLimit, ILogger logger, Func<Task> attemptAction, Action onRetryAction)
     {
-        for (int attempt = 0; attempt < attemptsLimit; attempt++)
+        for (int attempt = 1; attempt <= attemptsLimit; attempt++)
         {
             try
             {
@@ -54,7 +54,7 @@ public static class Attempter
             {
                 logger.LogWarning(e, "Attempt {attempt}/{limit}...", attempt, attemptsLimit);
 
-                if (attempt + 1 == Program.config.UnstableSpaceAttempsLimit)
+                if (attempt == Program.config.UnstableSpaceAttempsLimit)
                 {
                     throw;
                 }
