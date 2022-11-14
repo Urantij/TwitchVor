@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Finisher;
@@ -102,52 +103,41 @@ namespace TwitchVor.Upload.Kvk
                 GroupId = creds.GroupId,
             });
 
+            // Создадим файл с мусорным контентом.
+            string trashContentPath = Path.Combine(Program.config.CacheDirectoryName, guid.ToString("N") + ".trashupload");
+
+            using (var trashFs = new FileStream(trashContentPath, FileMode.Create))
+            {
+                const int targetSize = 1024 * 1024;
+
+                byte[] bytes = Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
+
+                int written = 0;
+                while (written < targetSize)
+                {
+                    await trashFs.WriteAsync(bytes);
+                    written += bytes.Length;
+                }
+            }
+
+            using var readTrashFs = new FileStream(trashContentPath, FileMode.Open);
+
             // Смотри #29 
             long baseSize = CalculateBaseSize();
-
-            using var serverFakeContentPipe = new AnonymousPipeServerStream(PipeDirection.Out);
-            using var clientFakeContentPipe = new AnonymousPipeClientStream(PipeDirection.In, serverFakeContentPipe.ClientSafePipeHandle);
 
             using HttpClient client = new();
             client.Timeout = TimeSpan.FromHours(4);
 
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent = new(content);
-            using StreamContent streamFakeContent = new(clientFakeContentPipe);
+            using StreamContent streamFakeContent = new(readTrashFs);
 
             httpContent.Add(streamContent, "video_file", fileName);
             httpContent.Add(streamFakeContent, "garbage", "helpme.txt");
 
+            streamFakeContent.Headers.ContentLength = null;
+
             httpContent.Headers.ContentLength = baseSize + size;
-
-            // Отправка мусорного контента.
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var bytes = System.Text.Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
-
-                    long leftSize = 1024 * 1024;
-                    long sent = 0;
-                    while (sent < leftSize)
-                    {
-                        long toPut = Math.Min(bytes.Length, leftSize - sent);
-
-                        await serverFakeContentPipe.WriteAsync(bytes.AsMemory(0, (int)toPut));
-
-                        sent += toPut;
-                    }
-
-                    await serverFakeContentPipe.FlushAsync();
-                    await serverFakeContentPipe.DisposeAsync();
-
-                    _logger.LogDebug("Мусорный контент отправлен.");
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, "Ошибка при отправке мусорного контента.");
-                }
-            });
 
             _logger.LogInformation("Начинаем загрузку...");
 
@@ -170,6 +160,10 @@ namespace TwitchVor.Upload.Kvk
             catch
             {
                 throw;
+            }
+            finally
+            {
+                File.Delete(trashContentPath);
             }
 
             _logger.LogInformation("Закончили загрузку.");
