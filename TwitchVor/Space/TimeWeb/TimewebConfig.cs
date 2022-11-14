@@ -20,12 +20,16 @@ namespace TwitchVor.Space.TimeWeb
         [JsonProperty(Required = Required.Default)]
         public bool ValidateTokenOnStart { get; set; } = true;
 
-        public TimewebConfig(string refreshToken, string? accessToken, DateTimeOffset? accessTokenExpirationDate, bool validateTokenOnStart)
+        [JsonProperty(Required = Required.Default)]
+        public TimeSpan RequestsTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        public TimewebConfig(string refreshToken, string? accessToken, DateTimeOffset? accessTokenExpirationDate, bool validateTokenOnStart, TimeSpan requestsTimeout)
         {
             RefreshToken = refreshToken;
             AccessToken = accessToken;
             AccessTokenExpirationDate = accessTokenExpirationDate;
             ValidateTokenOnStart = validateTokenOnStart;
+            RequestsTimeout = requestsTimeout;
         }
     }
 }

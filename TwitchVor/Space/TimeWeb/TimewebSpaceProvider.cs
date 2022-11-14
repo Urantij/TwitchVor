@@ -134,6 +134,7 @@ namespace TwitchVor.Space.TimeWeb
                                         .WithEndpoint(endpoint)
                                         .WithRegion(bucket.Region)
                                         .WithSSL()
+                                        .WithTimeout((int)config.RequestsTimeout.TotalMilliseconds)
                                         .Build();
 
             _logger.LogInformation("Дело сделано.");
