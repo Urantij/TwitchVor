@@ -175,69 +175,16 @@ namespace TwitchVor.Upload.Kvk
 
                 _ = Task.Run(async () =>
                 {
-                    await processingHandler.ProcessTask;
-
-                    if (video.success != true)
-                        return;
-
-                    _logger.LogInformation("Меняем описание (id)...", saveResult.Id.Value);
-
-                    string description = processingHandler.MakeVideoDescription(video);
-
-                    try
-                    {
-                        await api.Video.EditAsync(new VkNet.Model.RequestParams.VideoEditParams()
-                        {
-                            OwnerId = -creds.GroupId,
-
-                            VideoId = saveResult.Id.Value,
-
-                            Desc = description
-                        });
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e, "Не удалось обновить описание видео {id}.", saveResult.Id.Value);
-                        return;
-                    }
-
-                    _logger.LogInformation("Изменили описание видео {id}.", saveResult.Id.Value);
+                    await PostUploadDescriptionUpdate(processingHandler, video);
                 });
 
                 if (creds.WallRunner != null && processingHandler.videos.FirstOrDefault() == video)
                 {
                     // Пусть только первый видос запускает постобработку.
                     // И всё видосы одним постом выложатся.
-
-                    VkWaller waller = new(_loggerFactory, creds);
-
                     _ = Task.Run(async () =>
                     {
-                        _logger.LogInformation("Запущен постобработчик.");
-
-                        await processingHandler.ProcessTask;
-
-                        VkVideoInfo[] videoInfos;
-                        lock (processingHandler.trashcan)
-                            videoInfos = processingHandler.trashcan.OfType<VkVideoInfo>().Where(v => v.video.success == true).ToArray();
-
-                        if (videoInfos.Length == 0)
-                        {
-                            _logger.LogWarning("Постобработка нашла 0 видео.");
-                            return;
-                        }
-
-                        try
-                        {
-                            await waller.MakePostAsync(videoInfos.Select(i => i.id).ToArray());
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError(e, "Не удалось сделать пост.");
-                            return;
-                        }
-
-                        _logger.LogInformation("Запостили кринж в вк.");
+                        await PostCringeAsync(processingHandler);
                     });
                 }
             }
@@ -247,6 +194,88 @@ namespace TwitchVor.Upload.Kvk
             }
 
             return true;
+        }
+
+        async Task PostUploadDescriptionUpdate(ProcessingHandler processingHandler, ProcessingVideo video)
+        {
+            await processingHandler.ProcessTask;
+
+            if (video.success != true)
+                return;
+
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            VkVideoInfo vkVideoInfo;
+            lock (processingHandler.trashcan)
+                vkVideoInfo = processingHandler.trashcan.OfType<VkVideoInfo>().First(i => i.video == video);
+
+            _logger.LogInformation("Авторизуемся...");
+
+            using VkApi api = new();
+            await api.AuthorizeAsync(new ApiAuthParams()
+            {
+                ApplicationId = creds.Uploader.ApplicationId,
+                AccessToken = creds.Uploader.ApiToken,
+                Settings = VkNet.Enums.Filters.Settings.All
+            });
+
+            _logger.LogInformation("Меняем описание (id)...", vkVideoInfo.id);
+
+            string description = processingHandler.MakeVideoDescription(video);
+
+            try
+            {
+                await api.Video.EditAsync(new VkNet.Model.RequestParams.VideoEditParams()
+                {
+                    OwnerId = -creds.GroupId,
+
+                    VideoId = vkVideoInfo.id,
+
+                    Desc = description
+                });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Не удалось обновить описание видео {id}.", vkVideoInfo.id);
+                return;
+            }
+
+            _logger.LogInformation("Изменили описание видео {id}.", vkVideoInfo.id);
+        }
+
+        /// <summary>
+        /// Дождать загрузки и выложить пост на стену группы.
+        /// </summary>
+        /// <param name="processingHandler"></param>
+        /// <returns></returns>
+        async Task PostCringeAsync(ProcessingHandler processingHandler)
+        {
+            _logger.LogInformation("Запущен постобработчик.");
+
+            await processingHandler.ProcessTask;
+
+            VkVideoInfo[] videoInfos;
+            lock (processingHandler.trashcan)
+                videoInfos = processingHandler.trashcan.OfType<VkVideoInfo>().Where(v => v.video.success == true).ToArray();
+
+            if (videoInfos.Length == 0)
+            {
+                _logger.LogWarning("Постобработка нашла 0 видео.");
+                return;
+            }
+
+            VkWaller waller = new(_loggerFactory, creds);
+            try
+            {
+                await waller.MakePostAsync(videoInfos.Select(i => i.id).ToArray());
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Не удалось сделать пост.");
+                return;
+            }
+
+            _logger.LogInformation("Запостили кринж в вк.");
         }
 
         static long CalculateBaseSize()
