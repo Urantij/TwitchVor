@@ -281,27 +281,41 @@ namespace TwitchVor.Finisher
                 // Читать ффмпег
                 _ = Task.Run(async () =>
                 {
-                    while (true)
+                    try
                     {
-                        var line = await conversionHandler.TextStream.ReadLineAsync();
-
-                        if (line == null)
+                        while (true)
                         {
-                            _logger.LogInformation("ффмпег закончил говорить.");
-                            return;
+                            var line = await conversionHandler.TextStream.ReadLineAsync();
+
+                            if (line == null)
+                            {
+                                _logger.LogInformation("ффмпег закончил говорить.");
+                                return;
+                            }
                         }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogCritical(e, "Чтение строчек ффмпега обернулось ошибкой.");
                     }
                 });
 
                 // Перенаправление выхода ффмпега в сервер.
                 _ = Task.Run(async () =>
                 {
-                    await conversionHandler.OutputStream.CopyToAsync(serverPipe);
-                    await conversionHandler.OutputStream.FlushAsync();
+                    try
+                    {
+                        await conversionHandler.OutputStream.CopyToAsync(serverPipe);
+                        await conversionHandler.OutputStream.FlushAsync();
 
-                    await serverPipe.DisposeAsync();
+                        await serverPipe.DisposeAsync();
 
-                    _logger.LogInformation("Закончился выход у ффмпега.");
+                        _logger.LogInformation("Закончился выход у ффмпега.");
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogCritical(e, "Перенаправление ффмпега обернулось ошибкой.");
+                    }
                 });
             }
             else
@@ -312,88 +326,95 @@ namespace TwitchVor.Finisher
             // Чтение сегментов, перенаправление в инпут.
             _ = Task.Run(async () =>
             {
-                long offset = await db.CalculateOffsetAsync(video.segmentStart);
-
-                using MemoryStream bufferStream = new();
-
-                TimeSpan notificationCooldown = TimeSpan.FromSeconds(20);
-                Stopwatch stopwatch = new();
-                stopwatch.Start();
-
-                for (int index = video.segmentStart; index < limitIndex; index += takeCount)
+                try
                 {
-                    int take = Math.Min(takeCount, limitIndex - index);
+                    long offset = await db.CalculateOffsetAsync(video.segmentStart);
 
-                    SegmentDb[] segments = await db.LoadSegmentsAsync(take, index);
+                    using MemoryStream bufferStream = new();
 
-                    foreach (var segment in segments)
+                    TimeSpan notificationCooldown = TimeSpan.FromSeconds(20);
+                    Stopwatch stopwatch = new();
+                    stopwatch.Start();
+
+                    for (int index = video.segmentStart; index < limitIndex; index += takeCount)
                     {
-                        if (space.Stable)
-                        {
-                            try
-                            {
-                                await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
-                            }
-                            catch (Exception e)
-                            {
-                                _logger.LogError(e, "DoVideo ReadDataAsync");
-                            }
-                        }
-                        else
-                        {
-                            // Если может вылететь прямо во время загрузки, 
-                            // может записать часть байт в выходной стрим, закораптив его.
-                            // Тут либо переподрубать, учитывая оффсет, пока не выдаст
-                            // Либо юзать буфер.
+                        int take = Math.Min(takeCount, limitIndex - index);
 
-                            // Через ресет остаётся тот же capacity, что и был
-                            // То есть память будет более менее стабильно выделена и всё.
-                            bufferStream.Reset();
-                            bool downloaded;
-                            try
+                        SegmentDb[] segments = await db.LoadSegmentsAsync(take, index);
+
+                        foreach (var segment in segments)
+                        {
+                            if (space.Stable)
                             {
-                                await Attempter.DoAsync(_logger, async () =>
+                                try
                                 {
-                                    await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
-                                }, onRetryAction: () =>
+                                    await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
+                                }
+                                catch (Exception e)
                                 {
-                                    bufferStream.Reset();
-                                });
-                                downloaded = true;
+                                    _logger.LogError(e, "DoVideo ReadDataAsync");
+                                }
                             }
-                            catch (Exception e)
+                            else
                             {
-                                _logger.LogError(e, "DoVideo ReadDataAsync");
+                                // Если может вылететь прямо во время загрузки, 
+                                // может записать часть байт в выходной стрим, закораптив его.
+                                // Тут либо переподрубать, учитывая оффсет, пока не выдаст
+                                // Либо юзать буфер.
 
-                                downloaded = false;
+                                // Через ресет остаётся тот же capacity, что и был
+                                // То есть память будет более менее стабильно выделена и всё.
+                                bufferStream.Reset();
+                                bool downloaded;
+                                try
+                                {
+                                    await Attempter.DoAsync(_logger, async () =>
+                                    {
+                                        await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
+                                    }, onRetryAction: () =>
+                                    {
+                                        bufferStream.Reset();
+                                    });
+                                    downloaded = true;
+                                }
+                                catch (Exception e)
+                                {
+                                    _logger.LogError(e, "DoVideo ReadDataAsync");
+
+                                    downloaded = false;
+                                }
+
+                                if (downloaded)
+                                {
+                                    bufferStream.Position = 0;
+
+                                    await bufferStream.CopyToAsync(inputPipe);
+                                    await bufferStream.FlushAsync();
+                                }
                             }
 
-                            if (downloaded)
+                            offset += segment.Size;
+
+                            if (stopwatch.Elapsed > notificationCooldown)
                             {
-                                bufferStream.Position = 0;
+                                stopwatch.Restart();
 
-                                await bufferStream.CopyToAsync(inputPipe);
-                                await bufferStream.FlushAsync();
+                                int segmentIndex = index + Array.IndexOf(segments, segment) - video.segmentStart;
+
+                                _logger.LogInformation(StreamFinisherEvents.UploadingEventId, "Идёт загрузка... ({index}/{total})", segmentIndex, video.segmentsLength);
                             }
-                        }
-
-                        offset += segment.Size;
-
-                        if (stopwatch.Elapsed > notificationCooldown)
-                        {
-                            stopwatch.Restart();
-
-                            int segmentIndex = index + Array.IndexOf(segments, segment) - video.segmentStart;
-
-                            _logger.LogInformation(StreamFinisherEvents.UploadingEventId, "Идёт загрузка... ({index}/{total})", segmentIndex, video.segmentsLength);
                         }
                     }
+
+                    await inputPipe.FlushAsync();
+                    await inputPipe.DisposeAsync();
+
+                    _logger.LogInformation("Всё прочитали.");
                 }
-
-                await inputPipe.FlushAsync();
-                await inputPipe.DisposeAsync();
-
-                _logger.LogInformation("Всё прочитали.");
+                catch (Exception totalE)
+                {
+                    _logger.LogCritical(totalE, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
+                }
             });
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
