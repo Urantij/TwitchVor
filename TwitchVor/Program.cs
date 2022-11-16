@@ -90,6 +90,8 @@ namespace TwitchVor
                 logger.LogWarning("Дыбажым");
             }
 
+            logger.LogInformation("Версия вора {version}", System.Reflection.Assembly.GetEntryAssembly()!.GetName().Version);
+
             if (File.Exists(configPath))
             {
                 config = await Config.LoadAsync(configPath);
