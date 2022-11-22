@@ -24,7 +24,7 @@ public static class Attempter
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Attempt {attempt}/{limit}...", attempt, attemptsLimit);
+                logger.LogWarning("Attempt {attempt}/{limit}... {message}", attempt, attemptsLimit, e.Message);
 
                 if (attempt == Program.config.UnstableSpaceAttempsLimit)
                 {
@@ -52,7 +52,7 @@ public static class Attempter
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Attempt {attempt}/{limit}...", attempt, attemptsLimit);
+                logger.LogWarning("Attempt {attempt}/{limit}... {message}", attempt, attemptsLimit, e.Message);
 
                 if (attempt == Program.config.UnstableSpaceAttempsLimit)
                 {
