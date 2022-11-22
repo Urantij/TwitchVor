@@ -256,7 +256,10 @@ namespace TwitchVor.Twitch.Downloader
                             {
                                 await Attempter.DoAsync(_logger, async () =>
                                 {
-                                    await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
+                                    // Происходят непонятные вещи
+                                    using CancellationTokenSource cts = Mystery.MysteryCTS();
+
+                                    await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length, cts.Token);
                                 }, onRetryAction: () =>
                                 {
                                     qItem.bufferWriteStream.Position = 0;
@@ -273,7 +276,10 @@ namespace TwitchVor.Twitch.Downloader
                             {
                                 Attempter.Do(_logger, () =>
                                 {
-                                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
+                                    // Происходят непонятные вещи
+                                    using CancellationTokenSource cts = Mystery.MysteryCTS();
+
+                                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length, cts.Token).GetAwaiter().GetResult();
                                 }, onRetryAction: () =>
                                 {
                                     qItem.bufferWriteStream.Position = 0;

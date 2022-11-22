@@ -47,12 +47,12 @@ namespace TwitchVor.Space.Local
             return Fs = new FileStream(path, FileMode.Open, FileAccess.Read);
         }
 
-        public override async Task PutDataAsync(int id, Stream contentStream, long length)
+        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
         {
             if (Fs == null)
                 throw new Exception("fs is null");
 
-            await contentStream.CopyStreamAsync(Fs, (int)length);
+            await contentStream.CopyStreamAsync(Fs, (int)length, cancellationToken);
         }
 
         public override async Task CloseAsync()
@@ -64,7 +64,7 @@ namespace TwitchVor.Space.Local
             }
         }
 
-        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream)
+        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
         {
             Fs ??= new FileStream(path, FileMode.Open, FileAccess.Read);
 

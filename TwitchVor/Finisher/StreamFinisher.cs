@@ -370,7 +370,10 @@ namespace TwitchVor.Finisher
                                 {
                                     await Attempter.DoAsync(_logger, async () =>
                                     {
-                                        await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream);
+                                        // Происходят непонятные вещи
+                                        using CancellationTokenSource cts = Mystery.MysteryCTS();
+
+                                        await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream, cts.Token);
                                     }, onRetryAction: () =>
                                     {
                                         bufferStream.Reset();

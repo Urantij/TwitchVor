@@ -170,6 +170,7 @@ namespace TwitchVor
             if (config.Timeweb != null)
             {
                 logger.LogInformation("Таймвеб добавлен");
+                logger.LogInformation("Таймвеб таймаут {timeout}", config.Timeweb.RequestsTimeout);
 
                 if (config.Timeweb.ValidateTokenOnStart)
                 {

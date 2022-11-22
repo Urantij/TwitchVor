@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Minio;
 using TimewebNet.Models;
 using TimeWebNet;
+using TwitchVor.Utility;
 using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Space.TimeWeb
@@ -22,6 +23,7 @@ namespace TwitchVor.Space.TimeWeb
         readonly TimeWebApi api;
 
         ListBucketsResponseModel.StorageModel? bucket;
+        HttpClient? s3HttpClient;
         MinioClient? s3Client;
 
         public override bool Stable => false;
@@ -130,11 +132,20 @@ namespace TwitchVor.Space.TimeWeb
             string username = bucket.Name.Split('-')[0];
             string secret = bucket.Password;
 
+            s3HttpClient = new HttpClient(new HttpClientHandler()
+            {
+                Proxy = null,
+                UseProxy = false
+            })
+            {
+                Timeout = config.RequestsTimeout
+            };
             s3Client = new MinioClient().WithCredentials(username, secret)
                                         .WithEndpoint(endpoint)
                                         .WithRegion(bucket.Region)
                                         .WithSSL()
                                         .WithTimeout((int)config.RequestsTimeout.TotalMilliseconds)
+                                        .WithHttpClient(s3HttpClient)
                                         .Build();
 
             _logger.LogInformation("Дело сделано.");
@@ -142,7 +153,7 @@ namespace TwitchVor.Space.TimeWeb
             Ready = true;
         }
 
-        public override async Task PutDataAsync(int id, Stream contentStream, long length)
+        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
@@ -152,19 +163,22 @@ namespace TwitchVor.Space.TimeWeb
             await s3Client.PutObjectAsync(new PutObjectArgs().WithBucket(bucket.Name)
                                                              .WithStreamData(contentStream)
                                                              .WithObjectSize(length)
-                                                             .WithObject($"{id}.ts"));
+                                                             .WithObject($"{id}.ts"), cancellationToken);
         }
 
-        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream)
+        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
             if (bucket == null)
                 throw new NullReferenceException($"{nameof(bucket)} is null");
 
+            // Непонятно, можно ли тут использовать асинхронным метод в колбеке.
+            // Код разбросан так, что пыпец.
+
             await s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(bucket.Name)
                                                              .WithObject($"{id}.ts")
-                                                             .WithCallbackStream(stream => stream.CopyTo(inputStream)));
+                                                             .WithCallbackStream(stream => stream.CopyToAsync(inputStream, cancellationToken).GetAwaiter().GetResult()), cancellationToken);
 
         }
 
@@ -186,6 +200,7 @@ namespace TwitchVor.Space.TimeWeb
 
             api.Dispose();
             s3Client?.Dispose();
+            s3HttpClient?.Dispose();
         }
     }
 }

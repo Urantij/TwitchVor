@@ -48,20 +48,20 @@ namespace TwitchVor.Space.OceanDigital
             Ready = true;
         }
 
-        public override async Task PutDataAsync(int id, Stream contentStream, long length)
+        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
         {
             if (localSpaceProvider == null)
                 throw new NullReferenceException($"{nameof(localSpaceProvider)} is null");
 
-            await localSpaceProvider.PutDataAsync(id, contentStream, length);
+            await localSpaceProvider.PutDataAsync(id, contentStream, length, cancellationToken);
         }
 
-        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream)
+        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
         {
             if (localSpaceProvider == null)
                 throw new NullReferenceException($"{nameof(localSpaceProvider)} is null");
 
-            await localSpaceProvider.ReadDataAsync(id, offset, length, inputStream);
+            await localSpaceProvider.ReadDataAsync(id, offset, length, inputStream, cancellationToken);
         }
 
         public override async Task CloseAsync()

@@ -14,7 +14,7 @@ namespace TwitchVor.Utility
         /// <param name="output">Туда пишет</param>
         /// <param name="length">Скока байт передать</param>
         /// <returns></returns>
-        public static async Task CopyStreamAsync(this Stream input, Stream output, int length)
+        public static async Task CopyStreamAsync(this Stream input, Stream output, int length, CancellationToken cancellationToken = default)
         {
             //https://stackoverflow.com/a/13022108
 
@@ -27,12 +27,12 @@ namespace TwitchVor.Utility
             {
                 Memory<byte> memory = buffer.AsMemory(0, Math.Min(bufferSize, length));
 
-                read = await input.ReadAsync(memory);
+                read = await input.ReadAsync(memory, cancellationToken);
 
                 if (read == 0)
                     return;
 
-                await output.WriteAsync(memory);
+                await output.WriteAsync(memory, cancellationToken);
                 length -= read;
             }
         }
