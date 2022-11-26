@@ -22,7 +22,7 @@ namespace TwitchVor.Space.TimeWeb
 
         readonly TimeWebApi api;
 
-        ListBucketsResponseModel.StorageModel? bucket;
+        ListBucketsResponseModel.BucketModel? bucket;
         HttpClient? s3HttpClient;
         MinioClient? s3Client;
 
@@ -120,7 +120,7 @@ namespace TwitchVor.Space.TimeWeb
 
                     var listResponse = await api.S3Bucket.ListBucketsAsync();
 
-                    bucket = listResponse.Storages.FirstOrDefault(i => i.Id == createResponse.Storage.Id);
+                    bucket = listResponse.Buckets.FirstOrDefault(i => i.Id == createResponse.Bucket.Id);
 
                     if (bucket != null)
                         break;

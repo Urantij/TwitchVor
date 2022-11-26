@@ -11,7 +11,7 @@
     <PackageReference Include="MailKit" Version="3.4.2"/>
     <PackageReference Include="VkNet" Version="1.72.0"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.0"/>
-    <PackageReference Include="TimewebNet" Version="1.1.0"/>
+    <PackageReference Include="TimewebNet" Version="1.2.0"/>
     <PackageReference Include="Minio" Version="4.0.6"/>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0"/>
   </ItemGroup>
