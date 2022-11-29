@@ -129,9 +129,6 @@ namespace TwitchVor.Space.TimeWeb
                 pricer = new TimeBasedPricer(DateTimeOffset.UtcNow, new Bill(Currency.RUB, perHourCost));
             }
 
-            string username = bucket.Name.Split('-')[0];
-            string secret = bucket.Password;
-
             s3HttpClient = new HttpClient(new HttpClientHandler()
             {
                 Proxy = null,
@@ -140,9 +137,9 @@ namespace TwitchVor.Space.TimeWeb
             {
                 Timeout = config.RequestsTimeout
             };
-            s3Client = new MinioClient().WithCredentials(username, secret)
+            s3Client = new MinioClient().WithCredentials(bucket.Access_key, bucket.Secret_key)
                                         .WithEndpoint(endpoint)
-                                        .WithRegion(bucket.Region)
+                                        .WithRegion(bucket.Location)
                                         .WithSSL()
                                         .WithTimeout((int)config.RequestsTimeout.TotalMilliseconds)
                                         .WithHttpClient(s3HttpClient)
