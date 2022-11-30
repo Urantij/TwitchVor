@@ -221,6 +221,7 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Меняем описание (id)...", vkVideoInfo.id);
 
+            string name = processingHandler.MakeVideoName(video);
             string description = processingHandler.MakeVideoDescription(video);
 
             try
@@ -231,6 +232,7 @@ namespace TwitchVor.Upload.Kvk
 
                     VideoId = vkVideoInfo.id,
 
+                    Name = name,
                     Desc = description
                 });
             }

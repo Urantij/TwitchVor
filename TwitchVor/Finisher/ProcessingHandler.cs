@@ -15,6 +15,11 @@ class ProcessingHandler
 {
     readonly TaskCompletionSource processTCS = new();
 
+    /// <summary>
+    /// UTC
+    /// </summary>
+    public readonly DateTime handlerCreationDate;
+
     public readonly TimeSpan advertismentLoss;
     public readonly TimeSpan totalLoss;
 
@@ -34,8 +39,9 @@ class ProcessingHandler
 
     public Task ProcessTask => processTCS.Task;
 
-    public ProcessingHandler(TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)
+    public ProcessingHandler(DateTime handlerCreationDate, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)
     {
+        this.handlerCreationDate = handlerCreationDate;
         this.advertismentLoss = advertismentLoss;
         this.totalLoss = totalLoss;
         this.bills = bills;
@@ -48,6 +54,11 @@ class ProcessingHandler
     public void SetResult()
     {
         processTCS.SetResult();
+    }
+
+    public string MakeVideoName(ProcessingVideo video, int lengthLimit = 100)
+    {
+        return DescriptionMaker.FormVideoName(handlerCreationDate, videos.Length == 1 ? null : video.number, lengthLimit, timestamps);
     }
 
     public string MakeVideoDescription(ProcessingVideo video)
