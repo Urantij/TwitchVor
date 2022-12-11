@@ -5,19 +5,15 @@ using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
 {
-    class PubsubChecker
+    class PubsubChecker : BaseChecker
     {
-        readonly ILogger _logger;
-
         private TwitchPubSub? client;
 
         public DateTime? debug_LastStreamEvent = null;
 
-        public event EventHandler<TwitchCheckInfo>? ChannelChecked;
-
         public PubsubChecker(ILoggerFactory loggerFactory)
+            : base(loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger(this.GetType());
         }
 
         public void Start()
@@ -94,7 +90,7 @@ namespace TwitchVor.Twitch.Checker
 
             try
             {
-                ChannelChecked?.Invoke(this, checkInfo);
+                OnChannelChecked(checkInfo);
             }
             catch (Exception ex)
             {
@@ -110,7 +106,7 @@ namespace TwitchVor.Twitch.Checker
 
             try
             {
-                ChannelChecked?.Invoke(this, checkInfo);
+                OnChannelChecked(checkInfo);
             }
             catch (Exception ex)
             {

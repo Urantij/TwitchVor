@@ -41,15 +41,15 @@ namespace TwitchVor.Twitch.Checker
             pubsubChecker.Start();
         }
 
-        private void HelixChecked(object? sender, HelixCheck arg)
+        private void HelixChecked(object? sender, TwitchCheckInfo arg)
         {
-            if (arg.check.online)
+            if (arg.online)
             {
-                StreamUp(arg.check, false);
+                StreamUp(arg, false);
             }
             else
             {
-                StreamDown(arg.check, false);
+                StreamDown(arg, false);
             }
         }
 
@@ -69,7 +69,7 @@ namespace TwitchVor.Twitch.Checker
         {
             lock (locker)
             {
-                if (!trustworthy && lastCheckInfo != null && !IsLastCheckOld())
+                if (!trustworthy && !IsLastCheckOld())
                     return;
 
                 if (lastCheckInfo?.online == true)
@@ -111,7 +111,7 @@ namespace TwitchVor.Twitch.Checker
                 return true;
             }
 
-            var passed = DateTime.UtcNow - lastCheckInfo.checkTime;
+            TimeSpan passed = DateTime.UtcNow - lastCheckInfo.checkTime;
 
             return passed >= trustTime;
         }
