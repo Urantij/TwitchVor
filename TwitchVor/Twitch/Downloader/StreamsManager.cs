@@ -69,6 +69,7 @@ namespace TwitchVor.Twitch.Downloader
                 Program.statuser.helixChecker.ChannelChecked -= currentStamper.HelixChecker_ChannelChecked;
 
                 currentStamper = new(_loggerFactory);
+                Program.statuser.helixChecker.ChannelChecked += currentStamper.HelixChecker_ChannelChecked;
             }
 
             _ = Task.Run(async () =>
