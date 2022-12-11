@@ -31,38 +31,26 @@ namespace TwitchVor.Vvideo
             _logger.LogInformation("Добавлен таймстамп \"{content}\"", timestamp.ToString());
         }
 
-        public void HelixChecker_ChannelChecked(object? sender, HelixCheck e)
+        public void HelixChecker_ChannelChecked(object? sender, TwitchCheckInfo twitchCheck)
         {
-            if (lastHelixCheck != null)
+            // Если не хеликс чекс, то он должен быть всегда !онлайн, ну да ладно
+            if (twitchCheck is not HelixCheck helixCheck || !twitchCheck.online)
             {
-                if (lastHelixCheck.check.online != e.check.online)
-                {
-                    if (e.check.online)
-                    {
-                        // Если онлайн, то всегда есть инфо.
-                        AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
-                    }
-                    else
-                    {
-                        AddTimestamp(new OfflineTimestamp(e.check.checkTime));
-                    }
-                }
-                else if (e.check.online && (e.info!.title != lastHelixCheck.info!.title || e.info.gameId != lastHelixCheck.info.gameId))
-                {
-                    AddTimestamp(new GameTimestamp(e.info.title, e.info.gameName, e.info.gameId, e.check.checkTime));
-                }
-            }
-            else
-            {
-                if (e.check.online)
-                {
-                    // Если онлайн, то всегда есть инфо.
-                    // TODO сделать раздельные классы для офлаин и онлайн чеков?
-                    AddTimestamp(new GameTimestamp(e.info!.title, e.info.gameName, e.info.gameId, e.check.checkTime));
-                }
+                if (lastHelixCheck == null)
+                    return;
+
+                AddTimestamp(new OfflineTimestamp(twitchCheck.checkTime));
+
+                lastHelixCheck = null;
+                return;
             }
 
-            lastHelixCheck = e;
+            if (lastHelixCheck?.online != true || lastHelixCheck.info.title != helixCheck.info.title || lastHelixCheck.info.gameId != helixCheck.info.gameId)
+            {
+                AddTimestamp(new GameTimestamp(helixCheck.info.title, helixCheck.info.gameName, helixCheck.info.gameId, helixCheck.checkTime));
+            }
+
+            lastHelixCheck = helixCheck;
         }
     }
 }

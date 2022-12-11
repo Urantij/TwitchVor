@@ -4,17 +4,11 @@ using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
 {
-    class HelixChecker
+    class HelixChecker : BaseChecker
     {
-        readonly ILogger _logger;
-
-        private readonly Dictionary<string, string> gameIdToGameName = new();
-
-        public event EventHandler<HelixCheck>? ChannelChecked;
-
         public HelixChecker(ILoggerFactory loggerFactory)
+            : base(loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger(this.GetType());
         }
 
         public void Start()
@@ -26,10 +20,10 @@ namespace TwitchVor.Twitch.Checker
         {
             while (true)
             {
-                var helixCheck = await CheckChannel();
+                TwitchCheckInfo? checkInfo = await CheckChannelAsync();
 
                 //если ошибка, стоит подождать чуть больше обычного
-                if (helixCheck == null)
+                if (checkInfo == null)
                 {
                     await Task.Delay(Program.config.HelixCheckDelay.Multiply(1.5));
                     continue;
@@ -37,7 +31,7 @@ namespace TwitchVor.Twitch.Checker
 
                 try
                 {
-                    ChannelChecked?.Invoke(this, helixCheck);
+                    OnChannelChecked(checkInfo);
                 }
                 catch (Exception e)
                 {
@@ -48,11 +42,10 @@ namespace TwitchVor.Twitch.Checker
             }
         }
 
-        //Должен быть способ умнее, но мне плохо
         /// <returns>null, если ошибка внеплановая</returns>
-        private async Task<HelixCheck?> CheckChannel()
+        private async Task<TwitchCheckInfo?> CheckChannelAsync()
         {
-            HelixCheck result;
+            TwitchLib.Api.Helix.Models.Streams.GetStreams.Stream stream;
 
             try
             {
@@ -60,30 +53,13 @@ namespace TwitchVor.Twitch.Checker
 
                 if (response.Streams.Length == 0)
                 {
-                    return new HelixCheck(new TwitchCheckInfo(false, DateTime.UtcNow))
-                    {
-                        info = null,
-                    };
+                    return new TwitchCheckInfo(false, DateTime.UtcNow);
                 }
 
-                var stream = response.Streams[0];
+                stream = response.Streams[0];
 
                 if (!stream.Type.Equals("live", StringComparison.OrdinalIgnoreCase))
-                    return new HelixCheck(new TwitchCheckInfo(false, DateTime.UtcNow))
-                    {
-                        info = null,
-                    };
-
-                result = new HelixCheck(new TwitchCheckInfo(true, DateTime.UtcNow))
-                {
-                    info = new TwitchChannelInfo(stream.Title, stream.GameId, stream.ViewerCount)
-                };
-
-                if (gameIdToGameName.TryGetValue(result.info.gameId, out string? gameName))
-                {
-                    result.info.gameName = gameName;
-                    return result;
-                }
+                    return new TwitchCheckInfo(false, DateTime.UtcNow);
             }
             catch (TwitchLib.Api.Core.Exceptions.BadScopeException)
             {
@@ -110,26 +86,7 @@ namespace TwitchVor.Twitch.Checker
                 return null;
             }
 
-            try
-            {
-                var gameInfo = await Program.twitchAPI.Helix.Games.GetGamesAsync(gameIds: new List<string>()
-                {
-                    result.info.gameId
-                });
-
-                if (gameInfo.Games.Length > 0)
-                {
-                    result.info.gameName = gameInfo.Games[0].Name;
-
-                    gameIdToGameName.Add(result.info.gameId, result.info.gameName);
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "CheckChannel Game exception");
-            }
-
-            return result;
+            return new HelixCheck(true, DateTime.UtcNow, new TwitchChannelInfo(stream.Title, stream.GameName, stream.GameId, stream.ViewerCount));
         }
     }
 }
