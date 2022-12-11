@@ -50,6 +50,11 @@ namespace TwitchVor
             }
 #endif
 
+            TaskScheduler.UnobservedTaskException += (sender, exception) =>
+            {
+                System.Console.WriteLine($"UnobservedTaskException\n{exception}");
+            };
+
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(typeof(ColoredConsoleOptions), typeof(ColoredConsoleOptions), Microsoft.Extensions.DependencyInjection.ServiceLifetime.Singleton));

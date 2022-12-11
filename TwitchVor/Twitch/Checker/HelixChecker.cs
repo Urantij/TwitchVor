@@ -13,10 +13,10 @@ namespace TwitchVor.Twitch.Checker
 
         public void Start()
         {
-            StartCheckLoop();
+            Task.Run(StartCheckLoopAsync);
         }
 
-        private async void StartCheckLoop()
+        private async Task StartCheckLoopAsync()
         {
             while (true)
             {
