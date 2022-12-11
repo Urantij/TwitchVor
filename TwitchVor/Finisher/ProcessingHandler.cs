@@ -31,12 +31,6 @@ class ProcessingHandler
 
     public readonly string[] subgifters;
 
-    /// <summary>
-    /// Сюда можно класть вещи, а потом копаться в них и брать нужное.
-    /// Я подумал, и не придумал ничего лучше.
-    /// </summary>
-    public readonly List<object> trashcan = new();
-
     public Task ProcessTask => processTCS.Task;
 
     public ProcessingHandler(DateTime handlerCreationDate, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)

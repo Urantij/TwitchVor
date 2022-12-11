@@ -26,7 +26,7 @@ public class VkWaller
         this.appConfig = creds.WallRunner;
     }
 
-    public async Task MakePostAsync(long[] videoIds)
+    public async Task MakePostAsync(IEnumerable<long> videoIds)
     {
         using VkNet.VkApi vkApi = new();
         await vkApi.AuthorizeAsync(new VkNet.Model.ApiAuthParams()

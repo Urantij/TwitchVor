@@ -20,6 +20,8 @@ namespace TwitchVor.Upload.Kvk
         public override long SizeLimit => 256L * 1024L * 1024L * 1024L;
         public override TimeSpan DurationLimit => TimeSpan.MaxValue;
 
+        readonly List<VkVideoInfo> uploadedVideos = new();
+
         public VkUploader(Guid guid, ILoggerFactory loggerFactory, VkCreds creds)
             : base(guid, loggerFactory)
         {
@@ -170,12 +172,14 @@ namespace TwitchVor.Upload.Kvk
 
             if (saveResult.Id != null)
             {
-                lock (processingHandler.trashcan)
-                    processingHandler.trashcan.Add(new VkVideoInfo(video, saveResult.Id.Value));
+                VkVideoInfo vkVideo = new(video, saveResult.Id.Value);
+                uploadedVideos.Add(vkVideo);
 
                 _ = Task.Run(async () =>
                 {
-                    await PostUploadDescriptionUpdate(processingHandler, video);
+                    await processingHandler.ProcessTask;
+
+                    await PostUploadDescriptionUpdate(processingHandler, vkVideo);
                 });
 
                 if (creds.WallRunner != null && processingHandler.videos.FirstOrDefault() == video)
@@ -184,7 +188,11 @@ namespace TwitchVor.Upload.Kvk
                     // И всё видосы одним постом выложатся.
                     _ = Task.Run(async () =>
                     {
-                        await PostCringeAsync(processingHandler);
+                        _logger.LogInformation("Запущен постобработчик.");
+
+                        await processingHandler.ProcessTask;
+
+                        await PostCringeAsync();
                     });
                 }
             }
@@ -196,18 +204,12 @@ namespace TwitchVor.Upload.Kvk
             return true;
         }
 
-        async Task PostUploadDescriptionUpdate(ProcessingHandler processingHandler, ProcessingVideo video)
+        async Task PostUploadDescriptionUpdate(ProcessingHandler processingHandler, VkVideoInfo vkVideoInfo)
         {
-            await processingHandler.ProcessTask;
-
-            if (video.success != true)
+            if (vkVideoInfo.video.success != true)
                 return;
 
             await Task.Delay(TimeSpan.FromSeconds(10));
-
-            VkVideoInfo vkVideoInfo;
-            lock (processingHandler.trashcan)
-                vkVideoInfo = processingHandler.trashcan.OfType<VkVideoInfo>().First(i => i.video == video);
 
             _logger.LogInformation("Авторизуемся...");
 
@@ -221,8 +223,8 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Меняем описание (id)...", vkVideoInfo.id);
 
-            string name = processingHandler.MakeVideoName(video);
-            string description = processingHandler.MakeVideoDescription(video);
+            string name = processingHandler.MakeVideoName(vkVideoInfo.video);
+            string description = processingHandler.MakeVideoDescription(vkVideoInfo.video);
 
             try
             {
@@ -248,17 +250,10 @@ namespace TwitchVor.Upload.Kvk
         /// <summary>
         /// Дождать загрузки и выложить пост на стену группы.
         /// </summary>
-        /// <param name="processingHandler"></param>
         /// <returns></returns>
-        async Task PostCringeAsync(ProcessingHandler processingHandler)
+        async Task PostCringeAsync()
         {
-            _logger.LogInformation("Запущен постобработчик.");
-
-            await processingHandler.ProcessTask;
-
-            VkVideoInfo[] videoInfos;
-            lock (processingHandler.trashcan)
-                videoInfos = processingHandler.trashcan.OfType<VkVideoInfo>().Where(v => v.video.success == true).ToArray();
+            VkVideoInfo[] videoInfos = uploadedVideos.Where(v => v.video.success == true).ToArray();
 
             if (videoInfos.Length == 0)
             {
