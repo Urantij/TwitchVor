@@ -128,7 +128,7 @@ namespace TwitchVor.Upload.Kvk
             long baseSize = CalculateBaseSize();
 
             using HttpClient client = new();
-            client.Timeout = TimeSpan.FromHours(4);
+            client.Timeout = TimeSpan.FromHours(12);
 
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent = new(content);
