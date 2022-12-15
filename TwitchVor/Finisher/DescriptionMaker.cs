@@ -225,7 +225,7 @@ namespace TwitchVor.Finisher
 
         private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate, IEnumerable<SkipDb> skips)
         {
-            TimeSpan onVideoTime = GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
+            TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
 
             if (onVideoTime.Ticks < 0)
             {
@@ -241,37 +241,6 @@ namespace TwitchVor.Finisher
             string timeStr = new DateTime(onVideoTime.Ticks).ToString("HH:mm:ss");
 
             return $"{timeStr} {content}";
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="videoStartDate"></param>
-        /// <param name="absoluteDate"></param>
-        /// <param name="skips">Скипы, чьё начало было ДО <paramref name="absoluteDate"/></param>
-        /// <returns></returns>
-        private static TimeSpan GetOnVideoTime(DateTimeOffset videoStartDate, DateTimeOffset absoluteDate, IEnumerable<SkipDb> skips)
-        {
-            //Время на видео, это абсолютное время (date) минус все скипы, которые произошли до этого момента минус время начала видео
-
-            DateTimeOffset result = absoluteDate;
-
-            var ourSkips = skips.Where(skip => skip.StartDate < absoluteDate).ToArray();
-
-            foreach (SkipDb skip in ourSkips)
-            {
-                // Если скип целиком входит в видео, берём скип целиком.
-                // Если скип входит лишь частично, берём его часть.
-
-                if (skip.StartDate >= absoluteDate)
-                    break;
-
-                DateTimeOffset endDate = skip.EndDate <= absoluteDate ? skip.EndDate : absoluteDate;
-
-                result -= (endDate - skip.StartDate);
-            }
-
-            return result - videoStartDate;
         }
     }
 }

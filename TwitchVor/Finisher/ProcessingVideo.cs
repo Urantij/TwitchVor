@@ -40,4 +40,46 @@ public class ProcessingVideo
         this.endDate = endDate;
         this.loss = loss;
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="absoluteDate"></param>
+    /// <param name="skips">Скипы, чьё начало было ДО <paramref name="absoluteDate"/></param>
+    /// <returns></returns>
+    public TimeSpan GetOnVideoTime(DateTimeOffset absoluteDate, IEnumerable<SkipDb> skips)
+    {
+        return GetOnVideoTime(startDate, absoluteDate, skips);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="videoStartDate"></param>
+    /// <param name="absoluteDate"></param>
+    /// <param name="skips">Скипы, чьё начало было ДО <paramref name="absoluteDate"/></param>
+    /// <returns></returns>
+    public static TimeSpan GetOnVideoTime(DateTimeOffset videoStartDate, DateTimeOffset absoluteDate, IEnumerable<SkipDb> skips)
+    {
+        //Время на видео, это абсолютное время (date) минус все скипы, которые произошли до этого момента минус время начала видео
+
+        DateTimeOffset result = absoluteDate;
+
+        var ourSkips = skips.Where(skip => skip.StartDate < absoluteDate).ToArray();
+
+        foreach (SkipDb skip in ourSkips)
+        {
+            // Если скип целиком входит в видео, берём скип целиком.
+            // Если скип входит лишь частично, берём его часть.
+
+            if (skip.StartDate >= absoluteDate)
+                break;
+
+            DateTimeOffset endDate = skip.EndDate <= absoluteDate ? skip.EndDate : absoluteDate;
+
+            result -= (endDate - skip.StartDate);
+        }
+
+        return result - videoStartDate;
+    }
 }
