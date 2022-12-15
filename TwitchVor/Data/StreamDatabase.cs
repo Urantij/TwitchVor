@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using TwitchVor.Data.Models;
 
@@ -9,6 +10,8 @@ namespace TwitchVor.Data
 {
     public class StreamDatabase
     {
+        public const string UTFNoCase = "NOCASE2";
+
         readonly string path;
 
         public StreamDatabase(string path)
@@ -26,6 +29,11 @@ namespace TwitchVor.Data
             using var context = CreateContext();
 
             await context.Database.EnsureCreatedAsync();
+
+            if (context.Database.GetDbConnection() is not SqliteConnection connection)
+                throw new Exception("SqliteConnection null");
+
+            connection.CreateCollation(UTFNoCase, (x, y) => string.Compare(x, y, ignoreCase: true));
         }
 
         public async Task DestroyAsync()

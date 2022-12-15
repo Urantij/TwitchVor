@@ -8,6 +8,7 @@ using TwitchLib.Api;
 using TwitchVor.Communication.Email;
 using TwitchVor.Configuration;
 using TwitchVor.Conversion;
+using TwitchVor.Data;
 using TwitchVor.Finisher;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Chat;
@@ -255,6 +256,13 @@ namespace TwitchVor
                 {
                     return;
                 }
+            }
+
+            {
+                var db = new StreamDatabase($"./test{Guid.NewGuid():N}.sqlite");
+
+                await db.InitAsync();
+                await db.DestroyAsync();
             }
 
             if (chatBot != null)
