@@ -4,6 +4,7 @@ using TwitchVor.Conversion;
 using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
+using TwitchVor.Twitch.Chat;
 using TwitchVor.Upload.Kvk;
 using TwitchVor.Vvideo.Money;
 
@@ -58,6 +59,9 @@ namespace TwitchVor.Configuration
         public string PreferedVideoResolution { get; set; } = "1280x720";
         public float PreferedVideoFps { get; set; } = 60;
         public bool TakeOnlyPrefered { get; set; } = false;
+
+        [JsonProperty(Required = Required.Default)]
+        public ChatConfig? Chat { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public OceanCreds? Ocean { get; set; } = null;

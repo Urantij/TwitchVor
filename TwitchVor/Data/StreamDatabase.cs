@@ -106,6 +106,17 @@ namespace TwitchVor.Data
             await context.SaveChangesAsync();
         }
 
+        public async Task AddChatMessageAsync(string userId, string username, string displayName, string message, string? color, string? badges, DateTimeOffset postTime)
+        {
+            using var context = CreateContext();
+
+            ChatMessageDb chatMessage = new(default, userId, username, displayName, message, color, badges, postTime);
+
+            context.ChatMessages.Add(chatMessage);
+
+            await context.SaveChangesAsync();
+        }
+
         public Task<VideoFormatDb[]> LoadAllVideoFormatsAsync()
         {
             using var context = CreateContext();

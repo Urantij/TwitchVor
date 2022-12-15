@@ -2,6 +2,7 @@ using System.Linq;
 using System.Net.Http;
 using ExtM3UPlaylistParser.Models;
 using Microsoft.Extensions.Logging;
+using SimpleTwitchChatLib.Irc.Messages;
 using TwitchLib.Api;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
@@ -13,6 +14,7 @@ using TwitchVor.Data.Models;
 using TwitchVor.Finisher;
 using TwitchVor.Space;
 using TwitchVor.Space.Local;
+using TwitchVor.Twitch.Chat;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
@@ -67,6 +69,11 @@ namespace TwitchVor.Twitch.Downloader
             _logger.LogInformation("Starting...");
 
             await db.InitAsync();
+
+            if (Program.chatBot != null)
+            {
+                Program.chatBot.client.PrivMsgReceived += PrivMsgReceived;
+            }
 
             _ = space.InitAsync();
 
@@ -132,6 +139,11 @@ namespace TwitchVor.Twitch.Downloader
 
             Finished = true;
 
+            if (Program.chatBot != null)
+            {
+                Program.chatBot.client.PrivMsgReceived -= PrivMsgReceived;
+            }
+
             await streamDownloader.CloseAsync();
         }
 
@@ -141,6 +153,24 @@ namespace TwitchVor.Twitch.Downloader
             {
                 await db.DestroyAsync();
                 await space.DestroyAsync();
+            }
+        }
+
+        private async void PrivMsgReceived(object? sender, PrivMsgIrc priv)
+        {
+            try
+            {
+                using var context = db.CreateContext();
+
+                string? badges = priv.rawIrc.tags?.GetValueOrDefault("badges");
+
+                ChatMessageDb chatMessageDb = new(default, priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.sentDate);
+                context.Add(chatMessageDb);
+                await context.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "PrivMsgReceived");
             }
         }
 

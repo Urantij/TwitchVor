@@ -17,6 +17,7 @@ namespace TwitchVor.Data
         public DbSet<SegmentDb> Segments { get; set; }
         public DbSet<VideoFormatDb> VideoFormats { get; set; }
         public DbSet<SkipDb> Skips { get; set; }
+        public DbSet<ChatMessageDb> ChatMessages { get; set; }
 
 #nullable restore
 
