@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TwitchVor.Data;
 using TwitchVor.Data.Models;
 using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Money;
@@ -20,6 +21,8 @@ class ProcessingHandler
     /// </summary>
     public readonly DateTime handlerCreationDate;
 
+    public readonly StreamDatabase db;
+
     public readonly TimeSpan advertismentLoss;
     public readonly TimeSpan totalLoss;
 
@@ -33,9 +36,10 @@ class ProcessingHandler
 
     public Task ProcessTask => processTCS.Task;
 
-    public ProcessingHandler(DateTime handlerCreationDate, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)
+    public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, ProcessingVideo[] videos, string[] subgifters)
     {
         this.handlerCreationDate = handlerCreationDate;
+        this.db = db;
         this.advertismentLoss = advertismentLoss;
         this.totalLoss = totalLoss;
         this.bills = bills;

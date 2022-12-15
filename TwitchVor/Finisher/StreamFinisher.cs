@@ -65,7 +65,7 @@ namespace TwitchVor.Finisher
 
                 string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
 
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
             }
 
             foreach (var video in processingHandler.videos)
