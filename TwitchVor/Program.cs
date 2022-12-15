@@ -10,6 +10,7 @@ using TwitchVor.Configuration;
 using TwitchVor.Conversion;
 using TwitchVor.Finisher;
 using TwitchVor.Twitch;
+using TwitchVor.Twitch.Chat;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
@@ -33,6 +34,7 @@ namespace TwitchVor
 #nullable enable
 
         public static SubChecker? subChecker;
+        public static ChatBot? chatBot;
         public static Ffmpeg? ffmpeg;
 
         public static Emailer? emailer;
@@ -188,6 +190,17 @@ namespace TwitchVor
                 logger.LogInformation("Без таймвеба");
             }
 
+            if (config.Chat != null)
+            {
+                logger.LogInformation("С чатом {name}", config.Chat.Username);
+
+                chatBot = new(config.Channel, config.Chat.Username, config.Chat.Token, loggerFactory);
+            }
+            else
+            {
+                logger.LogInformation("Без чата.");
+            }
+
             if (config.Conversion is ConversionConfig conversion)
             {
                 logger.LogInformation("Конвертируем ({path})", conversion.FfmpegPath);
@@ -242,6 +255,11 @@ namespace TwitchVor
                 {
                     return;
                 }
+            }
+
+            if (chatBot != null)
+            {
+                _ = chatBot.StartAsync();
             }
 
             statuser.Init();

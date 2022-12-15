@@ -1,3 +1,6 @@
 [submodule "TwitchStreamDownloader"]
 	path = TwitchStreamDownloader
 	url = https://github.com/Urantij/TwitchStreamDownloader.git
+[submodule "SimpleTwitchChatLib"]
+	path = SimpleTwitchChatLib
+	url = https://github.com/Urantij/SimpleTwitchChatLib.git
