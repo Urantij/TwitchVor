@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Data.Models;
 using TwitchVor.Finisher;
 using TwitchVor.Vvideo;
 
@@ -26,23 +28,57 @@ namespace TwitchVor.Upload.FileSystem
         {
             _logger.LogInformation("Пишем...");
 
-            string descriptionPath = Path.ChangeExtension(path, "txt");
+            Task extraTask = WriteExtras(processingHandler, video, name, description);
 
-            await File.WriteAllTextAsync(descriptionPath, $"{name}\n\n\n{description}");
+            using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
 
-            _logger.LogInformation("Записали описание в {path}", descriptionPath);
+            await content.CopyToAsync(fs);
 
-            using (var context = processingHandler.db.CreateContext())
+            await extraTask;
+
+            _logger.LogInformation("Записали видево в {path}", path);
+
+            return true;
+        }
+
+        async Task WriteExtras(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description)
+        {
             {
-                var commands = context.ChatMessages
-                .Where(m => EF.Functions.Collate(m.Message, Data.StreamDatabase.UTFNoCase).StartsWith("=метка"))
-                .Select(m => new
+                string descriptionPath = Path.ChangeExtension(path, "txt");
+                await File.WriteAllTextAsync(descriptionPath, $"{name}\n\n\n{description}");
+
+                _logger.LogInformation("Записали описание в {path}", descriptionPath);
+            }
+
+            using var context = processingHandler.db.CreateContext();
+
+            string chatPath = Path.ChangeExtension(path, "chat.txt");
+            using var chatFs = new FileStream(chatPath, FileMode.Create);
+
+            string marksPath = Path.ChangeExtension(path, "marks.txt");
+            int marksCount = 0;
+
+            const int batchSize = 1000;
+            int length = await context.ChatMessages.CountAsync();
+
+            for (int i = 0; i < length; i += batchSize)
+            {
+                var messages = context.ChatMessages.OrderBy(c => c.Id)
+                                                   .Skip(i * batchSize)
+                                                   .Take(batchSize)
+                                                   .ToArray();
+
+                StringBuilder sb = new();
+                foreach (var message in messages)
                 {
-                    m.Username,
-                    m.Message,
-                    m.PostTime,
-                })
-                .AsEnumerable()
+                    sb.Clear();
+                    CreateFileMessage(processingHandler, video, message, sb);
+
+                    await chatFs.WriteAsync(Encoding.UTF8.GetBytes(sb.ToString()));
+                }
+
+                var commands = messages
+                .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
                 .Select(a =>
                 {
                     string message = a.Message["=метка".Length..].Trim();
@@ -59,21 +95,52 @@ namespace TwitchVor.Upload.FileSystem
 
                 if (commands.Length > 0)
                 {
-                    string marksPath = Path.ChangeExtension(path, "marks.txt");
-
-                    await File.WriteAllLinesAsync(marksPath, commands);
-
-                    _logger.LogInformation("Записали {count} отметок.", commands.Length);
+                    await File.AppendAllLinesAsync(marksPath, commands);
                 }
             }
 
-            using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+            if (marksCount > 0)
+            {
+                _logger.LogInformation("Записали {count} отметок.", marksCount);
+            }
+        }
 
-            await content.CopyToAsync(fs);
+        void CreateFileMessage(ProcessingHandler processingHandler, ProcessingVideo video, ChatMessageDb message, StringBuilder sb)
+        {
+            TimeSpan time = video.GetOnVideoTime(message.PostTime, processingHandler.skips);
 
-            _logger.LogInformation("Записали видево в {path}", path);
+            sb.Append('[').Append(time.ToString()).Append(']');
 
-            return true;
+            if (message.Badges != null)
+            {
+                sb.Append(":b").Append(message.Badges);
+            }
+            if (message.Color != null)
+            {
+                sb.Append(":c").Append(message.Color);
+            }
+            sb.Append(' ');
+
+            if (message.DisplayName != null)
+            {
+                if (message.DisplayName.Equals(message.Username, StringComparison.OrdinalIgnoreCase))
+                {
+                    sb.Append(message.DisplayName);
+                }
+                else
+                {
+                    sb.Append(message.Username).Append('/').Append(message.DisplayName);
+                }
+            }
+            else
+            {
+                sb.Append(message.Username);
+            }
+            sb.Append(" (").Append(message.UserId).Append(')');
+
+            sb.Append(' ').Append(message.Message);
+
+            sb.Append('\n');
         }
     }
 }
