@@ -18,19 +18,34 @@ namespace TwitchVor.Twitch.Checker
 
         public void Start()
         {
-            client = new TwitchPubSub();
+            var thisClient = client = new TwitchPubSub();
+            try
+            {
+                thisClient.OnPubSubServiceConnected += PubSubServiceConnected;
+                thisClient.OnListenResponse += ListenResponse;
+                thisClient.OnPubSubServiceClosed += PubSubServiceClosed;
+                thisClient.OnPubSubServiceError += PubSubServiceError;
+                thisClient.OnStreamUp += StreamUp;
+                thisClient.OnStreamDown += StreamDown;
 
-            client.OnPubSubServiceConnected += PubSubServiceConnected;
-            client.OnListenResponse += ListenResponse;
-            client.OnPubSubServiceClosed += PubSubServiceClosed;
-            client.OnPubSubServiceError += PubSubServiceError;
-            client.OnStreamUp += StreamUp;
-            client.OnStreamDown += StreamDown;
+                thisClient.ListenToVideoPlayback(Program.config.ChannelId);
 
-            client.ListenToVideoPlayback(Program.config.ChannelId);
+                _logger.LogInformation("Connecting...");
+                thisClient.Connect();
+            }
+            catch (Exception e)
+            {
+                thisClient.OnPubSubServiceConnected -= PubSubServiceConnected;
+                thisClient.OnListenResponse -= ListenResponse;
+                thisClient.OnPubSubServiceClosed -= PubSubServiceClosed;
+                thisClient.OnPubSubServiceError -= PubSubServiceError;
+                thisClient.OnStreamUp -= StreamUp;
+                thisClient.OnStreamDown -= StreamDown;
 
-            _logger.LogInformation("Connecting...");
-            client.Connect();
+                _logger.LogError(e, "Ошибка при подключении.");
+
+                PubSubServiceClosed(thisClient, EventArgs.Empty);
+            }
         }
 
         private void PubSubServiceConnected(object? sender, EventArgs e)
