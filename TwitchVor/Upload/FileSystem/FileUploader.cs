@@ -59,12 +59,13 @@ namespace TwitchVor.Upload.FileSystem
             int marksCount = 0;
 
             const int batchSize = 1000;
-            int length = await context.ChatMessages.CountAsync();
+            int msgsCount = await context.ChatMessages.CountAsync();
+            _logger.LogInformation("Пишем {count} сообщений из чата.", msgsCount);
 
-            for (int i = 0; i < length; i += batchSize)
+            for (int msgIndex = 0; msgIndex < msgsCount; msgIndex += batchSize)
             {
                 var messages = context.ChatMessages.OrderBy(c => c.Id)
-                                                   .Skip(i * batchSize)
+                                                   .Skip(msgIndex)
                                                    .Take(batchSize)
                                                    .ToArray();
 
@@ -81,7 +82,7 @@ namespace TwitchVor.Upload.FileSystem
                 .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
                 .Select(a =>
                 {
-                    string message = a.Message["=метка".Length..].Trim();
+                    string message = a.Message["=метка".Length..].TrimStart();
 
                     TimeSpan time = video.GetOnVideoTime(a.PostTime, processingHandler.skips);
 
@@ -95,6 +96,7 @@ namespace TwitchVor.Upload.FileSystem
 
                 if (commands.Length > 0)
                 {
+                    marksCount += commands.Length;
                     await File.AppendAllLinesAsync(marksPath, commands);
                 }
             }
