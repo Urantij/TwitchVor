@@ -168,5 +168,13 @@ namespace TwitchVor.Data
             return await context.Segments.Where(segment => segment.Id < id)
                                          .SumAsync(s => s.Size);
         }
+
+        public async Task<long> CalculateSizeAsync(int startId, int endId)
+        {
+            using var context = CreateContext();
+
+            return await context.Segments.Where(segment => segment.Id >= startId && segment.Id <= endId)
+                                         .SumAsync(s => s.Size);
+        }
     }
 }

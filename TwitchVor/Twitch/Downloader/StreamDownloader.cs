@@ -138,21 +138,7 @@ namespace TwitchVor.Twitch.Downloader
             {
                 try
                 {
-                    if (targetSpace.Stable)
-                    {
-                        await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
-                    }
-                    else
-                    {
-                        long position = fs.Position;
-                        await Attempter.DoAsync(_logger, async () =>
-                        {
-                            await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
-                        }, onRetryAction: () =>
-                        {
-                            fs.Seek(position, SeekOrigin.Begin);
-                        });
-                    }
+                    await targetSpace.PutDataAsync(segment.Id, fs, segment.Size);
                 }
                 catch (Exception exception)
                 {
@@ -246,46 +232,7 @@ namespace TwitchVor.Twitch.Downloader
 
                     try
                     {
-                        if (spaceToWrite.AsyncUpload)
-                        {
-                            if (spaceToWrite.Stable)
-                            {
-                                await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length);
-                            }
-                            else
-                            {
-                                await Attempter.DoAsync(_logger, async () =>
-                                {
-                                    // Происходят непонятные вещи
-                                    using CancellationTokenSource cts = Mystery.MysteryCTS();
-
-                                    await spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length, cts.Token);
-                                }, onRetryAction: () =>
-                                {
-                                    qItem.bufferWriteStream.Position = 0;
-                                });
-                            }
-                        }
-                        else
-                        {
-                            if (spaceToWrite.Stable)
-                            {
-                                spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
-                            }
-                            else
-                            {
-                                Attempter.Do(_logger, () =>
-                                {
-                                    // Происходят непонятные вещи
-                                    using CancellationTokenSource cts = Mystery.MysteryCTS();
-
-                                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length, cts.Token).GetAwaiter().GetResult();
-                                }, onRetryAction: () =>
-                                {
-                                    qItem.bufferWriteStream.Position = 0;
-                                });
-                            }
-                        }
+                        spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
                     }
                     catch (Exception exception)
                     {

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Space;
 using TwitchVor.Space.Local;
-using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Upload;
 using TwitchVor.Upload.FileSystem;
@@ -21,10 +20,6 @@ namespace TwitchVor.Utility
             {
                 return new TimewebSpaceProvider(guid, loggerFactory, Program.config.Timeweb);
             }
-            else if (Program.config.Ocean != null)
-            {
-                return new DigitalOceanSpaceProvider(guid, loggerFactory, Program.config.Ocean);
-            }
 
             return new LocalSpaceProvider(guid, loggerFactory, MakeLocalSpacePath(guid, false));
         }
@@ -37,6 +32,11 @@ namespace TwitchVor.Utility
             }
 
             return new FileUploader(guid, loggerFactory, Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video"));
+        }
+
+        public static string MakePath(string fileName)
+        {
+            return Path.Combine(Program.config.CacheDirectoryName, fileName);
         }
 
         public static string MakeLocalSpacePath(Guid guid, bool temp)

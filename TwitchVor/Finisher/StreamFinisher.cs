@@ -254,9 +254,9 @@ namespace TwitchVor.Finisher
 
         async Task<bool> DoVideoAsync(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo)
         {
-            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsLength, video.segmentStart);
+            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsCount, video.segmentStart);
 
-            int limitIndex = video.segmentStart + video.segmentsLength;
+            int limitIndex = video.segmentStart + video.segmentsCount;
 
             string filename = $"result{video.number}." + (ffmpeg != null ? "mp4" : "ts");
 
@@ -267,7 +267,7 @@ namespace TwitchVor.Finisher
             using var clientPipe = new AnonymousPipeClientStream(PipeDirection.In, serverPipe.ClientSafePipeHandle);
 
             // Сюда пишем то, что вычитали из сегментов.
-            Stream inputPipe;
+            Stream inputStream;
 
             // Если конверсии нет, пишем сегменты в инпут (сервер пайп)
             // Если есть, пишем сегменты в инпут (инпут ффмпега), и пишем аутпут ффмпега в сервер пайп
@@ -276,7 +276,7 @@ namespace TwitchVor.Finisher
             {
                 conversionHandler = ffmpeg.CreateConversion();
 
-                inputPipe = conversionHandler.InputStream;
+                inputStream = conversionHandler.InputStream;
 
                 // Читать ффмпег
                 _ = Task.Run(async () =>
@@ -320,7 +320,7 @@ namespace TwitchVor.Finisher
             }
             else
             {
-                inputPipe = serverPipe;
+                inputStream = serverPipe;
             }
 
             // Чтение сегментов, перенаправление в инпут.
@@ -329,88 +329,10 @@ namespace TwitchVor.Finisher
                 try
                 {
                     long offset = await db.CalculateOffsetAsync(video.segmentStart);
+                    long size = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
 
-                    using MemoryStream bufferStream = new();
-
-                    TimeSpan notificationCooldown = TimeSpan.FromSeconds(20);
-                    Stopwatch stopwatch = new();
-                    stopwatch.Start();
-
-                    for (int index = video.segmentStart; index < limitIndex; index += takeCount)
-                    {
-                        int take = Math.Min(takeCount, limitIndex - index);
-
-                        SegmentDb[] segments = await db.LoadSegmentsAsync(take, index);
-
-                        foreach (var segment in segments)
-                        {
-                            if (space.Stable)
-                            {
-                                try
-                                {
-                                    await space.ReadDataAsync(segment.Id, offset, segment.Size, inputPipe);
-                                }
-                                catch (Exception e)
-                                {
-                                    _logger.LogError(e, "DoVideo ReadDataAsync");
-                                }
-                            }
-                            else
-                            {
-                                // Если может вылететь прямо во время загрузки, 
-                                // может записать часть байт в выходной стрим, закораптив его.
-                                // Тут либо переподрубать, учитывая оффсет, пока не выдаст
-                                // Либо юзать буфер.
-
-                                // Через ресет остаётся тот же capacity, что и был
-                                // То есть память будет более менее стабильно выделена и всё.
-                                bufferStream.Reset();
-                                bool downloaded;
-                                try
-                                {
-                                    await Attempter.DoAsync(_logger, async () =>
-                                    {
-                                        // Происходят непонятные вещи
-                                        using CancellationTokenSource cts = Mystery.MysteryCTS();
-
-                                        await space.ReadDataAsync(segment.Id, offset, segment.Size, bufferStream, cts.Token);
-                                    }, onRetryAction: () =>
-                                    {
-                                        bufferStream.Reset();
-                                    });
-                                    downloaded = true;
-                                }
-                                catch (Exception e)
-                                {
-                                    _logger.LogError(e, "DoVideo ReadDataAsync");
-
-                                    downloaded = false;
-                                }
-
-                                if (downloaded)
-                                {
-                                    bufferStream.Position = 0;
-
-                                    await bufferStream.CopyToAsync(inputPipe);
-                                    await bufferStream.FlushAsync();
-                                }
-                            }
-
-                            offset += segment.Size;
-
-                            if (stopwatch.Elapsed > notificationCooldown)
-                            {
-                                stopwatch.Restart();
-
-                                int segmentIndex = index + Array.IndexOf(segments, segment) - video.segmentStart;
-
-                                _logger.LogInformation(StreamFinisherEvents.UploadingEventId, "Идёт загрузка... ({index}/{total})", segmentIndex, video.segmentsLength);
-                            }
-                        }
-                    }
-
-                    await inputPipe.FlushAsync();
-                    await inputPipe.DisposeAsync();
+                    await space.ReadAllDataAsync(inputStream, size, offset);
+                    await inputStream.FlushAsync();
 
                     _logger.LogInformation("Всё прочитали.");
                 }

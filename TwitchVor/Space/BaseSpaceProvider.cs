@@ -15,18 +15,6 @@ namespace TwitchVor.Space
 
         public bool Ready { get; protected set; }
 
-        /// <summary>
-        /// Облачные технологии умеют выдавать ошибки порой
-        /// </summary>
-        public abstract bool Stable { get; }
-
-        /// <summary>
-        /// Можно ли писать несколько сегментов сразу.
-        /// То есть этот спейс держит сегменты раздельно, учитывая их id.
-        /// В ином случае он кидает их в один файл. Зато по порядку.
-        /// </summary>
-        public abstract bool AsyncUpload { get; }
-
         public IPricer? pricer;
 
         protected BaseSpaceProvider(Guid guid, ILoggerFactory loggerFactory)
@@ -40,7 +28,7 @@ namespace TwitchVor.Space
 
         public abstract Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default);
 
-        public abstract Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default);
+        public abstract Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default);
 
         public abstract Task CloseAsync();
 

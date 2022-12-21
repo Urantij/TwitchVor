@@ -14,9 +14,6 @@ namespace TwitchVor.Space.Local
 
         public FileStream? Fs { get; private set; }
 
-        public override bool Stable => true;
-        public override bool AsyncUpload => false;
-
         public LocalSpaceProvider(Guid guid, ILoggerFactory loggerFactory, string path)
             : base(guid, loggerFactory)
         {
@@ -64,13 +61,13 @@ namespace TwitchVor.Space.Local
             }
         }
 
-        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
+        public override Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default)
         {
             Fs ??= new FileStream(path, FileMode.Open, FileAccess.Read);
 
             Fs.Seek(offset, SeekOrigin.Begin);
 
-            await Fs.CopyStreamAsync(inputStream, (int)length);
+            return Fs.CopyStreamAsync(inputStream, length, cancellationToken);
         }
 
         public override async Task DestroyAsync()
