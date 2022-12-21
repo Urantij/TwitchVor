@@ -11,7 +11,7 @@ public class ProcessingVideo
     public readonly int number;
 
     public readonly int segmentStart;
-    public readonly int segmentsLength;
+    public readonly int segmentsCount;
 
     public readonly long size;
 
@@ -34,7 +34,7 @@ public class ProcessingVideo
     {
         this.number = number;
         this.segmentStart = segmentStart;
-        this.segmentsLength = segmentsLength;
+        this.segmentsCount = segmentsLength;
         this.size = size;
         this.startDate = startDate;
         this.endDate = endDate;

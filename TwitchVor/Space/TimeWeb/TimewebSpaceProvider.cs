@@ -18,6 +18,8 @@ namespace TwitchVor.Space.TimeWeb
 
         private const string endpoint = "s3.timeweb.com";
 
+        const long tempFileSizeLimit = 100 * 1024 * 1024;
+
         readonly TimewebConfig config;
 
         readonly TimeWebApi api;
@@ -25,9 +27,10 @@ namespace TwitchVor.Space.TimeWeb
         ListBucketsResponseModel.BucketModel? bucket;
         HttpClient? s3HttpClient;
         MinioClient? s3Client;
+        MultipartUploadHandler? multipartUploadHandler;
 
-        public override bool Stable => false;
-        public override bool AsyncUpload => true;
+        int tempNum = 0;
+        FileStream? currentTempFs;
 
         public TimewebSpaceProvider(Guid guid, ILoggerFactory loggerFactory, TimewebConfig config)
             : base(guid, loggerFactory)
@@ -145,43 +148,82 @@ namespace TwitchVor.Space.TimeWeb
                                         .WithHttpClient(s3HttpClient)
                                         .Build();
 
+            {
+                var args = new NewMultipartUploadPutArgs().WithBucket(bucket.Name).WithObject(guid.ToString("N"));
+                multipartUploadHandler = await s3Client.CreateMultipartUploadAsync(args, CancellationToken.None);
+            }
+
             _logger.LogInformation("Дело сделано.");
 
             Ready = true;
         }
 
-        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
+        public override Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
-            if (bucket == null)
-                throw new NullReferenceException($"{nameof(bucket)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
 
-            await s3Client.PutObjectAsync(new PutObjectArgs().WithBucket(bucket.Name)
-                                                             .WithStreamData(contentStream)
-                                                             .WithObjectSize(length)
-                                                             .WithObject($"{id}.ts"), cancellationToken);
+            if (currentTempFs == null || currentTempFs.Length >= tempFileSizeLimit)
+            {
+                var preSwapFs = currentTempFs;
+
+                string name = $"{guid:N}_{tempNum++}";
+                currentTempFs = new FileStream(DependencyProvider.MakePath(name), FileMode.Create);
+
+                if (preSwapFs != null)
+                {
+                    _ = Task.Run(() => FinishTempFileAsync(multipartUploadHandler, preSwapFs));
+                }
+            }
+
+            return contentStream.CopyStreamAsync(currentTempFs, (int)length, cancellationToken);
         }
 
-        public override async Task ReadDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
+        public override Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
-            if (bucket == null)
-                throw new NullReferenceException($"{nameof(bucket)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
 
-            // Непонятно, можно ли тут использовать асинхронным метод в колбеке.
-            // Код разбросан так, что пыпец.
-
-            await s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(bucket.Name)
-                                                             .WithObject($"{id}.ts")
-                                                             .WithCallbackStream(stream => stream.CopyToAsync(inputStream, cancellationToken).GetAwaiter().GetResult()), cancellationToken);
-
+            return s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(multipartUploadHandler.bucketName)
+                                                              .WithObject(multipartUploadHandler.objectName)
+                                                              .WithOffsetAndLength(offset, length)
+                                                              .WithCallbackStream(stream => stream.CopyToAsync(inputStream, cancellationToken).GetAwaiter().GetResult()), cancellationToken);
         }
 
-        public override Task CloseAsync()
+        // public override async Task ReadPartDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
+        // {
+        //     if (s3Client == null)
+        //         throw new NullReferenceException($"{nameof(s3Client)} is null");
+        //     if (bucket == null)
+        //         throw new NullReferenceException($"{nameof(bucket)} is null");
+
+        //     // Непонятно, можно ли тут использовать асинхронным метод в колбеке.
+        //     // Код разбросан так, что пыпец.
+
+        //     await s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(bucket.Name)
+        //                                                      .WithObject($"{id}.ts")
+        //                                                      .WithCallbackStream(stream => stream.CopyToAsync(inputStream, cancellationToken).GetAwaiter().GetResult()), cancellationToken);
+        // }
+
+        public override async Task CloseAsync()
         {
-            return Task.CompletedTask;
+            if (s3Client == null)
+                throw new NullReferenceException($"{nameof(s3Client)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
+
+            if (currentTempFs != null)
+            {
+                await FinishTempFileAsync(multipartUploadHandler, currentTempFs);
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                await multipartUploadHandler.CompleteAsync(CancellationToken.None);
+
+                currentTempFs = null;
+            }
         }
 
         public override async Task DestroyAsync()
@@ -198,6 +240,21 @@ namespace TwitchVor.Space.TimeWeb
             api.Dispose();
             s3Client?.Dispose();
             s3HttpClient?.Dispose();
+        }
+
+        static async Task FinishTempFileAsync(MultipartUploadHandler multipartUploadHandler, FileStream fs)
+        {
+            fs.Position = 0;
+
+            try
+            {
+                await multipartUploadHandler.PutObjectAsync(fs);
+            }
+            finally
+            {
+                await fs.DisposeAsync();
+                File.Delete(fs.Name);
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
 using Newtonsoft.Json;
 using TwitchVor.Communication.Email;
 using TwitchVor.Conversion;
-using TwitchVor.Space.OceanDigital;
 using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Chat;
@@ -62,9 +61,6 @@ namespace TwitchVor.Configuration
 
         [JsonProperty(Required = Required.Default)]
         public ChatConfig? Chat { get; set; } = null;
-
-        [JsonProperty(Required = Required.Default)]
-        public OceanCreds? Ocean { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public TimewebConfig? Timeweb { get; set; } = null;
