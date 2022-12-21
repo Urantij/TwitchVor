@@ -147,11 +147,15 @@ namespace TwitchVor.Twitch.Downloader
             await streamDownloader.CloseAsync();
         }
 
-        internal async Task DestroyAsync(bool destroySegments)
+        internal async Task DestroyAsync(bool destroySegments, bool destroyDB)
         {
-            if (destroySegments)
+            if (destroyDB)
             {
                 await db.DestroyAsync();
+            }
+
+            if (destroySegments)
+            {
                 await space.DestroyAsync();
             }
         }
@@ -160,13 +164,9 @@ namespace TwitchVor.Twitch.Downloader
         {
             try
             {
-                using var context = db.CreateContext();
-
                 string? badges = priv.rawIrc.tags?.GetValueOrDefault("badges");
 
-                ChatMessageDb chatMessageDb = new(default, priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.sentDate);
-                context.Add(chatMessageDb);
-                await context.SaveChangesAsync();
+                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.sentDate);
             }
             catch (Exception e)
             {

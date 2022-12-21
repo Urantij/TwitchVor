@@ -101,7 +101,10 @@ namespace TwitchVor.Finisher
                 _logger.LogInformation("С видосами закончили, всё хуёво.");
             }
 
-            await streamHandler.DestroyAsync(destroySegments: allSuccess);
+            // костыль мне плохо
+            bool destroyDB = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
+
+            await streamHandler.DestroyAsync(destroySegments: allSuccess, destroyDB: destroyDB);
 
             if (Program.emailer != null)
             {

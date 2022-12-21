@@ -114,7 +114,7 @@ namespace TwitchVor.Data
             await context.SaveChangesAsync();
         }
 
-        public async Task AddChatMessageAsync(string userId, string username, string displayName, string message, string? color, string? badges, DateTimeOffset postTime)
+        public async Task AddChatMessageAsync(string userId, string username, string? displayName, string message, string? color, string? badges, DateTimeOffset postTime)
         {
             using var context = CreateContext();
 
