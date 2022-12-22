@@ -220,7 +220,7 @@ namespace TwitchVor.Space.TimeWeb
             {
                 await FinishTempFileAsync(multipartUploadHandler, currentTempFs);
                 await Task.Delay(TimeSpan.FromSeconds(5));
-                await multipartUploadHandler.CompleteAsync(CancellationToken.None);
+                await multipartUploadHandler.CompleteAsync();
 
                 currentTempFs = null;
             }
@@ -242,13 +242,21 @@ namespace TwitchVor.Space.TimeWeb
             s3HttpClient?.Dispose();
         }
 
-        static async Task FinishTempFileAsync(MultipartUploadHandler multipartUploadHandler, FileStream fs)
+        async Task FinishTempFileAsync(MultipartUploadHandler multipartUploadHandler, FileStream fs)
         {
             fs.Position = 0;
 
             try
             {
+                int num = multipartUploadHandler.NextPartNumber;
                 await multipartUploadHandler.PutObjectAsync(fs);
+
+                _logger.LogDebug("Успешно положили объект {num}.", num);
+            }
+            catch (Exception e)
+            {
+                _logger.LogCritical(e, "FinishTempFileAsync");
+                throw;
             }
             finally
             {
