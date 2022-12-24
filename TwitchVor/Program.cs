@@ -53,9 +53,9 @@ namespace TwitchVor
             }
 #endif
 
-            TaskScheduler.UnobservedTaskException += (sender, exception) =>
+            TaskScheduler.UnobservedTaskException += (sender, eArgs) =>
             {
-                System.Console.WriteLine($"UnobservedTaskException\n{exception}");
+                System.Console.WriteLine($"UnobservedTaskException\n{eArgs.Exception}");
             };
 
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
@@ -160,7 +160,7 @@ namespace TwitchVor
             if (config.Timeweb != null)
             {
                 logger.LogInformation("Таймвеб добавлен");
-                logger.LogInformation("Таймвеб таймаут {timeout}", config.Timeweb.RequestsTimeout);
+                logger.LogInformation("Таймвеб таймаут {uploadTimeout} / {downloadTimeout}", config.Timeweb.UploadRequestTimeout, config.Timeweb.DownloadRequestTimeout);
 
                 if (config.Timeweb.ValidateTokenOnStart)
                 {

@@ -21,18 +21,22 @@ namespace TwitchVor.Space.TimeWeb
         public bool ValidateTokenOnStart { get; set; } = true;
 
         [JsonProperty(Required = Required.Default)]
-        public TimeSpan RequestsTimeout { get; set; } = TimeSpan.FromSeconds(10);
+        public TimeSpan UploadRequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        [JsonProperty(Required = Required.Default)]
+        public TimeSpan DownloadRequestTimeout { get; set; } = TimeSpan.FromHours(2);
 
         [JsonProperty(Required = Required.Default)]
         public long PerFileSize { get; set; } = 100 * 1024 * 1024;
 
-        public TimewebConfig(string refreshToken, string? accessToken, DateTimeOffset? accessTokenExpirationDate, bool validateTokenOnStart, TimeSpan requestsTimeout, long perFileSize)
+        public TimewebConfig(string refreshToken, string? accessToken, DateTimeOffset? accessTokenExpirationDate, bool validateTokenOnStart, TimeSpan uploadRequestTimeout, TimeSpan downloadRequestTimeout, long perFileSize)
         {
             RefreshToken = refreshToken;
             AccessToken = accessToken;
             AccessTokenExpirationDate = accessTokenExpirationDate;
             ValidateTokenOnStart = validateTokenOnStart;
-            RequestsTimeout = requestsTimeout;
+            UploadRequestTimeout = uploadRequestTimeout;
+            DownloadRequestTimeout = downloadRequestTimeout;
             PerFileSize = perFileSize;
         }
     }

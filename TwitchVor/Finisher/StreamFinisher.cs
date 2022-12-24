@@ -329,20 +329,70 @@ namespace TwitchVor.Finisher
             // Чтение сегментов, перенаправление в инпут.
             _ = Task.Run(async () =>
             {
-                try
-                {
-                    long offset = await db.CalculateOffsetAsync(video.segmentStart);
-                    long size = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
+                long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
+                long baseSize = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
 
-                    await space.ReadAllDataAsync(inputStream, size, offset);
-                    await inputStream.FlushAsync();
+                long read = 0;
 
-                    _logger.LogInformation("Всё прочитали.");
-                }
-                catch (Exception totalE)
+                const int attemptsLimit = 5;
+                int attempt = 1;
+
+                Exception lastEx = new();
+                while (attempt <= attemptsLimit)
                 {
-                    _logger.LogCritical(totalE, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
+                    long offset = baseOffset + read;
+                    long size = baseSize - read;
+
+                    if (size == 0)
+                        break;
+
+                    ByteCountingStream serverCountyPipe = null;
+                    try
+                    {
+                        // Черт его знает, что они там со стримами делают в случае поломки.
+                        // Лучше просто заменять будем.
+                        using var serverPipe = new AnonymousPipeServerStream(PipeDirection.Out);
+                        using var clientPipe = new AnonymousPipeClientStream(PipeDirection.In, serverPipe.ClientSafePipeHandle);
+
+                        serverCountyPipe = new ByteCountingStream(serverPipe);
+
+                        var clientTask = Task.Run(async () =>
+                        {
+                            await clientPipe.CopyToAsync(inputStream);
+                            await clientPipe.FlushAsync();
+                        });
+
+                        await space.ReadAllDataAsync(serverCountyPipe, size, offset);
+                        await serverCountyPipe.FlushAsync();
+
+                        await clientTask;
+
+                        _logger.LogInformation("Всё прочитали.");
+                        return;
+                    }
+                    catch (Exception totalE)
+                    {
+                        lastEx = totalE;
+
+                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) (bytes) {message}", attempt, attemptsLimit, serverCountyPipe.TotalBytesRead, totalE.Message);
+                    }
+                    finally
+                    {
+                        await serverCountyPipe.DisposeAsync();
+                    }
+
+                    if (serverCountyPipe.TotalBytesRead > 0)
+                    {
+                        read += serverCountyPipe.TotalBytesRead;
+                        attempt = 1;
+                    }
+                    else
+                    {
+                        attempt++;
+                    }
                 }
+
+                _logger.LogCritical(lastEx, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
             });
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
