@@ -374,16 +374,16 @@ namespace TwitchVor.Finisher
                     {
                         lastEx = totalE;
 
-                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) (bytes) {message}", attempt, attemptsLimit, serverCountyPipe.TotalBytesRead, totalE.Message);
+                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, serverCountyPipe.TotalBytesWritten, totalE.Message);
                     }
                     finally
                     {
                         await serverCountyPipe.DisposeAsync();
                     }
 
-                    if (serverCountyPipe.TotalBytesRead > 0)
+                    if (serverCountyPipe.TotalBytesWritten > 0)
                     {
-                        read += serverCountyPipe.TotalBytesRead;
+                        read += serverCountyPipe.TotalBytesWritten;
                         attempt = 1;
                     }
                     else
