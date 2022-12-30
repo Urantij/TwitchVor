@@ -73,9 +73,9 @@ namespace TwitchVor.Twitch.Checker
 
                 return null;
             }
-            catch (HttpRequestException e) when (e.InnerException is IOException io)
+            catch (HttpRequestException e)
             {
-                _logger.LogWarning("CheckChannel HttpRequestException.IOException: \"{Message}\"", io.Message);
+                _logger.LogWarning("CheckChannel HttpRequestException: \"{Message}\"", e.Message);
 
                 return null;
             }
