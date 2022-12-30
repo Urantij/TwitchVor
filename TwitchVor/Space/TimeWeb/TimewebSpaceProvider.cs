@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Amazon.S3;
-using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
+using Minio;
 using TimewebNet.Models;
 using TimeWebNet;
 using TwitchVor.Utility;
@@ -17,7 +16,7 @@ namespace TwitchVor.Space.TimeWeb
         const decimal perHourCost = 349M / 30M / 24M;
         const S3ServiceType s3Type = S3ServiceType.Lite;
 
-        private const string serviceUrl = "https://s3.timeweb.com";
+        private const string endpointUrl = "s3.timeweb.com";
 
         const long tempFileSizeLimit = 100 * 1024 * 1024;
 
@@ -26,8 +25,9 @@ namespace TwitchVor.Space.TimeWeb
         readonly TimeWebApi api;
 
         ListBucketsResponseModel.BucketModel? bucket;
-        AmazonS3Client? s3Client;
-        S3RelatedInfo? s3Info;
+        MinioClient? s3Client;
+        HttpClient? s3HttpClient;
+        MultipartUploadHandler? multipartUploadHandler;
 
         int tempNum = 0;
         FileStream? currentTempFs;
@@ -132,32 +132,41 @@ namespace TwitchVor.Space.TimeWeb
                 pricer = new TimeBasedPricer(DateTimeOffset.UtcNow, new Bill(Currency.RUB, perHourCost));
             }
 
-            AmazonS3Config configsS3 = new()
+            s3HttpClient = new HttpClient(new HttpClientHandler()
             {
-                ServiceURL = serviceUrl,
+                Proxy = null,
+                UseProxy = false
+            })
+            {
+                Timeout = config.DownloadRequestTimeout
             };
-            s3Client = new(bucket.Access_key, bucket.Secret_key, configsS3);
+            s3Client = new MinioClient().WithCredentials(bucket.Access_key, bucket.Secret_key)
+                            .WithEndpoint(endpointUrl)
+                            .WithRegion(bucket.Location)
+                            .WithSSL()
+                            .WithTimeout((int)config.DownloadRequestTimeout.TotalMilliseconds)
+                            .WithHttpClient(s3HttpClient)
+                            .Build();
 
-            string objectName = guid.ToString("N");
-            var response = await s3Client.InitiateMultipartUploadAsync(new InitiateMultipartUploadRequest
             {
-                BucketName = bucket.Name,
-                Key = objectName
-            });
+                string objectName = "video" + guid.ToString("N");
 
-            s3Info = new S3RelatedInfo(bucket.Name, objectName, response.UploadId);
+                var args = new NewMultipartUploadPutArgs().WithBucket(bucket.Name).WithObject(objectName);
+
+                multipartUploadHandler = await s3Client.CreateMultipartUploadAsync(args, CancellationToken.None);
+            }
 
             _logger.LogInformation("Дело сделано.");
 
             Ready = true;
         }
 
-        public override Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
+        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
-            if (s3Info == null)
-                throw new NullReferenceException($"{nameof(s3Info)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
 
             if (currentTempFs == null || currentTempFs.Length >= tempFileSizeLimit)
             {
@@ -168,28 +177,30 @@ namespace TwitchVor.Space.TimeWeb
 
                 if (preSwapFs != null)
                 {
-                    _ = Task.Run(() => FinishTempFileAsync(s3Client, s3Info, preSwapFs), cancellationToken);
+                    _ = Task.Run(() => FinishTempFileAsync(s3Client, multipartUploadHandler, preSwapFs), cancellationToken);
                 }
             }
 
-            return contentStream.CopyStreamAsync(currentTempFs, (int)length, cancellationToken);
+            using var timeoutCts = new CancellationTokenSource(config.DownloadRequestTimeout);
+            using var resultCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
+            await contentStream.CopyStreamAsync(currentTempFs, (int)length, resultCts.Token);
         }
 
         public override async Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
-            if (s3Info == null)
-                throw new NullReferenceException($"{nameof(s3Info)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
 
-            using var response = await s3Client.GetObjectAsync(new GetObjectRequest()
-            {
-                BucketName = s3Info.bucketName,
-                Key = s3Info.objectName,
-                ByteRange = new ByteRange(offset, offset + length),
-            }, cancellationToken);
+            using var timeoutCts = new CancellationTokenSource(config.DownloadRequestTimeout);
+            using var resultCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 
-            await response.ResponseStream.CopyToAsync(inputStream, cancellationToken);
+            await s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(multipartUploadHandler.bucketName)
+                                                              .WithObject(multipartUploadHandler.objectName)
+                                                              .WithOffsetAndLength(offset, length)
+                                                              .WithCallbackStream(stream => stream.CopyToAsync(inputStream, resultCts.Token).GetAwaiter().GetResult()), resultCts.Token);
         }
 
         // public override async Task ReadPartDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
@@ -211,21 +222,15 @@ namespace TwitchVor.Space.TimeWeb
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
-            if (s3Info == null)
-                throw new NullReferenceException($"{nameof(s3Info)} is null");
+            if (multipartUploadHandler == null)
+                throw new NullReferenceException($"{nameof(multipartUploadHandler)} is null");
 
             if (currentTempFs != null)
             {
-                await FinishTempFileAsync(s3Client, s3Info, currentTempFs);
+                await FinishTempFileAsync(s3Client, multipartUploadHandler, currentTempFs);
                 await Task.Delay(TimeSpan.FromSeconds(10));
 
-                await s3Client.CompleteMultipartUploadAsync(new CompleteMultipartUploadRequest()
-                {
-                    BucketName = s3Info.bucketName,
-                    Key = s3Info.objectName,
-                    UploadId = s3Info.uploadId,
-                    PartETags = s3Info.etags
-                });
+                await multipartUploadHandler.CompleteAsync();
 
                 currentTempFs = null;
             }
@@ -244,50 +249,44 @@ namespace TwitchVor.Space.TimeWeb
 
             api.Dispose();
             s3Client?.Dispose();
+            s3HttpClient?.Dispose();
         }
 
-        async Task FinishTempFileAsync(AmazonS3Client s3Client, S3RelatedInfo s3Info, FileStream fs)
+        async Task FinishTempFileAsync(MinioClient s3Client, MultipartUploadHandler multipartUploadHandler, FileStream fs)
         {
             try
             {
                 const int attemptsLimit = 5;
                 int attempt = 1;
-                int num = s3Info.nextPartNumber++;
+                int num = multipartUploadHandler.Reserver();
 
                 Exception lastE = new();
                 while (attempt <= attemptsLimit)
                 {
+                    DateTimeOffset startDate = DateTimeOffset.UtcNow;
                     fs.Position = 0;
 
                     try
                     {
-                        var response = await s3Client.UploadPartAsync(new UploadPartRequest()
-                        {
-                            BucketName = s3Info.bucketName,
-                            Key = s3Info.objectName,
-                            PartNumber = num,
-                            UploadId = s3Info.uploadId,
+                        using var cts = new CancellationTokenSource(config.UploadRequestTimeout);
+                        var cancellationToken = cts.Token;
 
-                            InputStream = fs,
-                        });
+                        await multipartUploadHandler.PutObjectAsync(fs, partNumber: num, cancellationToken: cancellationToken);
+                        DateTimeOffset endDate = DateTimeOffset.UtcNow;
+                        var passed = endDate - startDate;
 
-                        // if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
-                        if (string.IsNullOrEmpty(response.ETag))
-                        {
-                            throw new Exception("Etag IsNullOrEmpty");
-                        }
-
-                        s3Info.SetEtag(num, response.ETag);
-
-                        _logger.LogDebug("Успешно положили объект {num}. {attempt}", num, attempt);
+                        _logger.LogDebug("Успешно положили объект {num} ({seconds:F0} секунд). {attempt}", num, passed.TotalSeconds, attempt);
                         return;
                     }
                     catch (Exception e)
                     {
-                        lastE = e;
-                        _logger.LogWarning("FinishTempFileAsync ({attempt}/{attemptsLimit}) {message}", attempt, attemptsLimit, e.Message);
+                        DateTimeOffset endDate = DateTimeOffset.UtcNow;
+                        var passed = endDate - startDate;
 
-                        await Task.Delay(TimeSpan.FromSeconds(2));
+                        lastE = e;
+                        _logger.LogWarning("FinishTempFileAsync {num} ({seconds:F0} секунд) ({attempt}/{attemptsLimit}) {message}", num, passed.TotalSeconds, attempt, attemptsLimit, e.Message);
+
+                        await Task.Delay(TimeSpan.FromSeconds(30));
                     }
 
                     attempt++;

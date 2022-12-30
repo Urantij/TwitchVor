@@ -21,7 +21,7 @@ namespace TwitchVor.Space.TimeWeb
         public bool ValidateTokenOnStart { get; set; } = true;
 
         [JsonProperty(Required = Required.Default)]
-        public TimeSpan UploadRequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
+        public TimeSpan UploadRequestTimeout { get; set; } = TimeSpan.FromMinutes(1);
 
         [JsonProperty(Required = Required.Default)]
         public TimeSpan DownloadRequestTimeout { get; set; } = TimeSpan.FromHours(2);

@@ -80,13 +80,11 @@ public class ByteCountingStream : Stream
 
     public override void Close()
     {
-        inner.Close();
         base.Close();
     }
 
     protected override void Dispose(bool disposing)
     {
-        inner.Dispose();
         base.Dispose(disposing);
     }
 }

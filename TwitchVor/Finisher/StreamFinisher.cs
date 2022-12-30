@@ -284,6 +284,9 @@ namespace TwitchVor.Finisher
                 // Читать ффмпег
                 _ = Task.Run(async () =>
                 {
+                    string logPath = DependencyProvider.MakePath(streamHandler.guid.ToString("N") + ".ffmpeg.log");
+                    FileStream fs = new(logPath, FileMode.Create);
+
                     try
                     {
                         while (true)
@@ -293,13 +296,26 @@ namespace TwitchVor.Finisher
                             if (line == null)
                             {
                                 _logger.LogInformation("ффмпег закончил говорить.");
-                                return;
+                                break;
                             }
+
+                            await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
                         }
+
+                        await processingHandler.ProcessTask;
                     }
                     catch (Exception e)
                     {
                         _logger.LogCritical(e, "Чтение строчек ффмпега обернулось ошибкой.");
+                    }
+                    finally
+                    {
+                        await fs.DisposeAsync();
+
+                        if (video.success == true)
+                        {
+                            File.Delete(logPath);
+                        }
                     }
                 });
 
@@ -332,40 +348,69 @@ namespace TwitchVor.Finisher
                 long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
                 long baseSize = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
 
-                long read = 0;
+                _logger.LogDebug("Примерный размер видео {size}", baseSize);
+
+                long written = 0;
 
                 const int attemptsLimit = 5;
                 int attempt = 1;
+                int attemptsLeft = attemptsLimit;
 
                 Exception lastEx = new();
-                while (attempt <= attemptsLimit)
+                while (attemptsLeft > 0)
                 {
-                    long offset = baseOffset + read;
-                    long size = baseSize - read;
+                    int clientAttempt = attempt;
+
+                    long offset = baseOffset + written;
+                    long size = baseSize - written;
+
+                    _logger.LogDebug("Попытка {attempt}, осталось {size}", clientAttempt, size);
 
                     if (size == 0)
-                        break;
+                    {
+                        _logger.LogWarning("Size 0");
 
-                    ByteCountingStream serverCountyPipe = null;
+                        await inputStream.FlushAsync();
+                        await inputStream.DisposeAsync();
+                        break;
+                    }
+
+                    using var cts = new CancellationTokenSource();
+
+                    ByteCountingStream inputCountyPipe = new(inputStream);
+                    _ = Task.Run(async () =>
+                    {
+                        TimeSpan sleepTime = TimeSpan.FromSeconds(20);
+
+                        DateTimeOffset dateBefore = DateTimeOffset.UtcNow;
+                        long writtenBefore = inputCountyPipe.TotalBytesWritten;
+
+                        while (!cts.IsCancellationRequested)
+                        {
+                            try
+                            {
+                                await Task.Delay(sleepTime, cts.Token);
+                            }
+                            catch { return; }
+
+                            double writtenPerSec = (inputCountyPipe.TotalBytesWritten - writtenBefore) / sleepTime.TotalSeconds;
+
+                            dateBefore = DateTimeOffset.UtcNow;
+                            writtenBefore = inputCountyPipe.TotalBytesWritten;
+
+                            _logger.LogInformation("Загружено {totalRead} ({read}) {perSec:F0}/сек", written + inputCountyPipe.TotalBytesWritten, inputCountyPipe.TotalBytesWritten, writtenPerSec);
+                        }
+                    });
+
                     try
                     {
-                        // Черт его знает, что они там со стримами делают в случае поломки.
-                        // Лучше просто заменять будем.
-                        using var serverPipe = new AnonymousPipeServerStream(PipeDirection.Out);
-                        using var clientPipe = new AnonymousPipeClientStream(PipeDirection.In, serverPipe.ClientSafePipeHandle);
+                        await space.ReadAllDataAsync(inputCountyPipe, size, offset, cts.Token);
+                        await inputCountyPipe.FlushAsync();
 
-                        serverCountyPipe = new ByteCountingStream(serverPipe);
+                        await inputStream.FlushAsync();
+                        await inputStream.DisposeAsync();
 
-                        var clientTask = Task.Run(async () =>
-                        {
-                            await clientPipe.CopyToAsync(inputStream);
-                            await clientPipe.FlushAsync();
-                        });
-
-                        await space.ReadAllDataAsync(serverCountyPipe, size, offset);
-                        await serverCountyPipe.FlushAsync();
-
-                        await clientTask;
+                        await inputCountyPipe.DisposeAsync();
 
                         _logger.LogInformation("Всё прочитали.");
                         return;
@@ -374,25 +419,28 @@ namespace TwitchVor.Finisher
                     {
                         lastEx = totalE;
 
-                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, serverCountyPipe.TotalBytesWritten, totalE.Message);
+                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, inputCountyPipe.TotalBytesWritten, totalE.Message);
                     }
                     finally
                     {
-                        await serverCountyPipe.DisposeAsync();
+                        try { cts.Cancel(); } catch { }
                     }
 
-                    if (serverCountyPipe.TotalBytesWritten > 0)
+                    if (inputCountyPipe.TotalBytesWritten > 0)
                     {
-                        read += serverCountyPipe.TotalBytesWritten;
-                        attempt = 1;
+                        written += inputCountyPipe.TotalBytesWritten;
+                        attemptsLeft = attemptsLimit;
                     }
                     else
                     {
-                        attempt++;
+                        attemptsLeft--;
                     }
+                    attempt++;
                 }
 
                 _logger.LogCritical(lastEx, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
+
+                await inputStream.DisposeAsync();
             });
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
