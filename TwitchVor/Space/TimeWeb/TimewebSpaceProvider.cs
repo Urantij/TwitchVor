@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Minio;
+using TimewebNet.Categories.S3;
 using TimewebNet.Models;
 using TimeWebNet;
 using TwitchVor.Utility;
@@ -16,15 +17,13 @@ namespace TwitchVor.Space.TimeWeb
         const decimal perHourCost = 349M / 30M / 24M;
         const S3ServiceType s3Type = S3ServiceType.Lite;
 
-        private const string endpointUrl = "s3.timeweb.com";
-
         const long tempFileSizeLimit = 100 * 1024 * 1024;
 
         readonly TimewebConfig config;
 
         readonly TimeWebApi api;
 
-        ListBucketsResponseModel.BucketModel? bucket;
+        BucketModel? bucket;
         MinioClient? s3Client;
         HttpClient? s3HttpClient;
         MultipartUploadHandler? multipartUploadHandler;
@@ -37,63 +36,26 @@ namespace TwitchVor.Space.TimeWeb
         {
             this.config = config;
 
-            this.api = new TimeWebApi();
-        }
-
-        /// <summary>
-        /// Делает запрос с RefreshToken, пишет ответ в конфиг.
-        /// Кидает ошибки.
-        /// </summary>
-        /// <returns></returns>
-        async Task UpdateTokenAsync()
-        {
-            _logger.LogInformation("Обновляем токен...");
-
-            AuthResponseModel auth = await api.GetTokenAsync(config.RefreshToken);
-
-            config.RefreshToken = auth.Refresh_token;
-            config.AccessToken = auth.Access_token;
-            config.AccessTokenExpirationDate = DateTimeOffset.UtcNow.AddSeconds(auth.Expires_in);
-
-            await Program.config.SaveAsync();
-
-            _logger.LogInformation("Токен обновлён.");
+            this.api = new TimeWebApi(config.Token);
         }
 
         public async Task TestAsync()
         {
-            using var api = new TimeWebApi();
+            using var api = new TimeWebApi(config.Token);
 
-            bool update = false;
-
-            if (config.AccessToken == null || config.AccessTokenExpirationDate == null)
+            try
             {
-                update = true;
+                await api.S3Bucket.ListBucketsAsync();
             }
-            else
+            catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
             {
-                api.SetAccessToken(config.AccessToken);
+                _logger.LogWarning("Таймвеб форбиден.");
 
-                try
-                {
-                    await api.S3Bucket.ListBucketsAsync();
-                }
-                catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
-                {
-                    update = true;
-
-                    _logger.LogWarning("Таймвеб форбиден.");
-                }
-
-                if ((config.AccessTokenExpirationDate - DateTimeOffset.UtcNow) < TimeSpan.FromDays(14))
-                {
-                    update = true;
-                }
+                throw;
             }
-
-            if (update)
+            catch
             {
-                await UpdateTokenAsync();
+                throw;
             }
 
             _logger.LogInformation("Проверка успешно завершена.");
@@ -101,16 +63,6 @@ namespace TwitchVor.Space.TimeWeb
 
         public override async Task InitAsync()
         {
-            if (config.AccessToken == null || config.AccessTokenExpirationDate == null ||
-                config.AccessTokenExpirationDate - DateTimeOffset.UtcNow < TimeSpan.FromDays(14))
-            {
-                await UpdateTokenAsync();
-            }
-            else
-            {
-                api.SetAccessToken(config.AccessToken);
-            }
-
             {
                 _logger.LogInformation("Создаём ведро...");
 
@@ -140,8 +92,8 @@ namespace TwitchVor.Space.TimeWeb
             {
                 Timeout = config.DownloadRequestTimeout
             };
-            s3Client = new MinioClient().WithCredentials(bucket.Access_key, bucket.Secret_key)
-                            .WithEndpoint(endpointUrl)
+            s3Client = new MinioClient().WithCredentials(bucket.AccessKey, bucket.SecretKey)
+                            .WithEndpoint(bucket.Hostname)
                             .WithRegion(bucket.Location)
                             .WithSSL()
                             .WithTimeout((int)config.DownloadRequestTimeout.TotalMilliseconds)
@@ -258,7 +210,7 @@ namespace TwitchVor.Space.TimeWeb
             {
                 const int attemptsLimit = 5;
                 int attempt = 1;
-                int num = multipartUploadHandler.Reserver();
+                int num = multipartUploadHandler.ReservePartNumber();
 
                 Exception lastE = new();
                 while (attempt <= attemptsLimit)
