@@ -18,14 +18,14 @@ namespace TwitchVor.Utility
         {
             //https://stackoverflow.com/a/13022108
 
-            const int bufferSize = 81920; //Дефолтный размер при Stream.CopyTo
+            const long bufferSize = 81920; //Дефолтный размер при Stream.CopyTo
 
             byte[] buffer = new byte[bufferSize];
 
             long read;
             while (length > 0)
             {
-                Memory<byte> memory = buffer.AsMemory(0, Math.Min(bufferSize, (int)length));
+                Memory<byte> memory = buffer.AsMemory(0, (int)Math.Min(bufferSize, length));
 
                 read = await input.ReadAsync(memory, cancellationToken);
 
