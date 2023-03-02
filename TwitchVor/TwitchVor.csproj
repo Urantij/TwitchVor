@@ -13,7 +13,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.3" />
     <PackageReference Include="TimewebNet" Version="1.4.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
-    <PackageReference Include="TwitchSimpleLib" Version="1.0.1" />
+    <PackageReference Include="TwitchSimpleLib" Version="1.0.2" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
