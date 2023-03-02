@@ -1,9 +1,6 @@
 [submodule "TwitchStreamDownloader"]
 	path = TwitchStreamDownloader
 	url = https://github.com/Urantij/TwitchStreamDownloader.git
-[submodule "SimpleTwitchChatLib"]
-	path = SimpleTwitchChatLib
-	url = https://github.com/Urantij/SimpleTwitchChatLib.git
 [submodule "minio-dotnet"]
 	path = minio-dotnet
 	url = https://github.com/Urantij/minio-dotnet.git

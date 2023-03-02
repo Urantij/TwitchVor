@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using SimpleTwitchChatLib.Client;
-using SimpleTwitchChatLib.Irc.Messages;
+using TwitchSimpleLib.Chat;
 
 namespace TwitchVor.Twitch.Chat;
 
@@ -12,13 +11,13 @@ public class ChatBot
 {
     readonly ILogger _logger;
 
-    public readonly MyTwitchChatClient client;
+    public readonly TwitchChatClient client;
 
     public ChatBot(string channel, string? username, string? token, ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(this.GetType());
 
-        MyTwitchOpts opts;
+        TwitchChatClientOpts opts;
 
         if (username != null && token != null)
         {
@@ -29,16 +28,17 @@ public class ChatBot
             opts = new();
         }
 
-        client = new(opts, channel, loggerFactory: loggerFactory);
+        client = new(true, opts, loggerFactory);
+        client.AddAutoJoinChannel(channel);
 
         client.AuthFailed += AuthFailed;
-        client.ChannelConnected += ChannelConnected;
+        client.ChannelJoined += ChannelJoind;
         client.ConnectionClosed += ConnectionClosed;
     }
 
     public async Task StartAsync()
     {
-        await client.StartAsync();
+        await client.ConnectAsync();
     }
 
     private void AuthFailed(object? sender, EventArgs e)
@@ -46,14 +46,14 @@ public class ChatBot
         _logger.LogCritical("Чат бот AuthFail");
     }
 
-    private void ChannelConnected(object? sender, string e)
+    private void ChannelJoind(object? sender, string e)
     {
         _logger.LogInformation("Присоединился к каналу.");
     }
 
-    private void ConnectionClosed(object? sender, Exception? e)
+    private void ConnectionClosed(Exception? e)
     {
-        _logger.LogInformation("Соединение закрыто {message}", e?.Message ?? "без сообщения");
+        _logger.LogWarning("Соединение закрыто {message}", e?.Message ?? "без сообщения");
     }
 
     public void Dispose()

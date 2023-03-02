@@ -2,8 +2,8 @@ using System.Linq;
 using System.Net.Http;
 using ExtM3UPlaylistParser.Models;
 using Microsoft.Extensions.Logging;
-using SimpleTwitchChatLib.Irc.Messages;
 using TwitchLib.Api;
+using TwitchSimpleLib.Chat.Messages;
 using TwitchStreamDownloader.Download;
 using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
@@ -72,7 +72,7 @@ namespace TwitchVor.Twitch.Downloader
 
             if (Program.chatBot != null)
             {
-                Program.chatBot.client.PrivMsgReceived += PrivMsgReceived;
+                Program.chatBot.client.PrivateMessageReceived += PrivateMessageReceived;
             }
 
             _ = space.InitAsync();
@@ -141,7 +141,7 @@ namespace TwitchVor.Twitch.Downloader
 
             if (Program.chatBot != null)
             {
-                Program.chatBot.client.PrivMsgReceived -= PrivMsgReceived;
+                Program.chatBot.client.PrivateMessageReceived -= PrivateMessageReceived;
             }
 
             await streamDownloader.CloseAsync();
@@ -160,13 +160,13 @@ namespace TwitchVor.Twitch.Downloader
             }
         }
 
-        private async void PrivMsgReceived(object? sender, PrivMsgIrc priv)
+        private async void PrivateMessageReceived(object? sender, TwitchPrivateMessage priv)
         {
             try
             {
-                string? badges = priv.rawIrc.tags?.GetValueOrDefault("badges");
+                string? badges = priv.rawIrcMessage.tags?.GetValueOrDefault("badges");
 
-                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.sentDate);
+                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.tmiSentTs);
             }
             catch (Exception e)
             {
