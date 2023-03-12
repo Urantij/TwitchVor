@@ -64,7 +64,7 @@ namespace TwitchVor.Twitch.Checker
                 return;
             }
 
-            DateTime time = DateTimeOffset.FromUnixTimeSeconds(data.ServerTime!.Value).UtcDateTime;
+            DateTime time = DateTimeOffset.FromUnixTimeSeconds((long)data.ServerTime!.Value).UtcDateTime;
 
             _logger.LogDebug("PlaybackReceived {status} {time}", status, time);
 
