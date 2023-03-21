@@ -75,9 +75,7 @@ namespace TwitchVor.Finisher
                 video.uploadStart = DateTimeOffset.UtcNow;
                 try
                 {
-                    await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
-
-                    video.success = true;
+                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
                 }
                 catch (Exception e)
                 {
