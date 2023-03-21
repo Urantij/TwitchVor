@@ -10,6 +10,8 @@ namespace TwitchVor.Conversion
     {
         readonly Process process;
 
+        public int ExitCode => process.ExitCode;
+
         /// <summary>
         /// Ето читаем
         /// </summary>

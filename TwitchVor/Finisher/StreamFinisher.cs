@@ -451,9 +451,16 @@ namespace TwitchVor.Finisher
 
             if (conversionHandler != null)
             {
-                await conversionHandler.WaitAsync();
+                bool conversionSuccess = await conversionHandler.WaitAsync();
 
                 conversionHandler.Dispose();
+
+                if (!conversionSuccess)
+                {
+                    _logger.LogCritical("Конверсия не удалась, ффмпег вернул не 0. {code}", conversionHandler.ExitCode);
+
+                    success = false;
+                }
             }
 
             _logger.LogInformation("Видос всё.");
