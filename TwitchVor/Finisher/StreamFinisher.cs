@@ -273,6 +273,7 @@ namespace TwitchVor.Finisher
             // Если конверсии нет, пишем сегменты в инпут (сервер пайп)
             // Если есть, пишем сегменты в инпут (инпут ффмпега), и пишем аутпут ффмпега в сервер пайп
             ConversionHandler? conversionHandler = null;
+            string? lastConversionLine = null;
             if (ffmpeg != null)
             {
                 conversionHandler = ffmpeg.CreateConversion();
@@ -296,6 +297,8 @@ namespace TwitchVor.Finisher
                                 _logger.LogInformation("ффмпег закончил говорить.");
                                 break;
                             }
+
+                            lastConversionLine = line;
 
                             await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
                         }
@@ -453,9 +456,14 @@ namespace TwitchVor.Finisher
 
                 conversionHandler.Dispose();
 
+                if (conversionSuccess)
+                {
+                    conversionSuccess = Ffmpeg.CheckLastLine(lastConversionLine);
+                }
+
                 if (!conversionSuccess)
                 {
-                    _logger.LogCritical("Конверсия не удалась, ффмпег вернул не 0. {code}", conversionHandler.ExitCode);
+                    _logger.LogCritical("Конверсия не удалась. {code}. {line}", conversionHandler.ExitCode, lastConversionLine);
 
                     success = false;
                 }
