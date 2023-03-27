@@ -100,9 +100,16 @@ namespace TwitchVor.Finisher
             }
 
             // костыль мне плохо
+            bool destroyVideo = allSuccess;
             bool destroyDB = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
 
-            await streamHandler.DestroyAsync(destroySegments: allSuccess, destroyDB: destroyDB);
+            if (Program.config.SaveTheVideo)
+            {
+                destroyVideo = false;
+                destroyDB = false;
+            }
+
+            await streamHandler.DestroyAsync(destroySegments: destroyVideo, destroyDB: destroyDB);
 
             if (Program.emailer != null)
             {
@@ -458,6 +465,7 @@ namespace TwitchVor.Finisher
 
                 if (conversionSuccess)
                 {
+                    _logger.LogDebug("Последняя строка ффмпега\n{text}", lastConversionLine);
                     conversionSuccess = Ffmpeg.CheckLastLine(lastConversionLine);
                 }
 

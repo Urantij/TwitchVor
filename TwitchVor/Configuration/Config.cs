@@ -59,6 +59,11 @@ namespace TwitchVor.Configuration
         public float PreferedVideoFps { get; set; } = 60;
         public bool TakeOnlyPrefered { get; set; } = false;
 
+        /// <summary>
+        /// Почему-то вк не хочет нормально обрабатывать видео. Я хочу сохранить видео.
+        /// </summary>
+        public bool SaveTheVideo { get; set; } = false;
+
         [JsonProperty(Required = Required.Default)]
         public ChatConfig? Chat { get; set; } = null;
 

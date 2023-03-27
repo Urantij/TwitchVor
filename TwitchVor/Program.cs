@@ -173,6 +173,11 @@ namespace TwitchVor
                 logger.LogInformation("Без таймвеба");
             }
 
+            if (config.SaveTheVideo)
+            {
+                logger.LogInformation("Всегда сохраняем видео.");
+            }
+
             if (config.Chat != null)
             {
                 logger.LogInformation("С чатом {name}", config.Chat.Username);
