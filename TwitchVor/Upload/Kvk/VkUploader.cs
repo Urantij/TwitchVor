@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Finisher;
+using TwitchVor.Utility;
 using VkNet;
 using VkNet.Model;
 
@@ -85,6 +86,8 @@ namespace TwitchVor.Upload.Kvk
 
         public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
+            using var countingContent = new ByteCountingStream(content);
+
             _logger.LogInformation("Авторизуемся...");
 
             using VkApi api = new();
@@ -105,67 +108,60 @@ namespace TwitchVor.Upload.Kvk
                 GroupId = creds.GroupId,
             });
 
-            // Создадим файл с мусорным контентом.
-            string trashContentPath = Path.Combine(Program.config.CacheDirectoryName, guid.ToString("N") + ".trashupload");
-
-            using (var trashFs = new FileStream(trashContentPath, FileMode.Create))
-            {
-                const int targetSize = 1024 * 1024;
-
-                byte[] bytes = Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
-
-                int written = 0;
-                while (written < targetSize)
-                {
-                    await trashFs.WriteAsync(bytes);
-                    written += bytes.Length;
-                }
-            }
-
-            using var readTrashFs = new FileStream(trashContentPath, FileMode.Open);
+            // Сюда пишем то, что будет читать аплоадер.
+            // Когда закончим писать, его нужно будет закрыть.
+            using var serverTrashPipe = new AnonymousPipeServerStream(PipeDirection.Out);
+            // Это читает аплоадер.
+            using var clientTrashPipe = new AnonymousPipeClientStream(PipeDirection.In, serverTrashPipe.ClientSafePipeHandle);
+            using var clientTrashNotification = new NotifiableStream(clientTrashPipe);
 
             // Смотри #29 
-            long baseSize = CalculateBaseSize();
+            long baseSize = CalculateBaseSize(fileName);
 
             using HttpClient client = new();
             client.Timeout = TimeSpan.FromHours(12);
 
             using MultipartFormDataContent httpContent = new();
-            using StreamContent streamContent = new(content);
-            using StreamContent streamFakeContent = new(readTrashFs);
+            using StreamContent streamContent = new(countingContent);
+            using StreamContent streamFakeContent = new(clientTrashNotification);
 
             httpContent.Add(streamContent, "video_file", fileName);
             httpContent.Add(streamFakeContent, "garbage", "helpme.txt");
 
             streamFakeContent.Headers.ContentLength = null;
 
-            httpContent.Headers.ContentLength = baseSize + size;
+            long declaredSize = baseSize + size;
+
+            httpContent.Headers.ContentLength = declaredSize;
+
+            clientTrashNotification.FirstReaded += () => Task.Run(async () =>
+            {
+                long needToWrite = declaredSize - countingContent.TotalBytesRead - baseSize;
+
+                try
+                {
+                    await SpamTrashAsync(serverTrashPipe, needToWrite);
+                    await serverTrashPipe.FlushAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Ошибка при спаме в мусорку.");
+                }
+                finally
+                {
+                    await serverTrashPipe.DisposeAsync();
+                }
+            });
 
             _logger.LogInformation("Начинаем загрузку...");
 
-            try
-            {
-                var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
+            var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
 
-                if (!response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
-                    return false;
-                }
-            }
-            catch (System.Net.Http.HttpRequestException e) when (e.Message.Contains(" request content bytes, but Content-Length promised "))
+            if (!response.IsSuccessStatusCode)
             {
-                // Это благоприятный для нас расклад.
-                // Ещё было бы неплохо узнать, задиспоужен ли контент.
-            }
-            catch
-            {
-                throw;
-            }
-            finally
-            {
-                File.Delete(trashContentPath);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
+                return false;
             }
 
             _logger.LogInformation("Закончили загрузку.");
@@ -275,14 +271,41 @@ namespace TwitchVor.Upload.Kvk
             _logger.LogInformation("Запостили кринж в вк.");
         }
 
-        static long CalculateBaseSize()
+        async Task SpamTrashAsync(Stream target, long needToWrite)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
+
+            long written = 0;
+            _logger.LogInformation("Нужно сделать {bytes} мусора", needToWrite);
+
+            DateTime data = DateTime.MinValue;
+            while (written < needToWrite)
+            {
+                var passed = DateTime.UtcNow - data;
+                if (passed > TimeSpan.FromSeconds(5))
+                {
+                    data = DateTime.UtcNow;
+                    _logger.LogInformation("пишем мусор {n}/{n2}", written, needToWrite);
+                }
+
+                long toWrite = Math.Min(needToWrite - written, bytes.Length);
+
+                await target.WriteAsync(bytes.AsMemory(0, (int)toWrite));
+
+                written += toWrite;
+            }
+
+            _logger.LogInformation("конец мусора");
+        }
+
+        static long CalculateBaseSize(string fileName)
         {
             using MemoryStream ms = new();
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent1 = new(ms);
             using StreamContent streamContent2 = new(ms);
 
-            httpContent.Add(streamContent1, "video_file", "result.mp4");
+            httpContent.Add(streamContent1, "video_file", fileName);
             httpContent.Add(streamContent2, "garbage", "helpme.txt");
 
             return httpContent.Headers.ContentLength!.Value;
