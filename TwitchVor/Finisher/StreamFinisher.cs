@@ -386,29 +386,7 @@ namespace TwitchVor.Finisher
                     using var cts = new CancellationTokenSource();
 
                     ByteCountingStream inputCountyPipe = new(inputStream);
-                    _ = Task.Run(async () =>
-                    {
-                        TimeSpan sleepTime = TimeSpan.FromSeconds(20);
-
-                        DateTimeOffset dateBefore = DateTimeOffset.UtcNow;
-                        long writtenBefore = inputCountyPipe.TotalBytesWritten;
-
-                        while (!cts.IsCancellationRequested)
-                        {
-                            try
-                            {
-                                await Task.Delay(sleepTime, cts.Token);
-                            }
-                            catch { return; }
-
-                            double writtenPerSec = (inputCountyPipe.TotalBytesWritten - writtenBefore) / sleepTime.TotalSeconds;
-
-                            dateBefore = DateTimeOffset.UtcNow;
-                            writtenBefore = inputCountyPipe.TotalBytesWritten;
-
-                            _logger.LogInformation("Загружено {totalRead} ({read}) {perSec:F0}/сек", written + inputCountyPipe.TotalBytesWritten, inputCountyPipe.TotalBytesWritten, writtenPerSec);
-                        }
-                    });
+                    _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyPipe, TimeSpan.FromSeconds(20), _logger, cts.Token));
 
                     try
                     {
@@ -480,6 +458,26 @@ namespace TwitchVor.Finisher
             _logger.LogInformation("Видос всё.");
 
             return success;
+        }
+
+        static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, ILogger logger, CancellationToken cancellationToken)
+        {
+            long writtenBefore = stream.TotalBytesWritten;
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(cooldown, cancellationToken);
+                }
+                catch { return; }
+
+                double writtenPerSec = (stream.TotalBytesWritten - writtenBefore) / cooldown.TotalSeconds;
+
+                writtenBefore = stream.TotalBytesWritten;
+
+                logger.LogInformation("Написано {totalWritten} {perSec:F0}/сек", stream.TotalBytesWritten, writtenPerSec);
+            }
         }
     }
 }
