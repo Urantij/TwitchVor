@@ -4,3 +4,4 @@
 [submodule "minio-dotnet"]
 	path = minio-dotnet
 	url = https://github.com/Urantij/minio-dotnet.git
+	branch = multipart
