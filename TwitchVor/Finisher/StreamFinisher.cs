@@ -46,51 +46,19 @@ namespace TwitchVor.Finisher
 
         public async Task DoAsync()
         {
-            ProcessingHandler processingHandler;
+            var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);
+
+            bool allSuccess = true;
+            foreach (var uploader in uploaders)
             {
-                var skips = await db.LoadSkipsAsync();
+                _logger.LogDebug("Работа аплоадера {type}", uploader.GetType().Name);
+                var processingHandler = await ProcessStreamAsync(uploader);
 
-                var videos = await CutToVideosAsync(skips);
-
-                TimeSpan totalLoss = TimeSpan.FromTicks(videos.Sum(v => v.loss.Ticks));
-
-                List<Bill> bills = new();
-                if (Program.config.Money is MoneyConfig moneyConfig)
+                if (allSuccess)
                 {
-                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
-                    bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
-                }
-                if (streamHandler.space.pricer != null)
-                    bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
-
-                string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
-
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
-            }
-
-            {
-                var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
-
-                foreach (var video in processingHandler.videos)
-                {
-                    video.uploadStart = DateTimeOffset.UtcNow;
-                    try
-                    {
-                        video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
-
-                        video.success = false;
-                    }
-                    video.uploadEnd = DateTimeOffset.UtcNow;
+                    allSuccess = processingHandler.videos.All(v => v.success == true);
                 }
             }
-
-            processingHandler.SetResult();
-
-            bool allSuccess = processingHandler.videos.All(v => v.success == true);
 
             if (allSuccess)
             {
@@ -103,7 +71,7 @@ namespace TwitchVor.Finisher
 
             // костыль мне плохо
             bool destroyVideo = allSuccess;
-            bool destroyDB = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
+            bool destroyDB = destroyVideo; // DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
 
             if (Program.config.SaveTheVideo)
             {
@@ -151,17 +119,53 @@ namespace TwitchVor.Finisher
             }
         }
 
-        async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips)
+        private async Task<ProcessingHandler> ProcessStreamAsync(BaseUploader uploader)
         {
-            long sizeLimit;
-            TimeSpan durationLimit;
+            ProcessingHandler processingHandler;
             {
-                var _uploader = DependencyProvider.GetUploader(Guid.Empty, _loggerFactory);
+                var skips = await db.LoadSkipsAsync();
 
-                sizeLimit = _uploader.SizeLimit;
-                durationLimit = _uploader.DurationLimit;
+                var videos = await CutToVideosAsync(skips, uploader.SizeLimit, uploader.DurationLimit);
+
+                TimeSpan totalLoss = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
+
+                List<Bill> bills = new();
+                if (Program.config.Money is MoneyConfig moneyConfig)
+                {
+                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
+                    bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
+                }
+                if (streamHandler.space.pricer != null)
+                    bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
+
+                string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
+
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
             }
 
+            foreach (var video in processingHandler.videos)
+            {
+                video.uploadStart = DateTimeOffset.UtcNow;
+                try
+                {
+                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
+
+                    video.success = false;
+                }
+                video.uploadEnd = DateTimeOffset.UtcNow;
+            }
+
+            processingHandler.SetResult();
+
+            return processingHandler;
+        }
+
+        async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips, long sizeLimit, TimeSpan durationLimit)
+        {
             Queue<VideoFormatDb> formats = new(await db.LoadAllVideoFormatsAsync());
 
             VideoFormatDb currentFormat = formats.Dequeue();
