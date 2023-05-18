@@ -68,22 +68,24 @@ namespace TwitchVor.Finisher
                 processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
             }
 
-            foreach (var video in processingHandler.videos)
             {
                 var uploader = DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory);
 
-                video.uploadStart = DateTimeOffset.UtcNow;
-                try
+                foreach (var video in processingHandler.videos)
                 {
-                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
+                    video.uploadStart = DateTimeOffset.UtcNow;
+                    try
+                    {
+                        video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogCritical(e, "Не удалось закончить загрузку видео.");
 
-                    video.success = false;
+                        video.success = false;
+                    }
+                    video.uploadEnd = DateTimeOffset.UtcNow;
                 }
-                video.uploadEnd = DateTimeOffset.UtcNow;
             }
 
             processingHandler.SetResult();
