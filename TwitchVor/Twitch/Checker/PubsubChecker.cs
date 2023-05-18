@@ -20,11 +20,11 @@ namespace TwitchVor.Twitch.Checker
             if (Program.config.ChannelId is null)
                 throw new NullReferenceException(nameof(Program.config.ChannelId));
 
-            client.AddPlaybackTopic(Program.config.ChannelId);
+            var topic = client.AddPlaybackTopic(Program.config.ChannelId);
+            topic.DataReceived += PlaybackReceived;
 
             client.Connected += Connected;
             client.ConnectionClosed += ConnectionClosed;
-            client.PlaybackReceived += PlaybackReceived;
             client.MessageProcessingException += MessageProcessingException;
         }
 
@@ -46,10 +46,8 @@ namespace TwitchVor.Twitch.Checker
             }
         }
 
-        private void PlaybackReceived((string channelId, PlaybackData) args)
+        private void PlaybackReceived(PlaybackData data)
         {
-            PlaybackData data = args.Item2;
-
             bool status;
             if (data.Type == "stream-up")
             {

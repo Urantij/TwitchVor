@@ -5,15 +5,15 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DigitalOcean.API" Version="5.2.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.2945" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.60.0.3043" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
-    <PackageReference Include="MailKit" Version="3.6.0" />
-    <PackageReference Include="VkNet" Version="1.72.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.4" />
+    <PackageReference Include="MailKit" Version="4.0.0" />
+    <PackageReference Include="VkNet" Version="1.74.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.5" />
     <PackageReference Include="TimewebNet" Version="1.4.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
-    <PackageReference Include="TwitchSimpleLib" Version="1.0.7" />
+    <PackageReference Include="TwitchSimpleLib" Version="1.3.0" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
