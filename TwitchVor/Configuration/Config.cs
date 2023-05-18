@@ -5,6 +5,7 @@ using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Chat;
 using TwitchVor.Upload.Kvk;
+using TwitchVor.Upload.TubeYou;
 using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Configuration
@@ -72,6 +73,9 @@ namespace TwitchVor.Configuration
 
         [JsonProperty(Required = Required.Default)]
         public VkCreds? Vk { get; set; } = null;
+
+        [JsonProperty(Required = Required.Default)]
+        public YoutubeCreds? Youtube { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public ConversionConfig? Conversion { get; set; } = null;

@@ -156,6 +156,18 @@ namespace TwitchVor
                 logger.LogInformation("Без вк");
             }
 
+            //youtube
+            if (config.Youtube != null)
+            {
+                logger.LogInformation("Ютуб добавлен");
+
+                // TODO Добавить тест работоспособности.
+            }
+            else
+            {
+                logger.LogInformation("Без ютуба");
+            }
+
             //timeweb
             if (config.Timeweb != null)
             {

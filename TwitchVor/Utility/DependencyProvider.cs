@@ -9,6 +9,7 @@ using TwitchVor.Space.TimeWeb;
 using TwitchVor.Upload;
 using TwitchVor.Upload.FileSystem;
 using TwitchVor.Upload.Kvk;
+using TwitchVor.Upload.TubeYou;
 
 namespace TwitchVor.Utility
 {
@@ -29,6 +30,10 @@ namespace TwitchVor.Utility
             if (Program.config.Vk != null)
             {
                 return new VkUploader(guid, loggerFactory, Program.config.Vk);
+            }
+            if (Program.config.Youtube != null)
+            {
+                return new YoutubeUploader(guid, loggerFactory, Program.config.Youtube);
             }
 
             return new FileUploader(guid, loggerFactory, Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video"));
