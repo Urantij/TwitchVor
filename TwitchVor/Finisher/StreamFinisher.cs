@@ -277,12 +277,19 @@ namespace TwitchVor.Finisher
             // Сюда пишем то, что вычитали из сегментов.
             Stream inputStream;
 
+            long videoSize;
+
             // Если конверсии нет, пишем сегменты в инпут (сервер пайп)
             // Если есть, пишем сегменты в инпут (инпут ффмпега), и пишем аутпут ффмпега в сервер пайп
             ConversionHandler? conversionHandler = null;
             string? lastConversionLine = null;
             if (ffmpeg != null)
             {
+                _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
+                videoSize = await CalculateResultVideoSizeAsync(video);
+
+                _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", videoSize, video.size);
+
                 conversionHandler = ffmpeg.CreateConversion();
 
                 inputStream = conversionHandler.InputStream;
@@ -348,92 +355,18 @@ namespace TwitchVor.Finisher
             else
             {
                 inputStream = serverPipe;
+
+                videoSize = video.size;
             }
 
             // Чтение сегментов, перенаправление в инпут.
-            _ = Task.Run(async () =>
-            {
-                long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
-                long baseSize = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
-
-                _logger.LogDebug("Примерный размер видео {size}", baseSize);
-
-                long written = 0;
-
-                const int attemptsLimit = 5;
-                int attempt = 1;
-                int attemptsLeft = attemptsLimit;
-
-                Exception lastEx = new();
-                while (attemptsLeft > 0)
-                {
-                    int clientAttempt = attempt;
-
-                    long offset = baseOffset + written;
-                    long size = baseSize - written;
-
-                    _logger.LogDebug("Попытка {attempt}, осталось {size}", clientAttempt, size);
-
-                    if (size == 0)
-                    {
-                        _logger.LogWarning("Size 0");
-
-                        await inputStream.FlushAsync();
-                        await inputStream.DisposeAsync();
-                        break;
-                    }
-
-                    using var cts = new CancellationTokenSource();
-
-                    ByteCountingStream inputCountyPipe = new(inputStream);
-                    _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyPipe, TimeSpan.FromSeconds(20), _logger, cts.Token));
-
-                    try
-                    {
-                        await space.ReadAllDataAsync(inputCountyPipe, size, offset, cts.Token);
-                        await inputCountyPipe.FlushAsync();
-
-                        await inputStream.FlushAsync();
-                        await inputStream.DisposeAsync();
-
-                        await inputCountyPipe.DisposeAsync();
-
-                        _logger.LogInformation("Всё прочитали.");
-                        return;
-                    }
-                    catch (Exception totalE)
-                    {
-                        lastEx = totalE;
-
-                        _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, inputCountyPipe.TotalBytesWritten, totalE.Message);
-                    }
-                    finally
-                    {
-                        try { cts.Cancel(); } catch { }
-                    }
-
-                    if (inputCountyPipe.TotalBytesWritten > 0)
-                    {
-                        written += inputCountyPipe.TotalBytesWritten;
-                        attemptsLeft = attemptsLimit;
-                    }
-                    else
-                    {
-                        attemptsLeft--;
-                    }
-                    attempt++;
-                }
-
-                _logger.LogCritical(lastEx, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
-
-                await inputStream.DisposeAsync();
-            });
+            _ = Task.Run(() => WriteVideoAsync(video, inputStream));
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
 
             string description = processingHandler.MakeVideoDescription(video);
 
-            bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, video.size, clientPipe);
+            bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, videoSize, clientPipe);
 
             if (conversionHandler != null)
             {
@@ -458,6 +391,154 @@ namespace TwitchVor.Finisher
             _logger.LogInformation("Видос всё.");
 
             return success;
+        }
+
+        async Task WriteVideoAsync(ProcessingVideo video, Stream inputStream)
+        {
+            long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
+            long baseSize = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
+
+            _logger.LogDebug("Примерный размер видео {size}", baseSize);
+
+            long written = 0;
+
+            const int attemptsLimit = 5;
+            int attempt = 1;
+            int attemptsLeft = attemptsLimit;
+
+            Exception lastEx = new();
+            while (attemptsLeft > 0)
+            {
+                int clientAttempt = attempt;
+
+                long offset = baseOffset + written;
+                long size = baseSize - written;
+
+                _logger.LogDebug("Попытка {attempt}, осталось {size}", clientAttempt, size);
+
+                if (size == 0)
+                {
+                    _logger.LogWarning("Size 0");
+
+                    await inputStream.FlushAsync();
+                    await inputStream.DisposeAsync();
+                    break;
+                }
+
+                using var cts = new CancellationTokenSource();
+
+                ByteCountingStream outputCountyPipe = new(inputStream);
+                _ = Task.Run(() => PrintCountingWriteDataAsync(outputCountyPipe, TimeSpan.FromSeconds(20), _logger, cts.Token));
+
+                try
+                {
+                    await space.ReadAllDataAsync(outputCountyPipe, size, offset, cts.Token);
+                    await outputCountyPipe.FlushAsync();
+
+                    await inputStream.FlushAsync();
+                    await inputStream.DisposeAsync();
+
+                    await outputCountyPipe.DisposeAsync();
+
+                    _logger.LogInformation("Всё прочитали.");
+                    return;
+                }
+                catch (Exception totalE)
+                {
+                    lastEx = totalE;
+
+                    _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, outputCountyPipe.TotalBytesWritten, totalE.Message);
+                }
+                finally
+                {
+                    try { cts.Cancel(); } catch { }
+                }
+
+                if (outputCountyPipe.TotalBytesWritten > 0)
+                {
+                    written += outputCountyPipe.TotalBytesWritten;
+                    attemptsLeft = attemptsLimit;
+                }
+                else
+                {
+                    attemptsLeft--;
+                }
+                attempt++;
+            }
+
+            _logger.LogCritical(lastEx, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
+
+            await inputStream.DisposeAsync();
+        }
+
+        async Task<string?> ReadFfmpegTextAsync(StreamReader outputStream)
+        {
+            string? lastConversionLine = null;
+            try
+            {
+                while (true)
+                {
+                    var line = await outputStream.ReadLineAsync();
+
+                    if (line == null)
+                    {
+                        _logger.LogInformation("ффмпег закончил говорить.");
+                        return lastConversionLine;
+                    }
+
+                    lastConversionLine = line;
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogCritical(e, "Чтение строчек ффмпега обернулось ошибкой.");
+            }
+
+            return null;
+        }
+
+        async Task<long> CalculateResultVideoSizeAsync(ProcessingVideo video)
+        {
+            if (ffmpeg == null)
+                throw new Exception($"{nameof(ffmpeg)} is null");
+
+            long resultSize = 0;
+
+            var conversionHandler = ffmpeg.CreateConversion();
+
+            var errorTask = Task.Run(() => ReadFfmpegTextAsync(conversionHandler.TextStream));
+
+            var readTask = Task.Run(async () =>
+            {
+                try
+                {
+                    byte[] buffer = new byte[1024];
+                    int read = 0;
+                    do
+                    {
+                        read = await conversionHandler.OutputStream.ReadAsync(buffer);
+
+                        resultSize += read;
+                    }
+                    while (read > 0);
+
+                    _logger.LogInformation("Закончился выход у ффмпега.");
+                }
+                catch (Exception e)
+                {
+                    _logger.LogCritical(e, "Перенаправление ффмпега обернулось ошибкой.");
+                }
+            });
+
+            await WriteVideoAsync(video, conversionHandler.InputStream);
+
+            // TODO Можно из последней строки размер получать и сравнивать.
+            // await errorTask;
+            // await readTask;
+
+            conversionHandler.Dispose();
+
+            return resultSize;
         }
 
         static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, ILogger logger, CancellationToken cancellationToken)

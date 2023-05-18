@@ -108,6 +108,58 @@ namespace TwitchVor.Upload.Kvk
                 GroupId = creds.GroupId,
             });
 
+            using HttpClient client = new();
+            client.Timeout = TimeSpan.FromHours(12);
+
+            using MultipartFormDataContent httpContent = new();
+            using StreamContent streamContent = new(countingContent);
+            streamContent.Headers.ContentLength = size;
+
+            httpContent.Add(streamContent, "video_file", fileName);
+
+            _logger.LogInformation("Начинаем загрузку...");
+
+            var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
+                return false;
+            }
+
+            _logger.LogInformation("Закончили загрузку.");
+
+            PostUpload(processingHandler, video, saveResult);
+
+            return true;
+        }
+
+        // Обманом заставить вк есть видос неизвестного размера.
+        public async Task<bool> UploadUnknownAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        {
+            using var countingContent = new ByteCountingStream(content);
+
+            _logger.LogInformation("Авторизуемся...");
+
+            using VkApi api = new();
+            await api.AuthorizeAsync(new ApiAuthParams()
+            {
+                ApplicationId = creds.Uploader.ApplicationId,
+                AccessToken = creds.Uploader.ApiToken,
+                Settings = VkNet.Enums.Filters.Settings.All
+            });
+
+            _logger.LogInformation("Просим...");
+
+            var saveResult = await api.Video.SaveAsync(new VkNet.Model.RequestParams.VideoSaveParams()
+            {
+                Name = name,
+                Description = description,
+
+                GroupId = creds.GroupId,
+            });
+
             // Сюда пишем то, что будет читать аплоадер.
             // Когда закончим писать, его нужно будет закрыть.
             using var serverTrashPipe = new AnonymousPipeServerStream(PipeDirection.Out);
@@ -166,6 +218,13 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Закончили загрузку.");
 
+            PostUpload(processingHandler, video, saveResult);
+
+            return true;
+        }
+
+        void PostUpload(ProcessingHandler processingHandler, ProcessingVideo video, VkNet.Model.Attachments.Video saveResult)
+        {
             if (saveResult.Id != null)
             {
                 VkVideoInfo vkVideo = new(video, saveResult.Id.Value);
@@ -196,8 +255,6 @@ namespace TwitchVor.Upload.Kvk
             {
                 _logger.LogCritical("Id видео нулл");
             }
-
-            return true;
         }
 
         async Task PostUploadDescriptionUpdate(ProcessingHandler processingHandler, VkVideoInfo vkVideoInfo)
