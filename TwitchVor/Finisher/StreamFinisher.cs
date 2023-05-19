@@ -433,18 +433,18 @@ namespace TwitchVor.Finisher
 
                 using var cts = new CancellationTokenSource();
 
-                ByteCountingStream outputCountyPipe = new(inputStream);
-                _ = Task.Run(() => PrintCountingWriteDataAsync(outputCountyPipe, TimeSpan.FromSeconds(20), _logger, cts.Token));
+                ByteCountingStream inputCountyStream = new(inputStream);
+                _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(20), baseSize, _logger, cts.Token));
 
                 try
                 {
-                    await space.ReadAllDataAsync(outputCountyPipe, size, offset, cts.Token);
-                    await outputCountyPipe.FlushAsync();
+                    await space.ReadAllDataAsync(inputCountyStream, size, offset, cts.Token);
+                    await inputCountyStream.FlushAsync();
 
                     await inputStream.FlushAsync();
                     await inputStream.DisposeAsync();
 
-                    await outputCountyPipe.DisposeAsync();
+                    await inputCountyStream.DisposeAsync();
 
                     _logger.LogInformation("Всё прочитали.");
                     return;
@@ -453,16 +453,16 @@ namespace TwitchVor.Finisher
                 {
                     lastEx = totalE;
 
-                    _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, outputCountyPipe.TotalBytesWritten, totalE.Message);
+                    _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, inputCountyStream.TotalBytesWritten, totalE.Message);
                 }
                 finally
                 {
                     try { cts.Cancel(); } catch { }
                 }
 
-                if (outputCountyPipe.TotalBytesWritten > 0)
+                if (inputCountyStream.TotalBytesWritten > 0)
                 {
-                    written += outputCountyPipe.TotalBytesWritten;
+                    written += inputCountyStream.TotalBytesWritten;
                     attemptsLeft = attemptsLimit;
                 }
                 else
@@ -547,7 +547,10 @@ namespace TwitchVor.Finisher
             return resultSize;
         }
 
-        static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, ILogger logger, CancellationToken cancellationToken)
+        // TODO Как-то бы обозначить, что это не скорость загрузки, а скорость обработки.
+        // Потому что обрабатывается больше байт, чем передаётся.
+        // Ну да ладно.
+        static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, long size, ILogger logger, CancellationToken cancellationToken)
         {
             long writtenBefore = stream.TotalBytesWritten;
 
@@ -563,7 +566,9 @@ namespace TwitchVor.Finisher
 
                 writtenBefore = stream.TotalBytesWritten;
 
-                logger.LogInformation("Написано {totalWritten} {perSec:F0}/сек", stream.TotalBytesWritten, writtenPerSec);
+                double secondsLeft = (size - stream.TotalBytesWritten) / writtenPerSec;
+
+                logger.LogInformation("Написано {totalWritten} {perSec:F0}/сек Осталось {seconds:F0} секунд", stream.TotalBytesWritten, writtenPerSec, secondsLeft);
             }
         }
     }
