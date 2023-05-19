@@ -73,6 +73,8 @@ namespace TwitchVor
                         new ColoredCategory(typeof(Upload.Kvk.VkUploader), ConsoleColor.White, ConsoleColor.DarkBlue),
                         new ColoredCategory(typeof(Upload.Kvk.VkWaller), ConsoleColor.White, ConsoleColor.DarkBlue),
 
+                        new ColoredCategory(typeof(Upload.TubeYou.YoutubeUploader), ConsoleColor.White, ConsoleColor.Red),
+
                         new ColoredCategory(typeof(Space.Local.LocalSpaceProvider), ConsoleColor.DarkGreen),
                         new ColoredCategory(typeof(Space.TimeWeb.TimewebSpaceProvider), ConsoleColor.DarkMagenta, ConsoleColor.Gray),
 
