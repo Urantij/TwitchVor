@@ -7,11 +7,11 @@ namespace TwitchVor.Upload.TubeYou;
 
 public class YoutubeCreds
 {
-    public string RefreshToken { get; set; } = "";
-    public string UserId { get; set; } = "";
+    public string RefreshToken { get; set; }
+    public string UserId { get; set; }
 
-    public string ClientId { get; set; } = "";
-    public string ClientSecret { get; set; } = "";
+    public string ClientId { get; set; }
+    public string ClientSecret { get; set; }
 
     public string[]? VideoTags { get; set; } = Array.Empty<string>();
 
