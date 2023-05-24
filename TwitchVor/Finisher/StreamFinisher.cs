@@ -539,8 +539,8 @@ namespace TwitchVor.Finisher
             await WriteVideoAsync(video, conversionHandler.InputStream);
 
             // TODO Можно из последней строки размер получать и сравнивать.
-            // await errorTask;
-            // await readTask;
+            await errorTask;
+            await readTask;
 
             conversionHandler.Dispose();
 
