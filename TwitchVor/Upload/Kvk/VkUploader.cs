@@ -117,6 +117,8 @@ namespace TwitchVor.Upload.Kvk
 
             httpContent.Add(streamContent, "video_file", fileName);
 
+            httpContent.Headers.ContentLength = CalculateBaseSize(fileName) + size;
+
             _logger.LogInformation("Начинаем загрузку...");
 
             var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
@@ -168,7 +170,7 @@ namespace TwitchVor.Upload.Kvk
             using var clientTrashNotification = new NotifiableStream(clientTrashPipe);
 
             // Смотри #29 
-            long baseSize = CalculateBaseSize(fileName);
+            long baseSize = CalculateBaseSizeForUnknown(fileName);
 
             using HttpClient client = new();
             client.Timeout = TimeSpan.FromHours(12);
@@ -356,6 +358,17 @@ namespace TwitchVor.Upload.Kvk
         }
 
         static long CalculateBaseSize(string fileName)
+        {
+            using MemoryStream ms = new();
+            using MultipartFormDataContent httpContent = new();
+            using StreamContent streamContent1 = new(ms);
+
+            httpContent.Add(streamContent1, "video_file", fileName);
+
+            return httpContent.Headers.ContentLength!.Value;
+        }
+        
+        static long CalculateBaseSizeForUnknown(string fileName)
         {
             using MemoryStream ms = new();
             using MultipartFormDataContent httpContent = new();
