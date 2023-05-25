@@ -113,7 +113,7 @@ namespace TwitchVor.Upload.Kvk
 
             using MultipartFormDataContent httpContent = new();
             using StreamContent streamContent = new(countingContent);
-            streamContent.Headers.ContentLength = size;
+            streamContent.Headers.ContentLength = null;
 
             httpContent.Add(streamContent, "video_file", fileName);
 
