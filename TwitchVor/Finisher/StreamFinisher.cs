@@ -49,10 +49,11 @@ namespace TwitchVor.Finisher
             var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);
 
             bool allSuccess = true;
+            ProcessingCache processingCache = new();
             foreach (var uploader in uploaders)
             {
                 _logger.LogDebug("Работа аплоадера {type}", uploader.GetType().Name);
-                var processingHandler = await ProcessStreamAsync(uploader);
+                var processingHandler = await ProcessStreamAsync(uploader, processingCache);
 
                 if (allSuccess)
                 {
@@ -119,7 +120,7 @@ namespace TwitchVor.Finisher
             }
         }
 
-        private async Task<ProcessingHandler> ProcessStreamAsync(BaseUploader uploader)
+        private async Task<ProcessingHandler> ProcessStreamAsync(BaseUploader uploader, ProcessingCache processingCache)
         {
             ProcessingHandler processingHandler;
             {
@@ -148,7 +149,7 @@ namespace TwitchVor.Finisher
                 video.uploadStart = DateTimeOffset.UtcNow;
                 try
                 {
-                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1);
+                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1, processingCache: processingCache);
                 }
                 catch (Exception e)
                 {
@@ -266,7 +267,7 @@ namespace TwitchVor.Finisher
             return videos;
         }
 
-        async Task<bool> DoVideoAsync(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo)
+        async Task<bool> DoVideoAsync(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo, ProcessingCache processingCache)
         {
             _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsCount, video.segmentStart);
 
@@ -292,7 +293,24 @@ namespace TwitchVor.Finisher
             if (ffmpeg != null)
             {
                 _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
-                videoSize = await CalculateResultVideoSizeAsync(video);
+
+                var cachedInfo = processingCache.Get<ResultVideoSizeCache>().FirstOrDefault(c => c.startSegmentId == video.segmentStart && c.endSegmentId == (video.segmentStart + video.segmentsCount));
+
+                if (cachedInfo != null)
+                {
+                    _logger.LogDebug("Нашли в кеше.");
+
+                    videoSize = cachedInfo.size;
+                }
+                else
+                {
+                    _logger.LogDebug("Не нашли в кеше.");
+
+                    videoSize = await CalculateResultVideoSizeAsync(video);
+
+                    cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, videoSize);
+                    processingCache.Add(cachedInfo);
+                }
 
                 _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", videoSize, video.size);
 

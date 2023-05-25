@@ -11,6 +11,7 @@ public class ProcessingVideo
     public readonly int number;
 
     public readonly int segmentStart;
+    // TODO Подумать, насколько это хорошая идея, не хранить последний индекс сегмента, а надеяться, что ни одного айди пропущено не будет.
     public readonly int segmentsCount;
 
     public readonly long size;
