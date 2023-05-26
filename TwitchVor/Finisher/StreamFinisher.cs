@@ -146,7 +146,7 @@ namespace TwitchVor.Finisher
 
             foreach (var video in processingHandler.videos)
             {
-                video.uploadStart = DateTimeOffset.UtcNow;
+                video.processingStart = DateTimeOffset.UtcNow;
                 try
                 {
                     video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1, processingCache: processingCache);
@@ -157,7 +157,7 @@ namespace TwitchVor.Finisher
 
                     video.success = false;
                 }
-                video.uploadEnd = DateTimeOffset.UtcNow;
+                video.processingEnd = DateTimeOffset.UtcNow;
             }
 
             processingHandler.SetResult();
@@ -387,10 +387,19 @@ namespace TwitchVor.Finisher
             _ = Task.Run(() => WriteVideoAsync(video, inputStream));
 
             string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
-
             string description = processingHandler.MakeVideoDescription(video);
 
-            bool success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, videoSize, clientPipe);
+            video.uploadStart = DateTime.UtcNow;
+
+            bool success;
+            try
+            {
+                success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, videoSize, clientPipe);
+            }
+            finally
+            {
+                video.uploadEnd = DateTime.UtcNow;
+            }
 
             if (conversionHandler != null)
             {
@@ -411,6 +420,8 @@ namespace TwitchVor.Finisher
                     success = false;
                 }
             }
+
+            await serverPipe.DisposeAsync();
 
             _logger.LogInformation("Видос всё.");
 

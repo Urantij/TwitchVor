@@ -28,6 +28,9 @@ public class ProcessingVideo
     /// </summary>
     public bool? success;
 
+    public DateTimeOffset? processingStart;
+    public DateTimeOffset? processingEnd;
+
     public DateTimeOffset? uploadStart;
     public DateTimeOffset? uploadEnd;
 
