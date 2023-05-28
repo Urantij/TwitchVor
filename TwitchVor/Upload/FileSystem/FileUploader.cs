@@ -24,11 +24,11 @@ namespace TwitchVor.Upload.FileSystem
             this.path = path;
         }
 
-        public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
             _logger.LogInformation("Пишем...");
 
-            Task extraTask = WriteExtras(processingHandler, video, name, description);
+            Task extraTask = WriteExtras(uploaderHandler.processingHandler, video, name, description);
 
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
 

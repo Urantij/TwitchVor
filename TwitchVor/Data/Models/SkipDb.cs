@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TwitchVor.Data.Models
 {
-    // Была идея тут хранить не самое время, а сегменты.
+    // TODO. Была идея тут хранить не самое время, а сегменты.
     // Но че то не знаю.
 
     public class SkipDb

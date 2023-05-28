@@ -29,6 +29,6 @@ namespace TwitchVor.Upload
             this.guid = guid;
         }
 
-        public abstract Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content);
+        public abstract Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content);
     }
 }

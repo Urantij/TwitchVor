@@ -46,20 +46,42 @@ namespace TwitchVor.Finisher
 
         public async Task DoAsync()
         {
+            ProcessingHandler processingHandler;
+            {
+                SkipDb[] skips = await db.LoadSkipsAsync();
+
+                TimeSpan totalLoss = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
+
+                List<Bill> bills = new();
+                if (Program.config.Money is MoneyConfig moneyConfig)
+                {
+                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
+                    bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
+                }
+                if (streamHandler.space.pricer != null)
+                    bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
+
+                string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
+
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, subgifters);
+            }
+
             var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);
 
             bool allSuccess = true;
-            ProcessingCache processingCache = new();
             foreach (var uploader in uploaders)
             {
                 _logger.LogDebug("Работа аплоадера {type}", uploader.GetType().Name);
-                var processingHandler = await ProcessStreamAsync(uploader, processingCache);
+
+                bool success = await ProcessStreamAsync(processingHandler, uploader);
 
                 if (allSuccess)
                 {
-                    allSuccess = processingHandler.videos.All(v => v.success == true);
+                    allSuccess = success;
                 }
             }
+
+            processingHandler.SetResult();
 
             if (allSuccess)
             {
@@ -120,36 +142,18 @@ namespace TwitchVor.Finisher
             }
         }
 
-        private async Task<ProcessingHandler> ProcessStreamAsync(BaseUploader uploader, ProcessingCache processingCache)
+        private async Task<bool> ProcessStreamAsync(ProcessingHandler processingHandler, BaseUploader uploader)
         {
-            ProcessingHandler processingHandler;
-            {
-                var skips = await db.LoadSkipsAsync();
+            List<ProcessingVideo> videos = await CutToVideosAsync(processingHandler.skips, uploader.SizeLimit, uploader.DurationLimit);
 
-                var videos = await CutToVideosAsync(skips, uploader.SizeLimit, uploader.DurationLimit);
+            UploaderHandler uploaderHandler = new(uploader, processingHandler, videos);
 
-                TimeSpan totalLoss = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
-
-                List<Bill> bills = new();
-                if (Program.config.Money is MoneyConfig moneyConfig)
-                {
-                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
-                    bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
-                }
-                if (streamHandler.space.pricer != null)
-                    bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
-
-                string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
-
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, videos.ToArray(), subgifters);
-            }
-
-            foreach (var video in processingHandler.videos)
+            foreach (var video in uploaderHandler.videos)
             {
                 video.processingStart = DateTimeOffset.UtcNow;
                 try
                 {
-                    video.success = await DoVideoAsync(processingHandler, video, uploader, singleVideo: processingHandler.videos.Length == 1, processingCache: processingCache);
+                    video.success = await DoVideoAsync(uploaderHandler, video);
                 }
                 catch (Exception e)
                 {
@@ -160,9 +164,9 @@ namespace TwitchVor.Finisher
                 video.processingEnd = DateTimeOffset.UtcNow;
             }
 
-            processingHandler.SetResult();
+            uploaderHandler.SetResult();
 
-            return processingHandler;
+            return uploaderHandler.videos.All(vid => vid.success == true);
         }
 
         async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips, long sizeLimit, TimeSpan durationLimit)
@@ -267,7 +271,7 @@ namespace TwitchVor.Finisher
             return videos;
         }
 
-        async Task<bool> DoVideoAsync(ProcessingHandler processingHandler, ProcessingVideo video, BaseUploader uploader, bool singleVideo, ProcessingCache processingCache)
+        async Task<bool> DoVideoAsync(UploaderHandler uploaderHandler, ProcessingVideo video)
         {
             _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsCount, video.segmentStart);
 
@@ -284,7 +288,7 @@ namespace TwitchVor.Finisher
             // Сюда пишем то, что вычитали из сегментов.
             Stream inputStream;
 
-            long videoSize;
+            long resultVideoSize;
 
             // Если конверсии нет, пишем сегменты в инпут (сервер пайп)
             // Если есть, пишем сегменты в инпут (инпут ффмпега), и пишем аутпут ффмпега в сервер пайп
@@ -294,32 +298,32 @@ namespace TwitchVor.Finisher
             {
                 _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
 
-                var cachedInfo = processingCache.Get<ResultVideoSizeCache>().FirstOrDefault(c => c.startSegmentId == video.segmentStart && c.endSegmentId == (video.segmentStart + video.segmentsCount));
+                var cachedInfo = uploaderHandler.processingHandler.videoSizeCaches.FirstOrDefault(c => c.startSegmentId == video.segmentStart && c.endSegmentId == (video.segmentStart + video.segmentsCount));
 
                 if (cachedInfo != null)
                 {
                     _logger.LogDebug("Нашли в кеше.");
 
-                    videoSize = cachedInfo.size;
+                    resultVideoSize = cachedInfo.size;
                 }
                 else
                 {
                     _logger.LogDebug("Не нашли в кеше.");
 
-                    videoSize = await CalculateResultVideoSizeAsync(video);
+                    resultVideoSize = await CalculateResultVideoSizeAsync(video);
 
-                    cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, videoSize);
-                    processingCache.Add(cachedInfo);
+                    cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, resultVideoSize);
+                    uploaderHandler.processingHandler.videoSizeCaches.Add(cachedInfo);
                 }
 
-                _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", videoSize, video.size);
+                _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", resultVideoSize, video.size);
 
                 conversionHandler = ffmpeg.CreateConversion();
 
                 inputStream = conversionHandler.InputStream;
 
                 // Читать ффмпег
-                _ = Task.Run(async () =>
+                var readFfmpegTask = Task.Run(async () =>
                 {
                     string logPath = DependencyProvider.MakePath(streamHandler.guid.ToString("N") + ".ffmpeg.log");
                     FileStream fs = new(logPath, FileMode.Create);
@@ -341,7 +345,7 @@ namespace TwitchVor.Finisher
                             await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
                         }
 
-                        await processingHandler.ProcessTask;
+                        await uploaderHandler.ProcessTask;
                     }
                     catch (Exception e)
                     {
@@ -359,7 +363,7 @@ namespace TwitchVor.Finisher
                 });
 
                 // Перенаправление выхода ффмпега в сервер.
-                _ = Task.Run(async () =>
+                var redirectFfmpegTask = Task.Run(async () =>
                 {
                     try
                     {
@@ -380,21 +384,22 @@ namespace TwitchVor.Finisher
             {
                 inputStream = serverPipe;
 
-                videoSize = video.size;
+                resultVideoSize = video.size;
             }
 
             // Чтение сегментов, перенаправление в инпут.
-            _ = Task.Run(() => WriteVideoAsync(video, inputStream));
+            var writeTask = Task.Run(() => WriteVideoAsync(video, inputStream));
 
-            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, processingHandler.timestamps);
-            string description = processingHandler.MakeVideoDescription(video);
+            bool singleVideo = uploaderHandler.videos.Count == 1;
+            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, uploaderHandler.processingHandler.timestamps);
+            string description = uploaderHandler.MakeVideoDescription(video);
 
             video.uploadStart = DateTime.UtcNow;
 
             bool success;
             try
             {
-                success = await uploader.UploadAsync(processingHandler, video, videoName, description, filename, videoSize, clientPipe);
+                success = await uploaderHandler.uploader.UploadAsync(uploaderHandler, video, videoName, description, filename, resultVideoSize, clientPipe);
             }
             finally
             {
@@ -421,6 +426,7 @@ namespace TwitchVor.Finisher
                 }
             }
 
+            // Некоторые аплоадеры не закрывают стрим.
             await serverPipe.DisposeAsync();
 
             _logger.LogInformation("Видос всё.");

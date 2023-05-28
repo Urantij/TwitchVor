@@ -84,7 +84,7 @@ namespace TwitchVor.Upload.Kvk
             _logger.LogInformation("Авторизовались.");
         }
 
-        public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
             using var countingContent = new ByteCountingStream(content);
 
@@ -132,13 +132,13 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Закончили загрузку.");
 
-            PostUpload(processingHandler, video, saveResult);
+            PostUpload(uploaderHandler, video, saveResult);
 
             return true;
         }
 
         // Обманом заставить вк есть видос неизвестного размера.
-        public async Task<bool> UploadUnknownAsync(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public async Task<bool> UploadUnknownAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
         {
             using var countingContent = new ByteCountingStream(content);
 
@@ -220,12 +220,12 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Закончили загрузку.");
 
-            PostUpload(processingHandler, video, saveResult);
+            PostUpload(uploaderHandler, video, saveResult);
 
             return true;
         }
 
-        void PostUpload(ProcessingHandler processingHandler, ProcessingVideo video, VkNet.Model.Attachments.Video saveResult)
+        void PostUpload(UploaderHandler uploaderHandler, ProcessingVideo video, VkNet.Model.Attachments.Video saveResult)
         {
             if (saveResult.Id != null)
             {
@@ -234,12 +234,12 @@ namespace TwitchVor.Upload.Kvk
 
                 _ = Task.Run(async () =>
                 {
-                    await processingHandler.ProcessTask;
+                    await uploaderHandler.processingHandler.ProcessTask;
 
-                    await PostUploadDescriptionUpdate(processingHandler, vkVideo);
+                    await PostProcessDescriptionUpdate(uploaderHandler, vkVideo);
                 });
 
-                if (creds.WallRunner != null && processingHandler.videos.FirstOrDefault() == video)
+                if (creds.WallRunner != null && uploaderHandler.videos.FirstOrDefault() == video)
                 {
                     // Пусть только первый видос запускает постобработку.
                     // И всё видосы одним постом выложатся.
@@ -247,7 +247,7 @@ namespace TwitchVor.Upload.Kvk
                     {
                         _logger.LogInformation("Запущен постобработчик.");
 
-                        await processingHandler.ProcessTask;
+                        await uploaderHandler.ProcessTask;
 
                         await PostCringeAsync();
                     });
@@ -259,7 +259,7 @@ namespace TwitchVor.Upload.Kvk
             }
         }
 
-        async Task PostUploadDescriptionUpdate(ProcessingHandler processingHandler, VkVideoInfo vkVideoInfo)
+        async Task PostProcessDescriptionUpdate(UploaderHandler uploaderHandler, VkVideoInfo vkVideoInfo)
         {
             if (vkVideoInfo.video.success != true)
                 return;
@@ -276,10 +276,10 @@ namespace TwitchVor.Upload.Kvk
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
-            _logger.LogInformation("Меняем описание (id)...", vkVideoInfo.id);
+            _logger.LogInformation("Меняем описание ({id})...", vkVideoInfo.id);
 
-            string name = processingHandler.MakeVideoName(vkVideoInfo.video);
-            string description = processingHandler.MakeVideoDescription(vkVideoInfo.video);
+            string name = uploaderHandler.MakeVideoName(vkVideoInfo.video);
+            string description = uploaderHandler.MakeVideoDescription(vkVideoInfo.video);
 
             try
             {
@@ -367,7 +367,7 @@ namespace TwitchVor.Upload.Kvk
 
             return httpContent.Headers.ContentLength!.Value;
         }
-        
+
         static long CalculateBaseSizeForUnknown(string fileName)
         {
             using MemoryStream ms = new();

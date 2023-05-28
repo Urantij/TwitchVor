@@ -34,7 +34,7 @@ class YoutubeUploader : BaseUploader
         this.creds = creds;
     }
 
-    public override async Task<bool> UploadAsync(ProcessingHandler processingHandler, ProcessingVideo processingVideo, string name, string description, string fileName, long size, Stream content)
+    public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo processingVideo, string name, string description, string fileName, long size, Stream content)
     {
         var secrets = new ClientSecrets()
         {
@@ -111,7 +111,7 @@ class YoutubeUploader : BaseUploader
                 uploadedVideos.Add(youtubeVideoInfo);
 
                 if (postUploadTask == null)
-                    postUploadTask = PostUploadWorkAsync(processingHandler);
+                    postUploadTask = PostProcessWorkAsync(uploaderHandler);
             }
             else
             {
@@ -126,9 +126,9 @@ class YoutubeUploader : BaseUploader
         return progress.Status == UploadStatus.Completed;
     }
 
-    async Task PostUploadWorkAsync(ProcessingHandler processingHandler)
+    async Task PostProcessWorkAsync(UploaderHandler uploaderHandler)
     {
-        await processingHandler.ProcessTask;
+        await uploaderHandler.processingHandler.ProcessTask;
 
         await Task.Delay(TimeSpan.FromSeconds(10));
 
@@ -171,8 +171,8 @@ class YoutubeUploader : BaseUploader
                 Snippet = response.Snippet
             };
 
-            videoUpdate.Snippet.Title = processingHandler.MakeVideoName(video.processingVideo);
-            videoUpdate.Snippet.Description = processingHandler.MakeVideoDescription(video.processingVideo);
+            videoUpdate.Snippet.Title = uploaderHandler.MakeVideoName(video.processingVideo);
+            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo);
 
             try
             {
