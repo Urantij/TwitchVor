@@ -15,6 +15,7 @@ using TwitchVor.Twitch.Chat;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
+using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
 using static TwitchVor.Utility.ColoredConsoleOptions;
 
@@ -36,6 +37,7 @@ namespace TwitchVor
 
         public static SubChecker? subChecker;
         public static ChatBot? chatBot;
+        public static DotaInVideo? dota;
         public static Ffmpeg? ffmpeg;
 
         public static Emailer? emailer;
@@ -236,6 +238,22 @@ namespace TwitchVor
                 var bill = new Bill(config.Money.Currency, config.Money.PerHourCost);
 
                 logger.LogInformation("Стоимость приложения в час: {formatBill}", bill.Format());
+            }
+
+            if (config.Dota != null)
+            {
+                logger.LogInformation("Используем доту.");
+
+                if (File.Exists(config.Dota.HeroesPath))
+                {
+                    dota = new(config.Dota, loggerFactory);
+
+                    await dota.TestAsync();
+                }
+                else
+                {
+                    logger.LogCritical("Не существует файл с героями.");
+                }
             }
 
             statuser = new TwitchStatuser(loggerFactory);

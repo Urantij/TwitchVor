@@ -6,6 +6,7 @@ using TwitchVor.Twitch;
 using TwitchVor.Twitch.Chat;
 using TwitchVor.Upload.Kvk;
 using TwitchVor.Upload.TubeYou;
+using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
 
 namespace TwitchVor.Configuration
@@ -67,6 +68,9 @@ namespace TwitchVor.Configuration
 
         [JsonProperty(Required = Required.Default)]
         public ChatConfig? Chat { get; set; } = null;
+
+        [JsonProperty(Required = Required.Default)]
+        public DotaInVideoConfig? Dota { get; set; } = null;
 
         [JsonProperty(Required = Required.Default)]
         public TimewebConfig? Timeweb { get; set; } = null;

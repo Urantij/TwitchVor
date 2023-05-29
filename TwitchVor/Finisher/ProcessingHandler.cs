@@ -33,11 +33,13 @@ class ProcessingHandler
 
     public readonly List<ResultVideoSizeCache> videoSizeCaches = new();
 
+    public readonly Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches;
+
     public readonly string[] subgifters;
 
     public Task ProcessTask => processTCS.Task;
 
-    public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters)
+    public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches)
     {
         this.handlerCreationDate = handlerCreationDate;
         this.db = db;
@@ -47,6 +49,7 @@ class ProcessingHandler
         this.timestamps = timestamps;
         this.skips = skips;
         this.subgifters = subgifters;
+        this.dotaMatches = dotaMatches;
     }
 
     public void SetResult()

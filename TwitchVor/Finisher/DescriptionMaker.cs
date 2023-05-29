@@ -119,7 +119,7 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
+        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime, Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -161,6 +161,65 @@ namespace TwitchVor.Finisher
                     }
 
                     builder.AppendLine(status);
+                }
+            }
+
+            if (dotaMatches?.Length > 0)
+            {
+                // В теории всё может сломаться, если пропадёт файл с героями.
+                // TODO Вообще плохо, что идёт работа в классе, который создаёт описание. Как-то предзагружать надо.
+                // Или сделать ещё одну обёртку под матчи + героев и класть в процесс хендлер.
+                try
+                {
+                    var heroes = Program.dota!.LoadHeroes();
+                    var matchesLines = dotaMatches.Select(match =>
+                    {
+                        var streamer = match.Players?.FirstOrDefault(p => p.SteamId == Program.dota.config.TargetSteamId);
+
+                        if (streamer == null)
+                            return "???";
+
+                        var onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, match.GameDate, skips);
+                        
+                        StringBuilder sb = new();
+
+                        string heroName = heroes.FirstOrDefault(hero => hero.Id == streamer.HeroId)?.LocalizedName ?? "Непонятно";
+
+                        sb.Append(heroName);
+
+                        if (match.DetailsInfo?.RadiantWin != null)
+                        {
+                            // Я выбрал не тот тип для коллекции, хдд
+                            // Я надеюсь, первые пять это редиант.
+                            int index = match.Players!.ToList().IndexOf(streamer);
+
+                            bool win = index <= 4 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
+
+                            sb.Append(win ? " Вин" : " Луз");
+                        }
+
+                        int partyCount;
+                        if (streamer.PartyIndex != null)
+                            partyCount = match.Players!.Count(p => p.PartyIndex == streamer.PartyIndex);
+                        else
+                            partyCount = 1;
+
+                        if (partyCount > 1)
+                        {
+                            sb.Append($" (Пати {partyCount})");
+                        }
+
+                        return MakeTimestampStr(onVideoTime, sb.ToString());
+                    }).ToArray();
+
+                    builder.AppendLine();
+
+                    foreach (var matchLine in matchesLines)
+                        builder.AppendLine(matchLine);
+                }
+                catch (Exception e)
+                {
+                    _logger?.LogError(e, "Не удалось сформировать описание матчей доты.");
                 }
             }
 

@@ -14,6 +14,7 @@ using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo.Money;
+using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
 {
@@ -63,7 +64,29 @@ namespace TwitchVor.Finisher
 
                 string[] subgifters = await DescriptionMaker.GetDisplaySubgiftersAsync(streamHandler.subCheck);
 
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, subgifters);
+                Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches = null;
+                if (Program.dota != null)
+                {
+                    // TODO Можно ещё смотреть, чтобы стамп было дольше 10 минут.
+                    // Мало ли с прошлого стрима остался.
+                    bool hadDota = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t => t.gameName?.Equals("Dota 2", StringComparison.OrdinalIgnoreCase) == true);
+
+                    if (hadDota)
+                    {
+                        // TODO Если добавлю восстановление из руин, нужно будет также ограничивать и ДО.
+                        // TODO Возможно, стоит поискать время начало стрима, а не создания хендлера.
+                        try
+                        {
+                            dotaMatches = await Program.dota.LoadMatchesAsync(streamHandler.handlerCreationDate);
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError(e, "Не удалось собрать матчи по доте.");
+                        }
+                    }
+                }
+
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, subgifters, dotaMatches);
             }
 
             var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);

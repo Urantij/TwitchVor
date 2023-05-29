@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TwitchStreamDownloader\TwitchStreamDownloader\TwitchStreamDownloader.csproj" />
     <ProjectReference Include="..\minio-dotnet\Minio\Minio.csproj" />
+    <ProjectReference Include="..\Dota2Dispenser.Shared\Dota2Dispenser.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DigitalOcean.API" Version="5.2.0" />

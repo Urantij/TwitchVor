@@ -5,9 +5,6 @@
 	path = minio-dotnet
 	url = https://github.com/Urantij/minio-dotnet.git
 	branch = multipart
-[submodule "TwitchVor/Dota2Dispenser.Shared"]
-	path = TwitchVor/Dota2Dispenser.Shared
-	url = https://github.com/Urantij/Dota2Dispenser.Shared.git
 [submodule "Dota2Dispenser.Shared"]
 	path = Dota2Dispenser.Shared
 	url = https://github.com/Urantij/Dota2Dispenser.Shared.git
