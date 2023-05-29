@@ -124,10 +124,13 @@ namespace TwitchVor.Finisher
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
 
-            builder.AppendLine();
-            foreach (var subgifter in subgifters)
+            if (subgifters.Length > 0)
             {
-                builder.AppendLine($"Спасибо за подписку: {subgifter}");
+                builder.AppendLine();
+                foreach (var subgifter in subgifters)
+                {
+                    builder.AppendLine($"Спасибо за подписку: {subgifter}");
+                }
             }
 
             if (!timestamps.Any())
