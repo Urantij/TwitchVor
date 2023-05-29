@@ -469,7 +469,7 @@ namespace TwitchVor.Finisher
                 using var cts = new CancellationTokenSource();
 
                 ByteCountingStream inputCountyStream = new(inputStream);
-                _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(20), baseSize, _logger, cts.Token));
+                _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), baseSize, _logger, cts.Token));
 
                 try
                 {
@@ -589,6 +589,10 @@ namespace TwitchVor.Finisher
         {
             long writtenBefore = stream.TotalBytesWritten;
 
+            var uline = await UpdatableLine.Create("Загрузка...", cancellationToken);
+
+            string formattedSize = SomeUtis.MakeSizeFormat(size);
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
@@ -603,7 +607,7 @@ namespace TwitchVor.Finisher
 
                 double secondsLeft = (size - stream.TotalBytesWritten) / writtenPerSec;
 
-                logger.LogInformation("Написано {totalWritten} {perSec:F0}/сек Осталось {seconds:F0} секунд", stream.TotalBytesWritten, writtenPerSec, secondsLeft);
+                await uline.UpdateAsync($"Написано {SomeUtis.MakeSizeFormat((long)writtenPerSec)}/сек Осталось {secondsLeft:F0} секунд ({SomeUtis.MakeSizeFormat(stream.TotalBytesWritten)}/{formattedSize})");
             }
         }
     }
