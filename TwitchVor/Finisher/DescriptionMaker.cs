@@ -187,13 +187,10 @@ namespace TwitchVor.Finisher
 
                         sb.Append(heroName);
 
-                        if (match.DetailsInfo?.RadiantWin != null)
+                        if (match.DetailsInfo?.RadiantWin != null && streamer.PlayerSlot != null)
                         {
-                            // Я выбрал не тот тип для коллекции, хдд
                             // Я надеюсь, первые пять это редиант.
-                            int index = match.Players!.ToList().IndexOf(streamer);
-
-                            bool win = index <= 4 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
+                            bool win = streamer.PlayerSlot <= 4 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
 
                             sb.Append(win ? " Вин" : " Луз");
                         }
