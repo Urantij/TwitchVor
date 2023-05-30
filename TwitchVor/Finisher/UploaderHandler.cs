@@ -43,7 +43,7 @@ class UploaderHandler
         TimeSpan? videoUploadTime = video.uploadEnd - video.uploadStart;
         TimeSpan? totalUploadTime = SumTotalUploadTime();
 
-        return DescriptionMaker.FormDescription(video.startDate, processingHandler.timestamps, processingHandler.skips, processingHandler.subgifters, processingHandler.advertismentLoss, processingHandler.totalLoss, processingHandler.bills, videoUploadTime, totalUploadTime, processingHandler.dotaMatches);
+        return DescriptionMaker.FormDescription(video.startDate, processingHandler.timestamps, processingHandler.skips, processingHandler.subgifters, processingHandler.advertismentLoss, processingHandler.totalLoss, processingHandler.bills, videoUploadTime, totalUploadTime);
     }
 
     TimeSpan? SumTotalUploadTime()

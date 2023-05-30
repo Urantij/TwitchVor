@@ -14,6 +14,7 @@ using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
+using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
 using TwitchVor.Vvideo.Timestamps;
 
@@ -85,6 +86,23 @@ namespace TwitchVor.Finisher
                         {
                             _logger.LogError(e, "Не удалось собрать матчи по доте.");
                         }
+                    }
+                }
+
+                if (dotaMatches?.Length > 0)
+                {
+                    // В теории всё может сломаться, если пропадёт файл с героями.
+                    // TODO Сделать ещё одну обёртку под матчи + героев и класть в процесс хендлер.
+                    try
+                    {
+                        var heroes = await Program.dota!.LoadHeroesAsync();
+                        var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match, Program.dota.config.TargetSteamId, heroes)).ToArray();
+
+                        timestamps = timestamps.Concat(matchesStamps);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Не удалось сформировать описание матчей доты.");
                     }
                 }
 
@@ -636,6 +654,31 @@ namespace TwitchVor.Finisher
 
                 await uline.UpdateAsync($"Написано {SomeUtis.MakeSizeFormat((long)writtenPerSec)}/сек Осталось {secondsLeft:F0} секунд ({SomeUtis.MakeSizeFormat(stream.TotalBytesWritten)}/{formattedSize})");
             }
+        }
+
+        static DotaMatchTimestamp MakeDotaStamp(Dota2Dispenser.Shared.Models.MatchModel match, ulong targetSteamId, IEnumerable<HeroModel> heroes)
+        {
+            var streamer = match.Players?.FirstOrDefault(p => p.SteamId == targetSteamId);
+
+            if (streamer == null)
+                return new DotaMatchTimestamp("???", 1, null, match.GameDate);
+
+            string heroName = heroes.FirstOrDefault(hero => hero.Id == streamer.HeroId)?.LocalizedName ?? "Непонятно";
+
+            bool? win;
+            if (match.DetailsInfo?.RadiantWin != null && streamer.TeamNumber != null)
+            {
+                win = streamer.TeamNumber == 0 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
+            }
+            else win = null;
+
+            int partyCount;
+            if (streamer.PartyIndex != null)
+                partyCount = match.Players!.Count(p => p.PartyIndex == streamer.PartyIndex);
+            else
+                partyCount = 1;
+
+            return new DotaMatchTimestamp(heroName, partyCount, win, match.GameDate);
         }
     }
 }
