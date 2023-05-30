@@ -77,7 +77,7 @@ namespace TwitchVor.Finisher
                         // TODO Возможно, стоит поискать время начало стрима, а не создания хендлера.
                         try
                         {
-                            dotaMatches = await Program.dota.LoadMatchesAsync(streamHandler.handlerCreationDate);
+                            dotaMatches = await Program.dota.LoadMatchesAsync(afterTime: streamHandler.handlerCreationDate);
                         }
                         catch (Exception e)
                         {

@@ -39,6 +39,18 @@ public class DotaInVideo
         }
 
         logger.LogInformation("Загружено {count} героев.", heroes.Length);
+
+        try
+        {
+            await LoadMatchesAsync(limit: 1, useTarget: false);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Не удалось загрузить матчи при проверке.");
+            return;
+        }
+
+        logger.LogInformation("Загрузили матч.");
     }
 
     public async Task<HeroModel[]> LoadHeroesAsync()
@@ -55,13 +67,17 @@ public class DotaInVideo
         return JsonSerializer.Deserialize<HeroModel[]>(content)!;
     }
 
-    public async Task<MatchModel[]> LoadMatchesAsync(DateTime afterTime)
+    public async Task<MatchModel[]> LoadMatchesAsync(DateTime? afterTime = null, int? limit = null, bool useTarget = true)
     {
         NameValueCollection queryString = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        queryString[Dota2DispenserParams.steamIdFilter] = config.TargetSteamId.ToString();
-        queryString[Dota2DispenserParams.afterDateTimeFilter] = new DateTimeOffset(afterTime).ToUnixTimeSeconds().ToString();
+        if (useTarget)
+            queryString[Dota2DispenserParams.steamIdFilter] = config.TargetSteamId.ToString();
+        if (afterTime != null)
+            queryString[Dota2DispenserParams.afterDateTimeFilter] = new DateTimeOffset(afterTime.Value).ToUnixTimeSeconds().ToString();
+        if (limit != null)
+            queryString[Dota2DispenserParams.limitFilter] = limit.ToString();
 
-        Uri uri = new(config.DispenserUrl, $"{Dota2DispenserPoints.matches}?{queryString}");
+        Uri uri = new(config.DispenserUrl, $"match?{queryString}");
 
         using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseContentRead);
 
