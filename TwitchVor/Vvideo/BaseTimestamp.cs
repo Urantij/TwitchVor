@@ -12,9 +12,10 @@ namespace TwitchVor.Vvideo
             this.timestamp = timestamp;
         }
 
-        public override string ToString()
-        {
-            return "???";
-        }
+        /// <summary>
+        /// Создать строку, которая будет в описании.
+        /// </summary>
+        /// <returns></returns>
+        public abstract string MakeString();
     }
 }

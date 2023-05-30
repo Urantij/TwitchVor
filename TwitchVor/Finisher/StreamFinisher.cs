@@ -13,6 +13,7 @@ using TwitchVor.Space;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;
 using TwitchVor.Utility;
+using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Money;
 using TwitchVor.Vvideo.Timestamps;
 
@@ -49,6 +50,7 @@ namespace TwitchVor.Finisher
         {
             ProcessingHandler processingHandler;
             {
+                IEnumerable<BaseTimestamp> timestamps = streamHandler.timestamper.timestamps.ToArray();
                 SkipDb[] skips = await db.LoadSkipsAsync();
 
                 TimeSpan totalLoss = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
@@ -86,7 +88,9 @@ namespace TwitchVor.Finisher
                     }
                 }
 
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), streamHandler.timestamper.timestamps, skips, subgifters, dotaMatches);
+                timestamps = timestamps.OrderBy(t => t.timestamp).ToArray();
+
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), timestamps, skips, subgifters, dotaMatches);
             }
 
             var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);

@@ -6,7 +6,7 @@ namespace TwitchVor.Vvideo.Timestamps
         {
         }
 
-        public override string ToString()
+        public override string MakeString()
         {
             return "Offline";
         }

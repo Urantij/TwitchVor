@@ -13,7 +13,7 @@ namespace TwitchVor.Vvideo.Timestamps
             this.gameId = gameId;
         }
 
-        public override string ToString()
+        public override string MakeString()
         {
             return $"{title} // {gameName ?? "???"} ({gameId})";
         }

@@ -153,7 +153,7 @@ namespace TwitchVor.Finisher
                     {
                         first = false;
 
-                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.ToString());
+                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString());
                     }
                     else
                     {
@@ -291,7 +291,7 @@ namespace TwitchVor.Finisher
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
-            return MakeTimestampStr(onVideoTime, timestamp.ToString());
+            return MakeTimestampStr(onVideoTime, timestamp.MakeString());
         }
 
         private static string MakeTimestampStr(TimeSpan onVideoTime, string content)
