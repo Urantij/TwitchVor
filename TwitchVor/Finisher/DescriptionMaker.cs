@@ -180,17 +180,16 @@ namespace TwitchVor.Finisher
                             return "???";
 
                         var onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, match.GameDate, skips);
-                        
+
                         StringBuilder sb = new();
 
                         string heroName = heroes.FirstOrDefault(hero => hero.Id == streamer.HeroId)?.LocalizedName ?? "Непонятно";
 
                         sb.Append(heroName);
 
-                        if (match.DetailsInfo?.RadiantWin != null && streamer.PlayerSlot != null)
+                        if (match.DetailsInfo?.RadiantWin != null && streamer.TeamNumber != null)
                         {
-                            // Я надеюсь, первые пять это редиант.
-                            bool win = streamer.PlayerSlot <= 4 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
+                            bool win = streamer.TeamNumber == 0 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
 
                             sb.Append(win ? " Вин" : " Луз");
                         }
