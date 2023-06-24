@@ -13,6 +13,11 @@ public class DotaInVideoConfig
 
     public string HeroesPath { get; set; } = "./DotaHeroes.json";
 
+    /// <summary>
+    /// Писать ли в описании видео, чем закончилась игра.
+    /// </summary>
+    public bool SpoilResults { get; set; } = false;
+
     public DotaInVideoConfig(ulong targetSteamId, Uri dispenserUrl)
     {
         TargetSteamId = targetSteamId;

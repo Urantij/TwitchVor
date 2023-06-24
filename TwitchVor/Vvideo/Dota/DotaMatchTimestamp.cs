@@ -12,11 +12,14 @@ class DotaMatchTimestamp : BaseTimestamp
     public readonly int partyCount;
     public readonly bool? win;
 
-    public DotaMatchTimestamp(string heroName, int partyCount, bool? win, DateTime timestamp) : base(timestamp)
+    private readonly bool spoilResults;
+
+    public DotaMatchTimestamp(string heroName, int partyCount, bool? win, DateTime timestamp, bool spoilResults) : base(timestamp)
     {
         this.heroName = heroName;
         this.partyCount = partyCount;
         this.win = win;
+        this.spoilResults = spoilResults;
     }
 
     public override string MakeString()
@@ -25,7 +28,7 @@ class DotaMatchTimestamp : BaseTimestamp
 
         sb.Append(heroName);
 
-        if (win != null)
+        if (spoilResults && win != null)
         {
             sb.Append(win == true ? " Вин" : " Луз");
         }

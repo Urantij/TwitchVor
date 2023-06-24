@@ -96,7 +96,7 @@ namespace TwitchVor.Finisher
                     try
                     {
                         var heroes = await Program.dota!.LoadHeroesAsync();
-                        var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match, Program.dota.config.TargetSteamId, heroes)).ToArray();
+                        var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match, Program.dota.config.TargetSteamId, heroes, Program.dota.config.SpoilResults)).ToArray();
 
                         timestamps = timestamps.Concat(matchesStamps);
                     }
@@ -656,12 +656,12 @@ namespace TwitchVor.Finisher
             }
         }
 
-        static DotaMatchTimestamp MakeDotaStamp(Dota2Dispenser.Shared.Models.MatchModel match, ulong targetSteamId, IEnumerable<HeroModel> heroes)
+        static DotaMatchTimestamp MakeDotaStamp(Dota2Dispenser.Shared.Models.MatchModel match, ulong targetSteamId, IEnumerable<HeroModel> heroes, bool spoilResults)
         {
             var streamer = match.Players?.FirstOrDefault(p => p.SteamId == targetSteamId);
 
             if (streamer == null)
-                return new DotaMatchTimestamp("???", 1, null, match.GameDate);
+                return new DotaMatchTimestamp("???", 1, null, match.GameDate, spoilResults);
 
             string heroName = heroes.FirstOrDefault(hero => hero.Id == streamer.HeroId)?.LocalizedName ?? "Непонятно";
 
@@ -678,7 +678,7 @@ namespace TwitchVor.Finisher
             else
                 partyCount = 1;
 
-            return new DotaMatchTimestamp(heroName, partyCount, win, match.GameDate);
+            return new DotaMatchTimestamp(heroName, partyCount, win, match.GameDate, spoilResults);
         }
     }
 }
