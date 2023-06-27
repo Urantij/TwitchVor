@@ -63,6 +63,7 @@ class YoutubeUploader : BaseUploader
                 Description = description,
                 Tags = creds.VideoTags,
                 DefaultLanguage = "ru",
+                DefaultAudioLanguage = "ru",
                 CategoryId = "22" // See https://developers.google.com/youtube/v3/docs/videoCategories/list
             },
             Status = new VideoStatus()
