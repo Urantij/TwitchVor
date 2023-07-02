@@ -172,6 +172,21 @@ namespace TwitchVor.Twitch.Downloader
             {
                 _logger.LogError(e, "PrivMsgReceived");
             }
+
+            try
+            {
+                // Временная мера, которая будет постоянной, потому что чатбота нормального у меня нет.
+                if (priv.mod && priv.text.StartsWith("=метка ", StringComparison.OrdinalIgnoreCase))
+                {
+                    string text = priv.text["=метка ".Length..];
+
+                    timestamper.AddTimestamp(new ChatCustomTimestamp(text, priv.displayName ?? priv.username, DateTime.UtcNow));
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "PrivMsgReceived");
+            }
         }
 
         static string MakeDbPath(Guid guid)

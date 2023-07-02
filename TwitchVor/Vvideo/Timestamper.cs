@@ -21,7 +21,7 @@ namespace TwitchVor.Vvideo
             _logger = loggerFactory.CreateLogger(this.GetType());
         }
 
-        private void AddTimestamp(BaseTimestamp timestamp)
+        public void AddTimestamp(BaseTimestamp timestamp)
         {
             lock (timestamps)
             {
