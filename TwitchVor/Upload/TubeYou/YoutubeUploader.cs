@@ -172,8 +172,11 @@ class YoutubeUploader : BaseUploader
                 Snippet = response.Snippet
             };
 
-            videoUpdate.Snippet.Title = uploaderHandler.MakeVideoName(video.processingVideo);
-            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo);
+            // А мне вот не дало загрузить видео, потому что стрелочка в описании была.
+            // В названии тоже нельзя.
+            // Было бы здорово, если бы эта информация была более общедоступна, но увы, ютуб контора          .
+            videoUpdate.Snippet.Title = uploaderHandler.MakeVideoName(video.processingVideo).Replace(">", "").Replace("<", "");
+            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo).Replace(">", "").Replace("<", "");
 
             try
             {
