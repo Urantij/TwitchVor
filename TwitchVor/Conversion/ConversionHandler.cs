@@ -10,7 +10,7 @@ namespace TwitchVor.Conversion
     {
         readonly Process process;
 
-        public int ExitCode => process.ExitCode;
+        // public int ExitCode => process.ExitCode;
 
         /// <summary>
         /// Ето читаем
@@ -29,11 +29,11 @@ namespace TwitchVor.Conversion
             this.process = process;
         }
 
-        public async Task<bool> WaitAsync()
+        public async Task<int> WaitAsync()
         {
             await process.WaitForExitAsync();
 
-            return process.ExitCode == 0;
+            return process.ExitCode;
         }
 
         public void Dispose()

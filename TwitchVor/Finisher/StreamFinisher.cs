@@ -453,7 +453,8 @@ namespace TwitchVor.Finisher
 
             if (conversionHandler != null)
             {
-                bool conversionSuccess = await conversionHandler.WaitAsync();
+                int conversionExitCode = await conversionHandler.WaitAsync();
+                bool conversionSuccess = conversionExitCode == 0;
 
                 conversionHandler.Dispose();
 
@@ -465,7 +466,7 @@ namespace TwitchVor.Finisher
 
                 if (!conversionSuccess)
                 {
-                    _logger.LogCritical("Конверсия не удалась. {code}. {line}", conversionHandler.ExitCode, lastConversionLine);
+                    _logger.LogCritical("Конверсия не удалась. {code}. {line}", conversionExitCode, lastConversionLine);
 
                     success = false;
                 }
