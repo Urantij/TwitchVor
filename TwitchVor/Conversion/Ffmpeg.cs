@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 
 namespace TwitchVor.Conversion
 {
-    public class Ffmpeg
+    public partial class Ffmpeg
     {
-        static readonly Regex validLastLineRegex = new(@"^video:.+?\saudio:.+?\ssubtitle:.+?\sother\sstreams:.+?\sglobal\sheaders:.+?\smuxing\soverhead:\s", RegexOptions.Compiled);
+        static readonly Regex validLastLineRegex = MyRegex();
 
         readonly ILogger _logger;
 
@@ -76,5 +76,10 @@ namespace TwitchVor.Conversion
 
         public static bool CheckLastLine(string? line)
             => line != null && validLastLineRegex.IsMatch(line);
+
+        [GeneratedRegex(
+            "^video:.+?\\saudio:.+?\\ssubtitle:.+?\\sother\\sstreams:.+?\\sglobal\\sheaders:.+?\\smuxing\\soverhead:\\s",
+            RegexOptions.Compiled)]
+        private static partial Regex MyRegex();
     }
 }
