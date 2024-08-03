@@ -339,6 +339,8 @@ namespace TwitchVor.Finisher
             // Если есть, пишем сегменты в инпут (инпут ффмпега), и пишем аутпут ффмпега в сервер пайп
             ConversionHandler? conversionHandler = null;
             string? lastConversionLine = null;
+            bool hadFinalConverionLine = false;
+            bool isFinalConverionLineLast = false;
             if (ffmpeg != null)
             {
                 _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
@@ -388,6 +390,16 @@ namespace TwitchVor.Finisher
                             lastConversionLine = line;
 
                             await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
+
+                            if (Ffmpeg.CheckLastLine(lastConversionLine))
+                            {
+                                hadFinalConverionLine = true;
+                                isFinalConverionLineLast = true;
+                            }
+                            else if (isFinalConverionLineLast)
+                            {
+                                isFinalConverionLineLast = false;
+                            }
                         }
 
                         await uploaderHandler.ProcessTask;
@@ -461,7 +473,12 @@ namespace TwitchVor.Finisher
                 if (conversionSuccess)
                 {
                     _logger.LogDebug("Последняя строка ффмпега\n{text}", lastConversionLine);
-                    conversionSuccess = Ffmpeg.CheckLastLine(lastConversionLine);
+                    conversionSuccess = hadFinalConverionLine;
+
+                    if (hadFinalConverionLine && !isFinalConverionLineLast)
+                    {
+                        _logger.LogWarning("Итоговая строчка была, но не последней.");
+                    }
                 }
 
                 if (!conversionSuccess)
