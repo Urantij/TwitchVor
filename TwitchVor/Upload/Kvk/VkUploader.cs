@@ -75,7 +75,7 @@ namespace TwitchVor.Upload.Kvk
                 Settings = VkNet.Enums.Filters.Settings.Wall
             });
 
-            await vkApi.Wall.GetAsync(new VkNet.Model.RequestParams.WallGetParams()
+            await vkApi.Wall.GetAsync(new VkNet.Model.WallGetParams()
             {
                 OwnerId = -creds.GroupId,
                 Count = 1,
@@ -100,7 +100,7 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Просим...");
 
-            var saveResult = await api.Video.SaveAsync(new VkNet.Model.RequestParams.VideoSaveParams()
+            var saveResult = await api.Video.SaveAsync(new VkNet.Model.VideoSaveParams()
             {
                 Name = name,
                 Description = description,
@@ -154,7 +154,7 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Просим...");
 
-            var saveResult = await api.Video.SaveAsync(new VkNet.Model.RequestParams.VideoSaveParams()
+            var saveResult = await api.Video.SaveAsync(new VkNet.Model.VideoSaveParams()
             {
                 Name = name,
                 Description = description,
@@ -225,7 +225,7 @@ namespace TwitchVor.Upload.Kvk
             return true;
         }
 
-        void PostUpload(UploaderHandler uploaderHandler, ProcessingVideo video, VkNet.Model.Attachments.Video saveResult)
+        void PostUpload(UploaderHandler uploaderHandler, ProcessingVideo video, VkNet.Model.Video saveResult)
         {
             if (saveResult.Id != null)
             {
@@ -283,7 +283,7 @@ namespace TwitchVor.Upload.Kvk
 
             try
             {
-                await api.Video.EditAsync(new VkNet.Model.RequestParams.VideoEditParams()
+                await api.Video.EditAsync(new VkNet.Model.VideoEditParams()
                 {
                     OwnerId = -creds.GroupId,
 

@@ -36,11 +36,11 @@ public class VkWaller
             Settings = VkNet.Enums.Filters.Settings.Wall
         });
 
-        await vkApi.Wall.PostAsync(new VkNet.Model.RequestParams.WallPostParams()
+        await vkApi.Wall.PostAsync(new VkNet.Model.WallPostParams()
         {
             Guid = Guid.NewGuid().ToString(),
 
-            Attachments = videoIds.Select(id => new VkNet.Model.Attachments.Video()
+            Attachments = videoIds.Select(id => new VkNet.Model.Video()
             {
                 OwnerId = -creds.GroupId,
                 Type = "video",

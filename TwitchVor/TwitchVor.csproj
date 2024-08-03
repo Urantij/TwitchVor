@@ -6,21 +6,21 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DigitalOcean.API" Version="5.2.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.61.0.3064" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
-    <PackageReference Include="MailKit" Version="4.1.0" />
-    <PackageReference Include="VkNet" Version="1.74.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.8" />
+    <PackageReference Include="MailKit" Version="4.7.1.1" />
+    <PackageReference Include="VkNet" Version="1.78.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.7" />
     <PackageReference Include="TimewebNet" Version="1.4.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
-    <PackageReference Include="TwitchSimpleLib" Version="1.3.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="TwitchSimpleLib" Version="1.3.5" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.1.2</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 </Project>
