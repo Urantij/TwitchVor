@@ -78,7 +78,7 @@ namespace TwitchVor.Conversion
             => line != null && validLastLineRegex.IsMatch(line);
 
         [GeneratedRegex(
-            "^video:.+?\\saudio:.+?\\ssubtitle:.+?\\sother\\sstreams:.+?\\sglobal\\sheaders:.+?\\smuxing\\soverhead:\\s",
+            @"^\[.+?\]\svideo:.+?\saudio:.+?\ssubtitle:.+?\sother\sstreams:.+?\sglobal\sheaders:.+?\smuxing\soverhead:\s.+?%",
             RegexOptions.Compiled)]
         private static partial Regex MyRegex();
     }
