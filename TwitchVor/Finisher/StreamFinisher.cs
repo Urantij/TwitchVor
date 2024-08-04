@@ -393,6 +393,7 @@ namespace TwitchVor.Finisher
 
                             if (Ffmpeg.CheckLastLine(lastConversionLine))
                             {
+                                _logger.LogDebug("Финальная строка: {line}", lastConversionLine);
                                 hadFinalConverionLine = true;
                                 isFinalConverionLineLast = true;
                             }
@@ -544,7 +545,7 @@ namespace TwitchVor.Finisher
 
                     await inputCountyStream.DisposeAsync();
 
-                    _logger.LogInformation("Всё прочитали.");
+                    _logger.LogInformation("Всё прочитали. {written} написано.", written);
                     return;
                 }
                 catch (Exception totalE)
