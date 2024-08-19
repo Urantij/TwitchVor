@@ -24,6 +24,23 @@ namespace TwitchVor.Utility
 
             return new LocalSpaceProvider(guid, loggerFactory, MakeLocalSpacePath(guid, false));
         }
+        
+        public static List<BaseUploader> GetAllUploaders(Guid guid, ILoggerFactory loggerFactory)
+        {
+            List<BaseUploader> list = new();
+
+            if (Program.config.Vk != null)
+            {
+                list.Add(new VkUploader(guid, loggerFactory, Program.config.Vk));
+            }
+            if (Program.config.Youtube != null)
+            {
+                list.Add(new YoutubeUploader(guid, loggerFactory, Program.config.Youtube));
+            }
+            list.Add(new FileUploader(guid, loggerFactory, Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video")));
+
+            return list;
+        }
 
         public static List<BaseUploader> GetUploaders(Guid guid, ILoggerFactory loggerFactory)
         {

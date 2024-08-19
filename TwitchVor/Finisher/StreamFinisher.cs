@@ -111,7 +111,47 @@ namespace TwitchVor.Finisher
                 processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), timestamps, skips, subgifters, dotaMatches);
             }
 
-            var uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);
+            List<BaseUploader> uploaders;
+            if (Program.config.Manual)
+            {
+                uploaders = DependencyProvider.GetAllUploaders(streamHandler.guid, _loggerFactory);
+
+                if (uploaders.Count > 0)
+                {
+                    Console.WriteLine("Цифры через пробел, что выбираешь.");
+                    for (int i = 0; i < uploaders.Count; i++)
+                    {
+                        Console.WriteLine($"[{i+1}] {uploaders[i].GetType().Name}");
+                    }
+
+                    string read = Console.ReadLine();
+
+                    BaseUploader[] selected = read.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(int.Parse)
+                        .Select(index => uploaders[index - 1])
+                        .Distinct()
+                        .ToArray();
+
+                    int counter = 0;
+                    while (counter < uploaders.Count)
+                    {
+                        BaseUploader item = uploaders[counter];
+
+                        if (selected.Contains(item))
+                        {
+                            counter++;
+                        }
+                        else
+                        {
+                            uploaders.RemoveAt(counter);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);    
+            }
 
             bool allSuccess = true;
             foreach (var uploader in uploaders)
