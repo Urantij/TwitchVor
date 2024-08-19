@@ -293,6 +293,13 @@ namespace TwitchVor
 
             logger.LogInformation("ServerGC is {status}", System.Runtime.GCSettings.IsServerGC);
 
+            if (config.Manual)
+            {
+                logger.LogInformation("Ручной режим!!!");
+                logger.LogInformation("Ручной режим!!!");
+                logger.LogInformation("Ручной режим!!!");
+            }
+
             while (true)
             {
                 Greater.Great("debug; pubsub; finish; shutdown");
