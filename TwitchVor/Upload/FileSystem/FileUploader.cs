@@ -18,6 +18,8 @@ namespace TwitchVor.Upload.FileSystem
         public override long SizeLimit => long.MaxValue;
         public override TimeSpan DurationLimit => TimeSpan.MaxValue;
 
+        public override bool NeedsExactVideoSize => false;
+
         public FileUploader(Guid guid, ILoggerFactory loggerFactory, string path)
             : base(guid, loggerFactory)
         {

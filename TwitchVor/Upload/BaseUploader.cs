@@ -22,6 +22,8 @@ namespace TwitchVor.Upload
 
         public abstract TimeSpan DurationLimit { get; }
 
+        public virtual bool NeedsExactVideoSize => true;
+
         protected BaseUploader(Guid guid, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger(this.GetType());

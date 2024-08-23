@@ -397,10 +397,19 @@ namespace TwitchVor.Finisher
                 {
                     _logger.LogDebug("Не нашли в кеше.");
 
-                    resultVideoSize = await CalculateResultVideoSizeAsync(video);
+                    if (uploaderHandler.uploader.NeedsExactVideoSize)
+                    {
+                        resultVideoSize = await CalculateResultVideoSizeAsync(video);
 
-                    cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, resultVideoSize);
-                    uploaderHandler.processingHandler.videoSizeCaches.Add(cachedInfo);
+                        cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, resultVideoSize);
+                        uploaderHandler.processingHandler.videoSizeCaches.Add(cachedInfo);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Да и пофиг.");
+
+                        resultVideoSize = video.size;
+                    }
                 }
 
                 _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", resultVideoSize, video.size);
