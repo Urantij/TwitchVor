@@ -16,6 +16,7 @@ using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
+using TwitchVor.Vvideo.Pubg;
 using TwitchVor.Vvideo.Timestamps;
 
 namespace TwitchVor.Finisher
@@ -51,7 +52,7 @@ namespace TwitchVor.Finisher
         {
             ProcessingHandler processingHandler;
             {
-                IEnumerable<BaseTimestamp> timestamps = streamHandler.timestamper.timestamps.ToArray();
+                List<BaseTimestamp> timestamps = streamHandler.timestamper.timestamps.ToList();
                 SkipDb[] skips = await db.LoadSkipsAsync();
 
                 TimeSpan totalLoss = TimeSpan.FromTicks(skips.Sum(s => (s.EndDate - s.StartDate).Ticks));
@@ -98,7 +99,7 @@ namespace TwitchVor.Finisher
                         var heroes = await Program.dota!.LoadHeroesAsync();
                         var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match, Program.dota.config.TargetSteamId, heroes, Program.dota.config.SpoilResults)).ToArray();
 
-                        timestamps = timestamps.Concat(matchesStamps);
+                        timestamps.AddRange(matchesStamps);
                     }
                     catch (Exception e)
                     {
@@ -106,9 +107,30 @@ namespace TwitchVor.Finisher
                     }
                 }
 
-                timestamps = timestamps.OrderBy(t => t.timestamp).ToArray();
+                if (Program.pubg != null)
+                {
+                    bool hadPubg = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t => t.gameId.Equals("493057", StringComparison.OrdinalIgnoreCase) == true);
 
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), timestamps, skips, subgifters, dotaMatches);
+                    if (hadPubg)
+                    {
+                        try
+                        {
+                            List<PubgMatch> matches = await Program.pubg.GetMatchesAsync(streamHandler.handlerCreationDate);
+                            
+                            PubgMatchTimestamp[] matchesStamps = matches.Select(MakePubgStamp).ToArray();
+
+                            timestamps.AddRange(matchesStamps);
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError(e, "Не удалось сформировать описание пабга.");
+                        }
+                    }
+                }
+
+                var resultTimestamps = timestamps.OrderBy(t => t.timestamp).ToArray();
+
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), resultTimestamps, skips, subgifters, dotaMatches);
             }
 
             List<BaseUploader> uploaders;
@@ -747,6 +769,11 @@ namespace TwitchVor.Finisher
                 partyCount = 1;
 
             return new DotaMatchTimestamp(heroName, partyCount, win, match.GameDate, spoilResults);
+        }
+
+        static PubgMatchTimestamp MakePubgStamp(PubgMatch match)
+        {
+            return new PubgMatchTimestamp(match.StartDate);
         }
     }
 }

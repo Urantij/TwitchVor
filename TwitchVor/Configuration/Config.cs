@@ -8,6 +8,7 @@ using TwitchVor.Upload.Kvk;
 using TwitchVor.Upload.TubeYou;
 using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
+using TwitchVor.Vvideo.Pubg;
 
 namespace TwitchVor.Configuration;
 
@@ -71,6 +72,9 @@ class Config
 
     [JsonProperty(Required = Required.Default)]
     public DotaInVideoConfig? Dota { get; set; } = null;
+    
+    [JsonProperty(Required = Required.Default)]
+    public PubgInVideoConfig? Pubg { get; set; } = null;
 
     [JsonProperty(Required = Required.Default)]
     public TimewebConfig? Timeweb { get; set; } = null;

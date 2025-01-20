@@ -17,6 +17,7 @@ using TwitchVor.Twitch.Downloader;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo.Dota;
 using TwitchVor.Vvideo.Money;
+using TwitchVor.Vvideo.Pubg;
 using static TwitchVor.Utility.ColoredConsoleOptions;
 
 namespace TwitchVor
@@ -38,6 +39,7 @@ namespace TwitchVor
         public static SubChecker? subChecker;
         public static ChatBot? chatBot;
         public static DotaInVideo? dota;
+        public static PubgInVideo? pubg;
         public static Ffmpeg? ffmpeg;
 
         public static Emailer? emailer;
@@ -254,6 +256,13 @@ namespace TwitchVor
                 {
                     logger.LogCritical("Не существует файл с героями.");
                 }
+            }
+
+            if (config.Pubg != null)
+            {
+                logger.LogInformation("Используем пабг.");
+
+                pubg = new PubgInVideo(config.Pubg, loggerFactory);
             }
 
             statuser = new TwitchStatuser(loggerFactory);
