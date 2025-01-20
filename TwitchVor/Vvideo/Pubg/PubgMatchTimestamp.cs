@@ -2,12 +2,15 @@ namespace TwitchVor.Vvideo.Pubg;
 
 public class PubgMatchTimestamp : BaseTimestamp
 {
-    public PubgMatchTimestamp(DateTime timestamp) : base(timestamp)
+    private readonly PubgMatch _match;
+
+    public PubgMatchTimestamp(PubgMatch match) : base(match.StartDate)
     {
+        _match = match;
     }
 
     public override string MakeString()
     {
-        return "Новый раунд";
+        return $"Новый раунд ({_match.MapName})";
     }
 }

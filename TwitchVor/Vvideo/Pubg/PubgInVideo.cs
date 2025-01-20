@@ -6,12 +6,14 @@ namespace TwitchVor.Vvideo.Pubg;
 
 public class PubgMatch
 {
-    public PubgMatch(DateTime startDate)
+    public PubgMatch(DateTime startDate, string mapName)
     {
         StartDate = startDate;
+        MapName = mapName;
     }
 
     public DateTime StartDate { get; set; }
+    public string MapName { get; set; }
 }
 
 public class PubgInVideo
@@ -74,7 +76,7 @@ public class PubgInVideo
             if (response.MatchData.Attributes.CreatedAt < startFrom)
                 break;
 
-            result.Add(new PubgMatch(response.MatchData.Attributes.CreatedAt.Value));
+            result.Add(new PubgMatch(response.MatchData.Attributes.CreatedAt.Value, response.MatchData.Attributes.MapName));
         }
 
         if (player.AccountData.Relationships.Matches.Data.Count > 0)

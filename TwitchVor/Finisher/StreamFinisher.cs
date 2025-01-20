@@ -773,7 +773,7 @@ namespace TwitchVor.Finisher
 
         static PubgMatchTimestamp MakePubgStamp(PubgMatch match)
         {
-            return new PubgMatchTimestamp(match.StartDate);
+            return new PubgMatchTimestamp(match);
         }
     }
 }
