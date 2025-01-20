@@ -1,6 +1,6 @@
 namespace TwitchVor.Vvideo
 {
-    abstract class BaseTimestamp
+    public abstract class BaseTimestamp
     {
         /// <summary>
         /// Абсолютный. UTC пожалуйста.
