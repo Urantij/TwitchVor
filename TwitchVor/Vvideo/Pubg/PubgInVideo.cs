@@ -41,16 +41,22 @@ public class PubgInVideo
             lastKnownMatchId = cache.LastKnownMatchId;
         }
 
-        Match[] matches = player.AccountData.Relationships.Matches.Data.Take(20)
-            .TakeWhile(match => match.Id != lastKnownMatchId).ToArray();
-
-        List<PubgMatch> result = new(matches.Length);
-
-        foreach (Match match in matches)
+        // В теории, если чето сломается, я не хочу, чтобы он листал матчи до бесконечности. Там он 400 штук возвращает
+        const int limit = 100;
+        int madeRequests = 0;
+        List<PubgMatch> result = new();
+        foreach (Match match in player.AccountData.Relationships.Matches.Data)
         {
+            if (match.Id == lastKnownMatchId)
+                break;
+
+            if (madeRequests > limit)
+                break;
+
             MatchResponse response;
             try
             {
+                madeRequests++;
                 response = await GetMatchAsync(match.Id);
             }
             catch (Exception e)
@@ -66,25 +72,26 @@ public class PubgInVideo
             }
 
             if (response.MatchData.Attributes.CreatedAt < startFrom)
-                continue;
+                break;
 
             result.Add(new PubgMatch(response.MatchData.Attributes.CreatedAt.Value));
         }
 
-        if (matches.Length > 0)
+        if (player.AccountData.Relationships.Matches.Data.Count > 0)
         {
-            lastKnownMatchId = matches[0].Id;
+            lastKnownMatchId = player.AccountData.Relationships.Matches.Data[0].Id;
 
             string content = JsonConvert.SerializeObject(new PubgInVideoCache(lastKnownMatchId));
             await File.WriteAllTextAsync(_cachePath, content);
         }
 
-        _logger.LogInformation("Загрузили {count} матчей, нормальных {okay}", matches.Length, result.Count);
+        _logger.LogInformation("Загрузили {count} матчей, мы взяли {}",
+            player.AccountData.Relationships.Matches.Data.Count, result.Count);
 
         return result;
     }
 
-    async Task<PlayerResponse> GetPlayerAsync()
+    private async Task<PlayerResponse> GetPlayerAsync()
     {
         using HttpRequestMessage requestMessage =
             new(HttpMethod.Get, $"https://api.pubg.com/shards/steam/players/{_config.AccountId}");
@@ -106,7 +113,7 @@ public class PubgInVideo
         return result;
     }
 
-    async Task<MatchResponse> GetMatchAsync(string matchId)
+    private async Task<MatchResponse> GetMatchAsync(string matchId)
     {
         using HttpRequestMessage requestMessage =
             new(HttpMethod.Get, $"https://api.pubg.com/shards/steam/matches/{matchId}");
