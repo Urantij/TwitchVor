@@ -31,7 +31,8 @@ namespace TwitchVor.Conversion
             process.StartInfo.RedirectStandardInput = true;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden; //написано, что должно быть че то тру, а оно фолс. ну похуй, работает и ладно
+            process.StartInfo.WindowStyle =
+                ProcessWindowStyle.Hidden; //написано, что должно быть че то тру, а оно фолс. ну похуй, работает и ладно
             process.StartInfo.CreateNoWindow = true;
             process.Start();
 

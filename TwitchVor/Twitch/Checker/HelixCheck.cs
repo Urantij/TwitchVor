@@ -6,10 +6,12 @@ namespace TwitchVor.Twitch.Checker;
 public class TwitchChannelInfo
 {
     public readonly string title;
+
     /// <summary>
     /// Нулл, если не удалось найти информацию.
     /// </summary>
     public readonly string gameName;
+
     public readonly string gameId;
     public readonly int viewers;
 

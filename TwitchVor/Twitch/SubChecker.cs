@@ -41,7 +41,8 @@ namespace TwitchVor.Twitch
                 userApi.Settings.ClientId = config.AppClientId;
                 userApi.Settings.Secret = config.AppSecret;
 
-                var token = await userApi.Auth.RefreshAuthTokenAsync(config.RefreshToken, config.AppSecret, config.AppClientId);
+                var token = await userApi.Auth.RefreshAuthTokenAsync(config.RefreshToken, config.AppSecret,
+                    config.AppClientId);
 
                 userApi.Settings.AccessToken = token.AccessToken;
 
@@ -50,7 +51,9 @@ namespace TwitchVor.Twitch
                 TwitchLib.Api.Helix.Models.Subscriptions.Subscription subscription;
                 try
                 {
-                    var result = await userApi.Helix.Subscriptions.CheckUserSubscriptionAsync(channelId, config.UserId, token.AccessToken);
+                    var result =
+                        await userApi.Helix.Subscriptions.CheckUserSubscriptionAsync(channelId, config.UserId,
+                            token.AccessToken);
                     subscription = result.Data[0];
                 }
                 catch (TwitchLib.Api.Core.Exceptions.BadResourceException)

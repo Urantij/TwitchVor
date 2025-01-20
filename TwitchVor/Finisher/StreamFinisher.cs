@@ -60,9 +60,11 @@ namespace TwitchVor.Finisher
                 List<Bill> bills = new();
                 if (Program.config.Money is MoneyConfig moneyConfig)
                 {
-                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate, new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
+                    TimeBasedPricer appPricer = new(streamHandler.handlerCreationDate,
+                        new Bill(moneyConfig.Currency, moneyConfig.PerHourCost));
                     bills.Add(appPricer.GetCost(DateTimeOffset.UtcNow));
                 }
+
                 if (streamHandler.space.pricer != null)
                     bills.Add(streamHandler.space.pricer.GetCost(DateTimeOffset.UtcNow));
 
@@ -73,7 +75,8 @@ namespace TwitchVor.Finisher
                 {
                     // TODO Можно ещё смотреть, чтобы стамп было дольше 10 минут.
                     // Мало ли с прошлого стрима остался.
-                    bool hadDota = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t => t.gameName?.Equals("Dota 2", StringComparison.OrdinalIgnoreCase) == true);
+                    bool hadDota = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t =>
+                        t.gameName?.Equals("Dota 2", StringComparison.OrdinalIgnoreCase) == true);
 
                     if (hadDota)
                     {
@@ -81,7 +84,8 @@ namespace TwitchVor.Finisher
                         // TODO Возможно, стоит поискать время начало стрима, а не создания хендлера.
                         try
                         {
-                            dotaMatches = await Program.dota.LoadMatchesAsync(afterTime: streamHandler.handlerCreationDate);
+                            dotaMatches =
+                                await Program.dota.LoadMatchesAsync(afterTime: streamHandler.handlerCreationDate);
                         }
                         catch (Exception e)
                         {
@@ -97,7 +101,8 @@ namespace TwitchVor.Finisher
                     try
                     {
                         var heroes = await Program.dota!.LoadHeroesAsync();
-                        var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match, Program.dota.config.TargetSteamId, heroes, Program.dota.config.SpoilResults)).ToArray();
+                        var matchesStamps = dotaMatches.Select(match => MakeDotaStamp(match,
+                            Program.dota.config.TargetSteamId, heroes, Program.dota.config.SpoilResults)).ToArray();
 
                         timestamps.AddRange(matchesStamps);
                     }
@@ -109,14 +114,16 @@ namespace TwitchVor.Finisher
 
                 if (Program.pubg != null)
                 {
-                    bool hadPubg = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t => t.gameId.Equals("493057", StringComparison.OrdinalIgnoreCase) == true);
+                    bool hadPubg = streamHandler.timestamper.timestamps.OfType<GameTimestamp>().Any(t =>
+                        t.gameId.Equals("493057", StringComparison.OrdinalIgnoreCase) == true);
 
                     if (hadPubg)
                     {
                         try
                         {
-                            List<PubgMatch> matches = await Program.pubg.GetMatchesAsync(streamHandler.handlerCreationDate);
-                            
+                            List<PubgMatch> matches =
+                                await Program.pubg.GetMatchesAsync(streamHandler.handlerCreationDate);
+
                             PubgMatchTimestamp[] matchesStamps = matches.Select(MakePubgStamp).ToArray();
 
                             timestamps.AddRange(matchesStamps);
@@ -130,7 +137,9 @@ namespace TwitchVor.Finisher
 
                 var resultTimestamps = timestamps.OrderBy(t => t.timestamp).ToArray();
 
-                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db, streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), resultTimestamps, skips, subgifters, dotaMatches);
+                processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db,
+                    streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), resultTimestamps,
+                    skips, subgifters, dotaMatches);
             }
 
             List<BaseUploader> uploaders;
@@ -143,7 +152,7 @@ namespace TwitchVor.Finisher
                     Console.WriteLine("Цифры через пробел, что выбираешь.");
                     for (int i = 0; i < uploaders.Count; i++)
                     {
-                        Console.WriteLine($"[{i+1}] {uploaders[i].GetType().Name}");
+                        Console.WriteLine($"[{i + 1}] {uploaders[i].GetType().Name}");
                     }
 
                     string read = Console.ReadLine();
@@ -172,7 +181,7 @@ namespace TwitchVor.Finisher
             }
             else
             {
-                uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);    
+                uploaders = DependencyProvider.GetUploaders(streamHandler.guid, _loggerFactory);
             }
 
             bool allSuccess = true;
@@ -201,7 +210,9 @@ namespace TwitchVor.Finisher
 
             // костыль мне плохо
             bool destroyVideo = allSuccess;
-            bool destroyDB = destroyVideo; // DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
+            bool
+                destroyDB =
+                    destroyVideo; // DependencyProvider.GetUploader(streamHandler.guid, _loggerFactory) is not Upload.FileSystem.FileUploader;
 
             if (Program.config.SaveTheVideo)
             {
@@ -251,7 +262,8 @@ namespace TwitchVor.Finisher
 
         private async Task<bool> ProcessStreamAsync(ProcessingHandler processingHandler, BaseUploader uploader)
         {
-            List<ProcessingVideo> videos = await CutToVideosAsync(processingHandler.skips, uploader.SizeLimit, uploader.DurationLimit);
+            List<ProcessingVideo> videos =
+                await CutToVideosAsync(processingHandler.skips, uploader.SizeLimit, uploader.DurationLimit);
 
             UploaderHandler uploaderHandler = new(uploader, processingHandler, videos);
 
@@ -268,6 +280,7 @@ namespace TwitchVor.Finisher
 
                     video.success = false;
                 }
+
                 video.processingEnd = DateTimeOffset.UtcNow;
             }
 
@@ -276,7 +289,8 @@ namespace TwitchVor.Finisher
             return uploaderHandler.videos.All(vid => vid.success == true);
         }
 
-        async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips, long sizeLimit, TimeSpan durationLimit)
+        async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips, long sizeLimit,
+            TimeSpan durationLimit)
         {
             Queue<VideoFormatDb> formats = new(await db.LoadAllVideoFormatsAsync());
 
@@ -355,7 +369,8 @@ namespace TwitchVor.Finisher
                     DateTimeOffset startDate = startSegment!.ProgramDate;
                     DateTimeOffset endDate = endSegment!.ProgramDate.AddSeconds(endSegment.Duration);
 
-                    var relatedSkips = skips.Where(skip => skip.EndDate > startDate && skip.StartDate < endDate).ToArray();
+                    var relatedSkips = skips.Where(skip => skip.EndDate > startDate && skip.StartDate < endDate)
+                        .ToArray();
 
                     TimeSpan loss = TimeSpan.FromTicks(relatedSkips.Sum(s =>
                     {
@@ -365,7 +380,8 @@ namespace TwitchVor.Finisher
                         return (end - start).Ticks;
                     }));
 
-                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate, endDate, loss));
+                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate,
+                        endDate, loss));
 
                     videoNumber++;
                 }
@@ -380,7 +396,8 @@ namespace TwitchVor.Finisher
 
         async Task<bool> DoVideoAsync(UploaderHandler uploaderHandler, ProcessingVideo video)
         {
-            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number, video.segmentsCount, video.segmentStart);
+            _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number,
+                video.segmentsCount, video.segmentStart);
 
             int limitIndex = video.segmentStart + video.segmentsCount;
 
@@ -407,7 +424,9 @@ namespace TwitchVor.Finisher
             {
                 _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
 
-                var cachedInfo = uploaderHandler.processingHandler.videoSizeCaches.FirstOrDefault(c => c.startSegmentId == video.segmentStart && c.endSegmentId == (video.segmentStart + video.segmentsCount));
+                var cachedInfo = uploaderHandler.processingHandler.videoSizeCaches.FirstOrDefault(c =>
+                    c.startSegmentId == video.segmentStart &&
+                    c.endSegmentId == (video.segmentStart + video.segmentsCount));
 
                 if (cachedInfo != null)
                 {
@@ -520,7 +539,8 @@ namespace TwitchVor.Finisher
             var writeTask = Task.Run(() => WriteVideoAsync(video, inputStream));
 
             bool singleVideo = uploaderHandler.videos.Count == 1;
-            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate, singleVideo ? null : video.number, 100, uploaderHandler.processingHandler.timestamps);
+            string videoName = DescriptionMaker.FormVideoName(streamHandler.handlerCreationDate,
+                singleVideo ? null : video.number, 100, uploaderHandler.processingHandler.timestamps);
             string description = uploaderHandler.MakeVideoDescription(video);
 
             video.uploadStart = DateTime.UtcNow;
@@ -528,7 +548,8 @@ namespace TwitchVor.Finisher
             bool success;
             try
             {
-                success = await uploaderHandler.uploader.UploadAsync(uploaderHandler, video, videoName, description, filename, resultVideoSize, clientPipe);
+                success = await uploaderHandler.uploader.UploadAsync(uploaderHandler, video, videoName, description,
+                    filename, resultVideoSize, clientPipe);
             }
             finally
             {
@@ -604,7 +625,9 @@ namespace TwitchVor.Finisher
                 using var cts = new CancellationTokenSource();
 
                 ByteCountingStream inputCountyStream = new(inputStream);
-                _ = Task.Run(() => PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), baseSize, _logger, cts.Token));
+                _ = Task.Run(() =>
+                    PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), baseSize, _logger,
+                        cts.Token));
 
                 try
                 {
@@ -623,11 +646,19 @@ namespace TwitchVor.Finisher
                 {
                     lastEx = totalE;
 
-                    _logger.LogWarning("Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}", attempt, attemptsLimit, inputCountyStream.TotalBytesWritten, totalE.Message);
+                    _logger.LogWarning(
+                        "Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}",
+                        attempt, attemptsLimit, inputCountyStream.TotalBytesWritten, totalE.Message);
                 }
                 finally
                 {
-                    try { cts.Cancel(); } catch { }
+                    try
+                    {
+                        cts.Cancel();
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 if (inputCountyStream.TotalBytesWritten > 0)
@@ -639,6 +670,7 @@ namespace TwitchVor.Finisher
                 {
                     attemptsLeft--;
                 }
+
                 attempt++;
             }
 
@@ -695,8 +727,7 @@ namespace TwitchVor.Finisher
                         read = await conversionHandler.OutputStream.ReadAsync(buffer);
 
                         resultSize += read;
-                    }
-                    while (read > 0);
+                    } while (read > 0);
 
                     _logger.LogInformation("Закончился выход у ффмпега.");
                 }
@@ -720,7 +751,8 @@ namespace TwitchVor.Finisher
         // TODO Как-то бы обозначить, что это не скорость загрузки, а скорость обработки.
         // Потому что обрабатывается больше байт, чем передаётся.
         // Ну да ладно.
-        static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, long size, ILogger logger, CancellationToken cancellationToken)
+        static async Task PrintCountingWriteDataAsync(ByteCountingStream stream, TimeSpan cooldown, long size,
+            ILogger logger, CancellationToken cancellationToken)
         {
             long writtenBefore = stream.TotalBytesWritten;
 
@@ -734,7 +766,10 @@ namespace TwitchVor.Finisher
                 {
                     await Task.Delay(cooldown, cancellationToken);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
 
                 double writtenPerSec = (stream.TotalBytesWritten - writtenBefore) / cooldown.TotalSeconds;
 
@@ -742,11 +777,13 @@ namespace TwitchVor.Finisher
 
                 double secondsLeft = (size - stream.TotalBytesWritten) / writtenPerSec;
 
-                await uline.UpdateAsync($"Написано {SomeUtis.MakeSizeFormat((long)writtenPerSec)}/сек Осталось {secondsLeft:F0} секунд ({SomeUtis.MakeSizeFormat(stream.TotalBytesWritten)}/{formattedSize})");
+                await uline.UpdateAsync(
+                    $"Написано {SomeUtis.MakeSizeFormat((long)writtenPerSec)}/сек Осталось {secondsLeft:F0} секунд ({SomeUtis.MakeSizeFormat(stream.TotalBytesWritten)}/{formattedSize})");
             }
         }
 
-        static DotaMatchTimestamp MakeDotaStamp(Dota2Dispenser.Shared.Models.MatchModel match, ulong targetSteamId, IEnumerable<HeroModel> heroes, bool spoilResults)
+        static DotaMatchTimestamp MakeDotaStamp(Dota2Dispenser.Shared.Models.MatchModel match, ulong targetSteamId,
+            IEnumerable<HeroModel> heroes, bool spoilResults)
         {
             var streamer = match.Players?.FirstOrDefault(p => p.SteamId == targetSteamId);
 
@@ -758,7 +795,9 @@ namespace TwitchVor.Finisher
             bool? win;
             if (match.DetailsInfo?.RadiantWin != null && streamer.TeamNumber != null)
             {
-                win = streamer.TeamNumber == 0 ? match.DetailsInfo.RadiantWin == true : match.DetailsInfo.RadiantWin == false;
+                win = streamer.TeamNumber == 0
+                    ? match.DetailsInfo.RadiantWin == true
+                    : match.DetailsInfo.RadiantWin == false;
             }
             else win = null;
 

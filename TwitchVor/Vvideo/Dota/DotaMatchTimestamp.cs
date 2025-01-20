@@ -14,7 +14,8 @@ class DotaMatchTimestamp : BaseTimestamp
 
     private readonly bool spoilResults;
 
-    public DotaMatchTimestamp(string heroName, int partyCount, bool? win, DateTime timestamp, bool spoilResults) : base(timestamp)
+    public DotaMatchTimestamp(string heroName, int partyCount, bool? win, DateTime timestamp, bool spoilResults) :
+        base(timestamp)
     {
         this.heroName = heroName;
         this.partyCount = partyCount;

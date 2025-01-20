@@ -6,6 +6,7 @@ namespace TwitchVor.Twitch.Checker
     public class TwitchCheckInfo
     {
         public readonly bool online;
+
         /// <summary>
         /// UTC
         /// </summary>

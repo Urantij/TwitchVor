@@ -47,7 +47,8 @@ namespace TwitchVor.Space.TimeWeb
             {
                 await api.S3Bucket.ListBucketsAsync();
             }
-            catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code == System.Net.HttpStatusCode.Forbidden)
+            catch (TimewebNet.Exceptions.BadCodeException badCodeE) when (badCodeE.Code ==
+                                                                          System.Net.HttpStatusCode.Forbidden)
             {
                 _logger.LogWarning("Таймвеб форбиден.");
 
@@ -93,12 +94,12 @@ namespace TwitchVor.Space.TimeWeb
                 Timeout = config.DownloadRequestTimeout
             };
             s3Client = new MinioClient().WithCredentials(bucket.AccessKey, bucket.SecretKey)
-                            .WithEndpoint(bucket.Hostname)
-                            .WithRegion(bucket.Location)
-                            .WithSSL()
-                            .WithTimeout((int)config.DownloadRequestTimeout.TotalMilliseconds)
-                            .WithHttpClient(s3HttpClient)
-                            .Build();
+                .WithEndpoint(bucket.Hostname)
+                .WithRegion(bucket.Location)
+                .WithSSL()
+                .WithTimeout((int)config.DownloadRequestTimeout.TotalMilliseconds)
+                .WithHttpClient(s3HttpClient)
+                .Build();
 
             {
                 string objectName = "video" + guid.ToString("N");
@@ -113,7 +114,8 @@ namespace TwitchVor.Space.TimeWeb
             Ready = true;
         }
 
-        public override async Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default)
+        public override async Task PutDataAsync(int id, Stream contentStream, long length,
+            CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
@@ -129,7 +131,8 @@ namespace TwitchVor.Space.TimeWeb
 
                 if (preSwapFs != null)
                 {
-                    _ = Task.Run(() => FinishTempFileAsync(s3Client, multipartUploadHandler, preSwapFs), cancellationToken);
+                    _ = Task.Run(() => FinishTempFileAsync(s3Client, multipartUploadHandler, preSwapFs),
+                        cancellationToken);
                 }
             }
 
@@ -139,7 +142,8 @@ namespace TwitchVor.Space.TimeWeb
             await contentStream.CopyStreamAsync(currentTempFs, (int)length, resultCts.Token);
         }
 
-        public override async Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default)
+        public override async Task ReadAllDataAsync(Stream inputStream, long length, long offset,
+            CancellationToken cancellationToken = default)
         {
             if (s3Client == null)
                 throw new NullReferenceException($"{nameof(s3Client)} is null");
@@ -150,9 +154,10 @@ namespace TwitchVor.Space.TimeWeb
             using var resultCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 
             await s3Client.GetObjectAsync(new GetObjectArgs().WithBucket(multipartUploadHandler.bucketName)
-                                                              .WithObject(multipartUploadHandler.objectName)
-                                                              .WithOffsetAndLength(offset, length)
-                                                              .WithCallbackStream(stream => stream.CopyToAsync(inputStream, resultCts.Token).GetAwaiter().GetResult()), resultCts.Token);
+                .WithObject(multipartUploadHandler.objectName)
+                .WithOffsetAndLength(offset, length)
+                .WithCallbackStream(stream =>
+                    stream.CopyToAsync(inputStream, resultCts.Token).GetAwaiter().GetResult()), resultCts.Token);
         }
 
         // public override async Task ReadPartDataAsync(int id, long offset, long length, Stream inputStream, CancellationToken cancellationToken = default)
@@ -204,7 +209,8 @@ namespace TwitchVor.Space.TimeWeb
             s3HttpClient?.Dispose();
         }
 
-        async Task FinishTempFileAsync(MinioClient s3Client, MultipartUploadHandler multipartUploadHandler, FileStream fs)
+        async Task FinishTempFileAsync(MinioClient s3Client, MultipartUploadHandler multipartUploadHandler,
+            FileStream fs)
         {
             try
             {
@@ -223,11 +229,13 @@ namespace TwitchVor.Space.TimeWeb
                         using var cts = new CancellationTokenSource(config.UploadRequestTimeout);
                         var cancellationToken = cts.Token;
 
-                        await multipartUploadHandler.PutObjectAsync(fs, partNumber: num, cancellationToken: cancellationToken);
+                        await multipartUploadHandler.PutObjectAsync(fs, partNumber: num,
+                            cancellationToken: cancellationToken);
                         DateTimeOffset endDate = DateTimeOffset.UtcNow;
                         var passed = endDate - startDate;
 
-                        _logger.LogDebug("Успешно положили объект {num} ({seconds:F0} секунд). {attempt}", num, passed.TotalSeconds, attempt);
+                        _logger.LogDebug("Успешно положили объект {num} ({seconds:F0} секунд). {attempt}", num,
+                            passed.TotalSeconds, attempt);
                         return;
                     }
                     catch (Exception e)
@@ -236,7 +244,9 @@ namespace TwitchVor.Space.TimeWeb
                         var passed = endDate - startDate;
 
                         lastE = e;
-                        _logger.LogWarning("FinishTempFileAsync {num} ({seconds:F0} секунд) ({attempt}/{attemptsLimit}) {message}", num, passed.TotalSeconds, attempt, attemptsLimit, e.Message);
+                        _logger.LogWarning(
+                            "FinishTempFileAsync {num} ({seconds:F0} секунд) ({attempt}/{attemptsLimit}) {message}",
+                            num, passed.TotalSeconds, attempt, attemptsLimit, e.Message);
 
                         await Task.Delay(TimeSpan.FromSeconds(30));
                     }

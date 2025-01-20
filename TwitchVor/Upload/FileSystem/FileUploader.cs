@@ -26,7 +26,8 @@ namespace TwitchVor.Upload.FileSystem
             this.path = path;
         }
 
-        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video,
+            string name, string description, string fileName, long size, Stream content)
         {
             _logger.LogInformation("Пишем...");
 
@@ -43,7 +44,8 @@ namespace TwitchVor.Upload.FileSystem
             return true;
         }
 
-        async Task WriteExtras(ProcessingHandler processingHandler, ProcessingVideo video, string name, string description)
+        async Task WriteExtras(ProcessingHandler processingHandler, ProcessingVideo video, string name,
+            string description)
         {
             {
                 string descriptionPath = Path.ChangeExtension(path, "txt");
@@ -67,9 +69,9 @@ namespace TwitchVor.Upload.FileSystem
             for (int msgIndex = 0; msgIndex < msgsCount; msgIndex += batchSize)
             {
                 var messages = context.ChatMessages.OrderBy(c => c.Id)
-                                                   .Skip(msgIndex)
-                                                   .Take(batchSize)
-                                                   .ToArray();
+                    .Skip(msgIndex)
+                    .Take(batchSize)
+                    .ToArray();
 
                 StringBuilder sb = new();
                 foreach (var message in messages)
@@ -81,20 +83,20 @@ namespace TwitchVor.Upload.FileSystem
                 }
 
                 var commands = messages
-                .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
-                .Select(a =>
-                {
-                    string message = a.Message["=метка".Length..].TrimStart();
-
-                    TimeSpan time = video.GetOnVideoTime(a.PostTime, processingHandler.skips);
-
-                    if (message.Length > 0)
+                    .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
+                    .Select(a =>
                     {
-                        return $"[{time}] {message} ({a.Username})";
-                    }
+                        string message = a.Message["=метка".Length..].TrimStart();
 
-                    return $"[{time}] ({a.Username})";
-                }).ToArray();
+                        TimeSpan time = video.GetOnVideoTime(a.PostTime, processingHandler.skips);
+
+                        if (message.Length > 0)
+                        {
+                            return $"[{time}] {message} ({a.Username})";
+                        }
+
+                        return $"[{time}] ({a.Username})";
+                    }).ToArray();
 
                 if (commands.Length > 0)
                 {
@@ -109,7 +111,8 @@ namespace TwitchVor.Upload.FileSystem
             }
         }
 
-        void CreateFileMessage(ProcessingHandler processingHandler, ProcessingVideo video, ChatMessageDb message, StringBuilder sb)
+        void CreateFileMessage(ProcessingHandler processingHandler, ProcessingVideo video, ChatMessageDb message,
+            StringBuilder sb)
         {
             TimeSpan time = video.GetOnVideoTime(message.PostTime, processingHandler.skips);
 
@@ -119,10 +122,12 @@ namespace TwitchVor.Upload.FileSystem
             {
                 sb.Append(":b").Append(message.Badges);
             }
+
             if (message.Color != null)
             {
                 sb.Append(":c").Append(message.Color);
             }
+
             sb.Append(' ');
 
             if (message.DisplayName != null)
@@ -140,6 +145,7 @@ namespace TwitchVor.Upload.FileSystem
             {
                 sb.Append(message.Username);
             }
+
             sb.Append(" (").Append(message.UserId).Append(')');
 
             sb.Append(' ').Append(message.Message);

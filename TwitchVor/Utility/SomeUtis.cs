@@ -10,6 +10,7 @@ public static class SomeUtis
 {
     // https://stackoverflow.com/a/4975942/21555531
     static readonly string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB
+
     public static string MakeSizeFormat(long size)
     {
         if (size == 0)

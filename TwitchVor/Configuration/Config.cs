@@ -72,7 +72,7 @@ class Config
 
     [JsonProperty(Required = Required.Default)]
     public DotaInVideoConfig? Dota { get; set; } = null;
-    
+
     [JsonProperty(Required = Required.Default)]
     public PubgInVideoConfig? Pubg { get; set; } = null;
 

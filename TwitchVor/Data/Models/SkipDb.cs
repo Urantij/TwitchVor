@@ -11,14 +11,14 @@ namespace TwitchVor.Data.Models
 
     public class SkipDb
     {
-        [Key]
-        public int Id { get; set; }
+        [Key] public int Id { get; set; }
 
         /// <summary>
         /// Получается конец последнего видимого сегмента
         /// </summary>
         [Required]
         public DateTimeOffset StartDate { get; set; }
+
         /// <summary>
         /// Получается начало нового видимого сегмента.
         /// </summary>

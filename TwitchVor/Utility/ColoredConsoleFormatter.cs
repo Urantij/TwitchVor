@@ -19,7 +19,9 @@ namespace TwitchVor.Utility
             public ConsoleColor? FgColor { get; set; }
             public ConsoleColor? BgColor { get; set; }
 
-            public ColoredCategory() { }
+            public ColoredCategory()
+            {
+            }
 
             public ColoredCategory(Type type, ConsoleColor? fgColor = null, ConsoleColor? bgColor = null)
             {
@@ -48,7 +50,8 @@ namespace TwitchVor.Utility
 
         private void ReloadLoggerOptions(ColoredConsoleOptions options) => this.options = options;
 
-        public override void Write<TState>(in LogEntry<TState> logEntry, IExternalScopeProvider scopeProvider, TextWriter textWriter)
+        public override void Write<TState>(in LogEntry<TState> logEntry, IExternalScopeProvider scopeProvider,
+            TextWriter textWriter)
         {
             string category = logEntry.Category;
             var colored = options.Colors?.FirstOrDefault(c => c.Category == category);
@@ -64,7 +67,8 @@ namespace TwitchVor.Utility
 
             var levelInfo = GetLevelInfo(logEntry.LogLevel);
 
-            textWriter.WriteColoredMessage(levelInfo.text, foreground: levelInfo.fgColor, background: levelInfo.bgColor);
+            textWriter.WriteColoredMessage(levelInfo.text, foreground: levelInfo.fgColor,
+                background: levelInfo.bgColor);
 
             textWriter.Write(": ");
 
@@ -72,6 +76,7 @@ namespace TwitchVor.Utility
             {
                 category = category.ColorMe(foreground: colored.FgColor, background: colored.BgColor);
             }
+
             textWriter.Write(category);
 
             if (logEntry.EventId.Id != 0)

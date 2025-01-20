@@ -38,21 +38,20 @@ namespace TwitchVor.Finisher
             }
 
             return tempList.Where(s => s.sub)
-                           .Reverse() //ник мог поменяться, тогда нужно юзать самый новый
-                           .DistinctBy(sc => sc.subInfo?.GiftertId)
-                           .Select(sc =>
-                           {
-                               if (sc.subInfo == null)
-                                   return "???";
+                .Reverse() //ник мог поменяться, тогда нужно юзать самый новый
+                .DistinctBy(sc => sc.subInfo?.GiftertId)
+                .Select(sc =>
+                {
+                    if (sc.subInfo == null)
+                        return "???";
 
-                               if (sc.subInfo.GifterName.Equals(sc.subInfo.GifterLogin, StringComparison.OrdinalIgnoreCase))
-                               {
-                                   return sc.subInfo.GifterName;
-                               }
+                    if (sc.subInfo.GifterName.Equals(sc.subInfo.GifterLogin, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return sc.subInfo.GifterName;
+                    }
 
-                               return $"{sc.subInfo.GifterName} ({sc.subInfo.GifterLogin})";
-
-                           }).ToArray();
+                    return $"{sc.subInfo.GifterName} ({sc.subInfo.GifterLogin})";
+                }).ToArray();
         }
 
         /// <summary>
@@ -62,7 +61,8 @@ namespace TwitchVor.Finisher
         /// <param name="videoNumber">Номер видоса (нулл, если видос один)</param>
         /// <param name="limit">Лимит буковок. У ютуба это 100, бтв</param>
         /// <returns></returns>
-        public static string FormVideoName(DateTimeOffset date, int? videoNumber, int limit, IEnumerable<BaseTimestamp> timestamps)
+        public static string FormVideoName(DateTimeOffset date, int? videoNumber, int limit,
+            IEnumerable<BaseTimestamp> timestamps)
         {
             const string gamesSeparator = ", ";
             const string gamesMany = "...";
@@ -78,9 +78,9 @@ namespace TwitchVor.Finisher
             }
 
             string[] games = timestamps.Where(timestamp => timestamp is GameTimestamp)
-                                       .Select(timestamp => ((GameTimestamp)timestamp).gameName ?? "???")
-                                       .Distinct()
-                                       .ToArray();
+                .Select(timestamp => ((GameTimestamp)timestamp).gameName ?? "???")
+                .Distinct()
+                .ToArray();
 
             if (games.Length > 0)
             {
@@ -119,7 +119,9 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime, Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
+        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps,
+            IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime,
+            Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -180,10 +182,10 @@ namespace TwitchVor.Finisher
             if (bills.Length > 0)
             {
                 var sumBills = bills.GroupBy(b => b.currency)
-                                    .Select(g => new Bill(g.Key, g.Sum(b => b.count)))
-                                    .Where(t => t.count > 0M)
-                                    .Select(t => t.Format())
-                                    .ToArray();
+                    .Select(g => new Bill(g.Key, g.Sum(b => b.count)))
+                    .Where(t => t.count > 0M)
+                    .Select(t => t.Format())
+                    .ToArray();
 
                 if (sumBills.Length > 0)
                 {
@@ -226,7 +228,8 @@ namespace TwitchVor.Finisher
             return null;
         }
 
-        private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate, IEnumerable<SkipDb> skips)
+        private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate,
+            IEnumerable<SkipDb> skips)
         {
             TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
 

@@ -24,7 +24,7 @@ namespace TwitchVor.Utility
 
             return new LocalSpaceProvider(guid, loggerFactory, MakeLocalSpacePath(guid, false));
         }
-        
+
         public static List<BaseUploader> GetAllUploaders(Guid guid, ILoggerFactory loggerFactory)
         {
             List<BaseUploader> list = new();
@@ -33,11 +33,14 @@ namespace TwitchVor.Utility
             {
                 list.Add(new VkUploader(guid, loggerFactory, Program.config.Vk));
             }
+
             if (Program.config.Youtube != null)
             {
                 list.Add(new YoutubeUploader(guid, loggerFactory, Program.config.Youtube));
             }
-            list.Add(new FileUploader(guid, loggerFactory, Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video")));
+
+            list.Add(new FileUploader(guid, loggerFactory,
+                Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video")));
 
             return list;
         }
@@ -50,6 +53,7 @@ namespace TwitchVor.Utility
             {
                 list.Add(new VkUploader(guid, loggerFactory, Program.config.Vk));
             }
+
             if (Program.config.Youtube != null)
             {
                 list.Add(new YoutubeUploader(guid, loggerFactory, Program.config.Youtube));
@@ -57,7 +61,8 @@ namespace TwitchVor.Utility
 
             if (list.Count == 0)
             {
-                list.Add(new FileUploader(guid, loggerFactory, Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video")));
+                list.Add(new FileUploader(guid, loggerFactory,
+                    Path.ChangeExtension(MakeLocalSpacePath(guid, false), "video")));
             }
 
             return list;

@@ -34,7 +34,8 @@ class YoutubeUploader : BaseUploader
         this.creds = creds;
     }
 
-    public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo processingVideo, string name, string description, string fileName, long size, Stream content)
+    public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo processingVideo,
+        string name, string description, string fileName, long size, Stream content)
     {
         var secrets = new ClientSecrets()
         {
@@ -44,10 +45,10 @@ class YoutubeUploader : BaseUploader
 
         var token = new TokenResponse { RefreshToken = creds.RefreshToken };
         var credentials = new UserCredential(new GoogleAuthorizationCodeFlow(
-        new GoogleAuthorizationCodeFlow.Initializer
-        {
-            ClientSecrets = secrets
-        }), creds.UserId, token);
+            new GoogleAuthorizationCodeFlow.Initializer
+            {
+                ClientSecrets = secrets
+            }), creds.UserId, token);
 
         var youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
@@ -77,10 +78,7 @@ class YoutubeUploader : BaseUploader
         videosInsertRequest.ChunkSize = ResumableUpload.DefaultChunkSize;
 
         string? videoId = null;
-        videosInsertRequest.UploadSessionData += (data) =>
-        {
-
-        };
+        videosInsertRequest.UploadSessionData += (data) => { };
         videosInsertRequest.ResponseReceived += (response) =>
         {
             videoId = response.Id;
@@ -141,10 +139,10 @@ class YoutubeUploader : BaseUploader
 
         var token = new TokenResponse { RefreshToken = creds.RefreshToken };
         var credentials = new UserCredential(new GoogleAuthorizationCodeFlow(
-        new GoogleAuthorizationCodeFlow.Initializer
-        {
-            ClientSecrets = secrets
-        }), creds.UserId, token);
+            new GoogleAuthorizationCodeFlow.Initializer
+            {
+                ClientSecrets = secrets
+            }), creds.UserId, token);
 
         var youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
@@ -152,7 +150,8 @@ class YoutubeUploader : BaseUploader
             ApplicationName = "Who read this will die"
         });
 
-        var listRequest = youtubeService.Videos.List(new string[] { "id", "snippet", "status", "processingDetails", "suggestions" });
+        var listRequest = youtubeService.Videos.List(new string[]
+            { "id", "snippet", "status", "processingDetails", "suggestions" });
         listRequest.Id = uploadedVideos.Select(v => v.videoId).ToArray();
 
         var listResponse = await listRequest.ExecuteAsync();
@@ -175,8 +174,10 @@ class YoutubeUploader : BaseUploader
             // А мне вот не дало загрузить видео, потому что стрелочка в описании была.
             // В названии тоже нельзя.
             // Было бы здорово, если бы эта информация была более общедоступна, но увы, ютуб контора          .
-            videoUpdate.Snippet.Title = uploaderHandler.MakeVideoName(video.processingVideo).Replace(">", "").Replace("<", "");
-            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo).Replace(">", "").Replace("<", "");
+            videoUpdate.Snippet.Title =
+                uploaderHandler.MakeVideoName(video.processingVideo).Replace(">", "").Replace("<", "");
+            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo)
+                .Replace(">", "").Replace("<", "");
 
             try
             {

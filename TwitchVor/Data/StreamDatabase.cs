@@ -114,7 +114,8 @@ namespace TwitchVor.Data
             await context.SaveChangesAsync();
         }
 
-        public async Task AddChatMessageAsync(string userId, string username, string? displayName, string message, string? color, string? badges, DateTimeOffset postTime)
+        public async Task AddChatMessageAsync(string userId, string username, string? displayName, string message,
+            string? color, string? badges, DateTimeOffset postTime)
         {
             using var context = CreateContext();
 
@@ -144,9 +145,9 @@ namespace TwitchVor.Data
             using var context = CreateContext();
 
             return await context.Segments.OrderBy(s => s.Id)
-                                         .Skip(skip)
-                                         .Take(take)
-                                         .ToArrayAsync();
+                .Skip(skip)
+                .Take(take)
+                .ToArrayAsync();
         }
 
         public async Task<SkipDb[]> LoadSkipsAsync()
@@ -166,7 +167,7 @@ namespace TwitchVor.Data
             using var context = CreateContext();
 
             return await context.Segments.Where(segment => segment.Id < id)
-                                         .SumAsync(s => s.Size);
+                .SumAsync(s => s.Size);
         }
 
         public async Task<long> CalculateSizeAsync(int startId, int endId)
@@ -174,7 +175,7 @@ namespace TwitchVor.Data
             using var context = CreateContext();
 
             return await context.Segments.Where(segment => segment.Id >= startId && segment.Id <= endId)
-                                         .SumAsync(s => s.Size);
+                .SumAsync(s => s.Size);
         }
     }
 }

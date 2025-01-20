@@ -98,7 +98,8 @@ namespace TwitchVor.Twitch.Downloader
                         {
                             TimeSpan delay = TimeSpan.FromMinutes(30);
 
-                            _logger.LogWarning("Не удалось получить инфу о сабке, продолжим через {minutes:N0}", delay.TotalMinutes);
+                            _logger.LogWarning("Не удалось получить инфу о сабке, продолжим через {minutes:N0}",
+                                delay.TotalMinutes);
                             await Task.Delay(delay);
                         }
                     }
@@ -166,7 +167,8 @@ namespace TwitchVor.Twitch.Downloader
             {
                 string? badges = priv.rawIrcMessage.tags?.GetValueOrDefault("badges");
 
-                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color, badges, priv.tmiSentTs);
+                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color,
+                    badges, priv.tmiSentTs);
             }
             catch (Exception e)
             {
@@ -180,7 +182,8 @@ namespace TwitchVor.Twitch.Downloader
                 {
                     string text = priv.text["=метка ".Length..];
 
-                    timestamper.AddTimestamp(new ChatCustomTimestamp(text, priv.displayName ?? priv.username, DateTime.UtcNow));
+                    timestamper.AddTimestamp(new ChatCustomTimestamp(text, priv.displayName ?? priv.username,
+                        DateTime.UtcNow));
                 }
             }
             catch (Exception e)

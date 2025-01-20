@@ -84,7 +84,8 @@ namespace TwitchVor.Upload.Kvk
             _logger.LogInformation("Авторизовались.");
         }
 
-        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video,
+            string name, string description, string fileName, long size, Stream content)
         {
             using var countingContent = new ByteCountingStream(content);
 
@@ -138,7 +139,8 @@ namespace TwitchVor.Upload.Kvk
         }
 
         // Обманом заставить вк есть видос неизвестного размера.
-        public async Task<bool> UploadUnknownAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name, string description, string fileName, long size, Stream content)
+        public async Task<bool> UploadUnknownAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name,
+            string description, string fileName, long size, Stream content)
         {
             using var countingContent = new ByteCountingStream(content);
 
@@ -166,7 +168,8 @@ namespace TwitchVor.Upload.Kvk
             // Когда закончим писать, его нужно будет закрыть.
             using var serverTrashPipe = new AnonymousPipeServerStream(PipeDirection.Out);
             // Это читает аплоадер.
-            using var clientTrashPipe = new AnonymousPipeClientStream(PipeDirection.In, serverTrashPipe.ClientSafePipeHandle);
+            using var clientTrashPipe =
+                new AnonymousPipeClientStream(PipeDirection.In, serverTrashPipe.ClientSafePipeHandle);
             using var clientTrashNotification = new NotifiableStream(clientTrashPipe);
 
             // Смотри #29 
@@ -332,7 +335,9 @@ namespace TwitchVor.Upload.Kvk
 
         async Task SpamTrashAsync(Stream target, long needToWrite)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes("Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
+            byte[] bytes =
+                Encoding.UTF8.GetBytes(
+                    "Я правда не хочу этого делать, это такой костыль, просто ужас. Но мне нужно загрузить видео неизвестного размера, и иного варианта я не вижу.");
 
             long written = 0;
             _logger.LogInformation("Нужно сделать {bytes} мусора", needToWrite);

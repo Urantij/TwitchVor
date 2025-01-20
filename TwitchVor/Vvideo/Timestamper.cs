@@ -45,9 +45,11 @@ namespace TwitchVor.Vvideo
                 return;
             }
 
-            if (lastHelixCheck?.online != true || lastHelixCheck.info.title != helixCheck.info.title || lastHelixCheck.info.gameId != helixCheck.info.gameId)
+            if (lastHelixCheck?.online != true || lastHelixCheck.info.title != helixCheck.info.title ||
+                lastHelixCheck.info.gameId != helixCheck.info.gameId)
             {
-                AddTimestamp(new GameTimestamp(helixCheck.info.title, helixCheck.info.gameName, helixCheck.info.gameId, helixCheck.checkTime));
+                AddTimestamp(new GameTimestamp(helixCheck.info.title, helixCheck.info.gameName, helixCheck.info.gameId,
+                    helixCheck.checkTime));
             }
 
             lastHelixCheck = helixCheck;

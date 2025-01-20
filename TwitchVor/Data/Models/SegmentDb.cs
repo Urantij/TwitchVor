@@ -9,8 +9,7 @@ namespace TwitchVor.Data.Models
 {
     public class SegmentDb
     {
-        [Key]
-        public int Id { get; set; }
+        [Key] public int Id { get; set; }
 
         /// <summary>
         /// В теории может повторяться, ведь при переподрубе он обнуляется
@@ -28,6 +27,7 @@ namespace TwitchVor.Data.Models
         /// </summary>
         [Required]
         public long Size { get; set; }
+
         /// <summary>
         /// В секундах
         /// </summary>

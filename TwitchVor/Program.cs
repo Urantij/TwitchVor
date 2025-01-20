@@ -64,7 +64,9 @@ namespace TwitchVor
 
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
             {
-                builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(typeof(ColoredConsoleOptions), typeof(ColoredConsoleOptions), Microsoft.Extensions.DependencyInjection.ServiceLifetime.Singleton));
+                builder.Services.Add(new Microsoft.Extensions.DependencyInjection.ServiceDescriptor(
+                    typeof(ColoredConsoleOptions), typeof(ColoredConsoleOptions),
+                    Microsoft.Extensions.DependencyInjection.ServiceLifetime.Singleton));
 
                 builder.AddConsoleFormatter<ColoredConsoleFormatter, ColoredConsoleOptions>(options =>
                 {
@@ -77,10 +79,12 @@ namespace TwitchVor
                         new ColoredCategory(typeof(Upload.Kvk.VkUploader), ConsoleColor.White, ConsoleColor.DarkBlue),
                         new ColoredCategory(typeof(Upload.Kvk.VkWaller), ConsoleColor.White, ConsoleColor.DarkBlue),
 
-                        new ColoredCategory(typeof(Upload.TubeYou.YoutubeUploader), ConsoleColor.White, ConsoleColor.DarkRed),
+                        new ColoredCategory(typeof(Upload.TubeYou.YoutubeUploader), ConsoleColor.White,
+                            ConsoleColor.DarkRed),
 
                         new ColoredCategory(typeof(Space.Local.LocalSpaceProvider), ConsoleColor.DarkGreen),
-                        new ColoredCategory(typeof(Space.TimeWeb.TimewebSpaceProvider), ConsoleColor.DarkMagenta, ConsoleColor.Gray),
+                        new ColoredCategory(typeof(Space.TimeWeb.TimewebSpaceProvider), ConsoleColor.DarkMagenta,
+                            ConsoleColor.Gray),
 
                         new ColoredCategory(typeof(StreamDownloader), ConsoleColor.Magenta),
                     };
@@ -104,7 +108,8 @@ namespace TwitchVor
                 logger.LogWarning("Дыбажым");
             }
 
-            logger.LogInformation("Версия вора {version}", System.Reflection.Assembly.GetEntryAssembly()!.GetName().Version);
+            logger.LogInformation("Версия вора {version}",
+                System.Reflection.Assembly.GetEntryAssembly()!.GetName().Version);
 
             if (File.Exists(configPath))
             {
@@ -131,7 +136,8 @@ namespace TwitchVor
 
             if (config.ChannelId == null)
             {
-                var callrsult = twitchAPI.Helix.Users.GetUsersAsync(logins: new List<string>() { config.Channel }).GetAwaiter().GetResult();
+                var callrsult = twitchAPI.Helix.Users.GetUsersAsync(logins: new List<string>() { config.Channel })
+                    .GetAwaiter().GetResult();
 
                 if (callrsult.Users.Length == 0)
                 {
@@ -147,7 +153,8 @@ namespace TwitchVor
             }
 
             //q
-            logger.LogInformation("Качество {resolution} {fps}", Program.config.PreferedVideoResolution, Program.config.PreferedVideoFps);
+            logger.LogInformation("Качество {resolution} {fps}", Program.config.PreferedVideoResolution,
+                Program.config.PreferedVideoFps);
 
             //vk
             if (config.Vk != null)
@@ -178,7 +185,8 @@ namespace TwitchVor
             if (config.Timeweb != null)
             {
                 logger.LogInformation("Таймвеб добавлен");
-                logger.LogInformation("Таймвеб таймаут {uploadTimeout} / {downloadTimeout}", config.Timeweb.UploadRequestTimeout, config.Timeweb.DownloadRequestTimeout);
+                logger.LogInformation("Таймвеб таймаут {uploadTimeout} / {downloadTimeout}",
+                    config.Timeweb.UploadRequestTimeout, config.Timeweb.DownloadRequestTimeout);
 
                 if (config.Timeweb.ValidateTokenOnStart)
                 {

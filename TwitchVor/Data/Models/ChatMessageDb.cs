@@ -8,25 +8,21 @@ namespace TwitchVor.Data.Models;
 
 public class ChatMessageDb
 {
-    [Key]
-    public int Id { get; set; }
+    [Key] public int Id { get; set; }
 
-    [Required]
-    public string UserId { get; set; }
-    [Required]
-    public string Username { get; set; }
+    [Required] public string UserId { get; set; }
+    [Required] public string Username { get; set; }
     public string? DisplayName { get; set; }
 
-    [Required]
-    public string Message { get; set; }
+    [Required] public string Message { get; set; }
 
     public string? Color { get; set; }
     public string? Badges { get; set; }
 
-    [Required]
-    public DateTimeOffset PostTime { get; set; }
+    [Required] public DateTimeOffset PostTime { get; set; }
 
-    public ChatMessageDb(int id, string userId, string username, string? displayName, string message, string? color, string? badges, DateTimeOffset postTime)
+    public ChatMessageDb(int id, string userId, string username, string? displayName, string message, string? color,
+        string? badges, DateTimeOffset postTime)
     {
         Id = id;
         UserId = userId;

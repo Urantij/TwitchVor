@@ -36,10 +36,10 @@ namespace TwitchVor.Data
             base.ConfigureConventions(configurationBuilder);
 
             configurationBuilder.Properties<DateTimeOffset>()
-                                .HaveConversion<DateTimeOffsetToBinaryConverter>();
+                .HaveConversion<DateTimeOffsetToBinaryConverter>();
 
             configurationBuilder.Properties<DateTimeOffset?>()
-                                .HaveConversion<DateTimeOffsetToBinaryConverter>();
+                .HaveConversion<DateTimeOffsetToBinaryConverter>();
         }
     }
 }

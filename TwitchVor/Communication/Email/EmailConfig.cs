@@ -11,8 +11,10 @@ namespace TwitchVor.Communication.Email
 #nullable disable
         [JsonProperty(Required = Required.Always)]
         public string Name { get; set; }
+
         [JsonProperty(Required = Required.Always)]
         public string Email { get; set; }
+
         [JsonProperty(Required = Required.Always)]
         public string Password { get; set; }
 #nullable enable

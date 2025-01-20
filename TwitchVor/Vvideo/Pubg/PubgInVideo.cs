@@ -76,7 +76,8 @@ public class PubgInVideo
             if (response.MatchData.Attributes.CreatedAt < startFrom)
                 break;
 
-            result.Add(new PubgMatch(response.MatchData.Attributes.CreatedAt.Value, response.MatchData.Attributes.MapName));
+            result.Add(new PubgMatch(response.MatchData.Attributes.CreatedAt.Value,
+                response.MatchData.Attributes.MapName));
         }
 
         if (player.AccountData.Relationships.Matches.Data.Count > 0)

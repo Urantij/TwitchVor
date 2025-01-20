@@ -11,6 +11,7 @@ public class ProcessingVideo
     public readonly int number;
 
     public readonly int segmentStart;
+
     // TODO Подумать, насколько это хорошая идея, не хранить последний индекс сегмента, а надеяться, что ни одного айди пропущено не будет.
     public readonly int segmentsCount;
 
@@ -34,7 +35,8 @@ public class ProcessingVideo
     public DateTimeOffset? uploadStart;
     public DateTimeOffset? uploadEnd;
 
-    public ProcessingVideo(int number, int segmentStart, int segmentsLength, long size, DateTimeOffset startDate, DateTimeOffset endDate, TimeSpan loss)
+    public ProcessingVideo(int number, int segmentStart, int segmentsLength, long size, DateTimeOffset startDate,
+        DateTimeOffset endDate, TimeSpan loss)
     {
         this.number = number;
         this.segmentStart = segmentStart;
@@ -63,7 +65,8 @@ public class ProcessingVideo
     /// <param name="absoluteDate"></param>
     /// <param name="skips">Скипы, чьё начало было ДО <paramref name="absoluteDate"/></param>
     /// <returns></returns>
-    public static TimeSpan GetOnVideoTime(DateTimeOffset videoStartDate, DateTimeOffset absoluteDate, IEnumerable<SkipDb> skips)
+    public static TimeSpan GetOnVideoTime(DateTimeOffset videoStartDate, DateTimeOffset absoluteDate,
+        IEnumerable<SkipDb> skips)
     {
         //Время на видео, это абсолютное время (date) минус все скипы, которые произошли до этого момента минус время начала видео
 

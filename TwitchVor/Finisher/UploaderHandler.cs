@@ -21,7 +21,8 @@ class UploaderHandler
 
     public Task ProcessTask => processTCS.Task;
 
-    public UploaderHandler(BaseUploader uploader, ProcessingHandler processingHandler, IReadOnlyCollection<ProcessingVideo> videos)
+    public UploaderHandler(BaseUploader uploader, ProcessingHandler processingHandler,
+        IReadOnlyCollection<ProcessingVideo> videos)
     {
         this.uploader = uploader;
         this.processingHandler = processingHandler;
@@ -35,7 +36,8 @@ class UploaderHandler
 
     public string MakeVideoName(ProcessingVideo video, int lengthLimit = 100)
     {
-        return DescriptionMaker.FormVideoName(processingHandler.handlerCreationDate, videos.Count == 1 ? null : video.number, lengthLimit, processingHandler.timestamps);
+        return DescriptionMaker.FormVideoName(processingHandler.handlerCreationDate,
+            videos.Count == 1 ? null : video.number, lengthLimit, processingHandler.timestamps);
     }
 
     public string MakeVideoDescription(ProcessingVideo video)
@@ -43,14 +45,16 @@ class UploaderHandler
         TimeSpan? videoUploadTime = video.uploadEnd - video.uploadStart;
         TimeSpan? totalUploadTime = SumTotalUploadTime();
 
-        return DescriptionMaker.FormDescription(video.startDate, processingHandler.timestamps, processingHandler.skips, processingHandler.subgifters, processingHandler.advertismentLoss, processingHandler.totalLoss, processingHandler.bills, videoUploadTime, totalUploadTime);
+        return DescriptionMaker.FormDescription(video.startDate, processingHandler.timestamps, processingHandler.skips,
+            processingHandler.subgifters, processingHandler.advertismentLoss, processingHandler.totalLoss,
+            processingHandler.bills, videoUploadTime, totalUploadTime);
     }
 
     TimeSpan? SumTotalUploadTime()
     {
         var uploads = videos.Where(v => v.uploadStart != null && v.uploadEnd != null)
-                            .Select(v => (v.uploadEnd!.Value - v.uploadStart!.Value).Ticks)
-                            .ToArray();
+            .Select(v => (v.uploadEnd!.Value - v.uploadStart!.Value).Ticks)
+            .ToArray();
 
         if (uploads.Length == 0)
             return null;

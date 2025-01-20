@@ -49,7 +49,9 @@ namespace TwitchVor.Twitch.Checker
 
             try
             {
-                var response = await Program.twitchAPI.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { Program.config.ChannelId! }, first: 1);
+                var response =
+                    await Program.twitchAPI.Helix.Streams.GetStreamsAsync(
+                        userIds: new List<string>() { Program.config.ChannelId! }, first: 1);
 
                 if (response.Streams.Length == 0)
                 {
@@ -86,7 +88,8 @@ namespace TwitchVor.Twitch.Checker
                 return null;
             }
 
-            return new HelixCheck(true, DateTime.UtcNow, new TwitchChannelInfo(stream.Title, stream.GameName, stream.GameId, stream.ViewerCount));
+            return new HelixCheck(true, DateTime.UtcNow,
+                new TwitchChannelInfo(stream.Title, stream.GameName, stream.GameId, stream.ViewerCount));
         }
     }
 }

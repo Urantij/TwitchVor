@@ -25,7 +25,8 @@ public class YoutubeCreds
     /// </summary>
     public TimeSpan? VideoProcessingCheckDelay { get; set; } = TimeSpan.FromMinutes(5);
 
-    public YoutubeCreds(string refreshToken, string userId, string clientId, string clientSecret, string[]? videoTags, TimeSpan? videoDescriptionUpdateDelay, TimeSpan? videoProcessingCheckDelay)
+    public YoutubeCreds(string refreshToken, string userId, string clientId, string clientSecret, string[]? videoTags,
+        TimeSpan? videoDescriptionUpdateDelay, TimeSpan? videoProcessingCheckDelay)
     {
         RefreshToken = refreshToken;
         UserId = userId;

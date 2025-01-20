@@ -135,7 +135,10 @@ namespace TwitchVor.Twitch.Downloader
             {
                 await Task.Delay(Program.config.StreamContinuationCheckTime, thatSource.Token);
             }
-            catch { return; }
+            catch
+            {
+                return;
+            }
 
             lock (locker)
             {
@@ -149,7 +152,10 @@ namespace TwitchVor.Twitch.Downloader
             {
                 await Task.Delay(Program.config.StreamRestartCheckTime, thatSource.Token);
             }
-            catch { return; }
+            catch
+            {
+                return;
+            }
 
             lock (locker)
             {
@@ -166,7 +172,15 @@ namespace TwitchVor.Twitch.Downloader
             if (currentStreamOfflineCancelSource == null)
                 return;
 
-            try { currentStreamOfflineCancelSource.Cancel(); } catch { };
+            try
+            {
+                currentStreamOfflineCancelSource.Cancel();
+            }
+            catch
+            {
+            }
+
+            ;
             currentStreamOfflineCancelSource.Dispose();
             currentStreamOfflineCancelSource = null;
         }

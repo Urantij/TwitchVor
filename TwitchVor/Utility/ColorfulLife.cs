@@ -52,13 +52,15 @@ namespace TwitchVor.Utility
             };
         }
 
-        public static void WriteColoredMessage(this TextWriter textWriter, string message, ConsoleColor? background = null, ConsoleColor? foreground = null)
+        public static void WriteColoredMessage(this TextWriter textWriter, string message,
+            ConsoleColor? background = null, ConsoleColor? foreground = null)
         {
             // Order: backgroundcolor, foregroundcolor, Message, reset foregroundcolor, reset backgroundcolor
             if (background.HasValue)
             {
                 textWriter.Write(GetBackgroundColorEscapeCode(background.Value));
             }
+
             if (foreground.HasValue)
             {
                 textWriter.Write(GetForegroundColorEscapeCode(foreground.Value));
@@ -70,6 +72,7 @@ namespace TwitchVor.Utility
             {
                 textWriter.Write(DefaultForegroundColor); // reset to default foreground color
             }
+
             if (background.HasValue)
             {
                 textWriter.Write(DefaultBackgroundColor); // reset to the background color
@@ -84,7 +87,8 @@ namespace TwitchVor.Utility
             if (background != null)
             {
                 if (foreground != null)
-                    return $"{GetBackgroundColorEscapeCode(background.Value)}{GetForegroundColorEscapeCode(foreground.Value)}{str}{DefaultForegroundColor}{DefaultBackgroundColor}";
+                    return
+                        $"{GetBackgroundColorEscapeCode(background.Value)}{GetForegroundColorEscapeCode(foreground.Value)}{str}{DefaultForegroundColor}{DefaultBackgroundColor}";
 
                 return $"{GetBackgroundColorEscapeCode(background.Value)}{str}{DefaultBackgroundColor}";
             }

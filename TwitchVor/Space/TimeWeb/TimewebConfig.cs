@@ -23,7 +23,8 @@ namespace TwitchVor.Space.TimeWeb
         [JsonProperty(Required = Required.Default)]
         public long PerFileSize { get; set; } = 100 * 1024 * 1024;
 
-        public TimewebConfig(string token, bool validateTokenOnStart, TimeSpan uploadRequestTimeout, TimeSpan downloadRequestTimeout, long perFileSize)
+        public TimewebConfig(string token, bool validateTokenOnStart, TimeSpan uploadRequestTimeout,
+            TimeSpan downloadRequestTimeout, long perFileSize)
         {
             Token = token;
             ValidateTokenOnStart = validateTokenOnStart;

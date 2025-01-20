@@ -11,39 +11,39 @@ namespace TwitchVor.Utility
     public static class Greater
     {
         static readonly ConsoleColor[] colors = new ConsoleColor[]
-            {
-                ConsoleColor.Red,
-                ConsoleColor.DarkYellow,
-                ConsoleColor.Yellow,
-                ConsoleColor.Green,
-                ConsoleColor.Blue,
-                ConsoleColor.DarkBlue,
-                ConsoleColor.Magenta,
-            };
+        {
+            ConsoleColor.Red,
+            ConsoleColor.DarkYellow,
+            ConsoleColor.Yellow,
+            ConsoleColor.Green,
+            ConsoleColor.Blue,
+            ConsoleColor.DarkBlue,
+            ConsoleColor.Magenta,
+        };
 
         static readonly string[] guesses = new string[]
         {
-                "Я думаю",
-                "Я считаю",
-                // "Я предполагаю",
+            "Я думаю",
+            "Я считаю",
+            // "Я предполагаю",
 
-                "Думаю",
+            "Думаю",
 
-                "Мне кажется",
-                "Похоже",
+            "Мне кажется",
+            "Похоже",
 
-                "Скорее всего",
-                "Вероятно",
-                // "Предположительно",
-                "Возможно",
-                "Наверное"
+            "Скорее всего",
+            "Вероятно",
+            // "Предположительно",
+            "Возможно",
+            "Наверное"
         };
 
         static readonly string[] values = new string[]
         {
-                "чудо",
-                "молодец",
-                "умница"
+            "чудо",
+            "молодец",
+            "умница"
         };
 
         static readonly int targetGuessLength = guesses.Max(g => g.Length);

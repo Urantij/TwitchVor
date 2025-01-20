@@ -26,9 +26,11 @@ namespace TwitchVor.Space
 
         public abstract Task InitAsync();
 
-        public abstract Task PutDataAsync(int id, Stream contentStream, long length, CancellationToken cancellationToken = default);
+        public abstract Task PutDataAsync(int id, Stream contentStream, long length,
+            CancellationToken cancellationToken = default);
 
-        public abstract Task ReadAllDataAsync(Stream inputStream, long length, long offset, CancellationToken cancellationToken = default);
+        public abstract Task ReadAllDataAsync(Stream inputStream, long length, long offset,
+            CancellationToken cancellationToken = default);
 
         public abstract Task CloseAsync();
 

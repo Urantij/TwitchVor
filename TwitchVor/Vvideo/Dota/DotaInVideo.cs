@@ -67,13 +67,15 @@ public class DotaInVideo
         return JsonSerializer.Deserialize<HeroModel[]>(content)!;
     }
 
-    public async Task<MatchModel[]> LoadMatchesAsync(DateTime? afterTime = null, int? limit = null, bool useTarget = true)
+    public async Task<MatchModel[]> LoadMatchesAsync(DateTime? afterTime = null, int? limit = null,
+        bool useTarget = true)
     {
         NameValueCollection queryString = System.Web.HttpUtility.ParseQueryString(string.Empty);
         if (useTarget)
             queryString[Dota2DispenserParams.steamIdFilter] = config.TargetSteamId.ToString();
         if (afterTime != null)
-            queryString[Dota2DispenserParams.afterDateTimeFilter] = new DateTimeOffset(afterTime.Value).ToUnixTimeSeconds().ToString();
+            queryString[Dota2DispenserParams.afterDateTimeFilter] =
+                new DateTimeOffset(afterTime.Value).ToUnixTimeSeconds().ToString();
         if (limit != null)
             queryString[Dota2DispenserParams.limitFilter] = limit.ToString();
 

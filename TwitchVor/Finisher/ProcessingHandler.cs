@@ -39,7 +39,9 @@ class ProcessingHandler
 
     public Task ProcessTask => processTCS.Task;
 
-    public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss, TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips, string[] subgifters, Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches)
+    public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss,
+        TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips,
+        string[] subgifters, Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches)
     {
         this.handlerCreationDate = handlerCreationDate;
         this.db = db;

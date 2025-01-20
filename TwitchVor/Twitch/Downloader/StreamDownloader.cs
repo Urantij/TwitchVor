@@ -69,7 +69,8 @@ namespace TwitchVor.Twitch.Downloader
                 takeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
             };
 
-            segmentsDownloader = new SegmentsDownloader(httpClient, settings, Program.config.Channel!, Program.config.Downloader.ClientId, Program.config.Downloader.OAuth);
+            segmentsDownloader = new SegmentsDownloader(httpClient, settings, Program.config.Channel!,
+                Program.config.Downloader.ClientId, Program.config.Downloader.OAuth);
             segmentsDownloader.UnknownPlaylistLineFound += UnknownPlaylistLineFound;
             segmentsDownloader.CommentPlaylistLineFound += CommentPlaylistLineFound;
 
@@ -205,14 +206,16 @@ namespace TwitchVor.Twitch.Downloader
                     {
                         if (tempSpace == null)
                         {
-                            tempSpace = new LocalSpaceProvider(guid, _loggerFactory, DependencyProvider.MakeLocalSpacePath(guid, true));
+                            tempSpace = new LocalSpaceProvider(guid, _loggerFactory,
+                                DependencyProvider.MakeLocalSpacePath(guid, true));
                             tempSpace.InitAsync().GetAwaiter().GetResult();
                         }
 
                         spaceToWrite = tempSpace;
                     }
 
-                    int id = db.AddSegment(qItem.segment.mediaSequenceNumber, qItem.segment.programDate, qItem.bufferWriteStream.Length, qItem.segment.duration);
+                    int id = db.AddSegment(qItem.segment.mediaSequenceNumber, qItem.segment.programDate,
+                        qItem.bufferWriteStream.Length, qItem.segment.duration);
                     qItem.bufferWriteStream.Position = 0;
 
                     if (lastSegment != null)
@@ -223,16 +226,21 @@ namespace TwitchVor.Twitch.Downloader
 
                         if (difference >= Program.config.MinimumSegmentSkipDelay)
                         {
-                            _logger.LogWarning("Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(", difference.TotalSeconds, lastSegment.mediaSequenceNumber, qItem.segment.mediaSequenceNumber);
+                            _logger.LogWarning(
+                                "Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(",
+                                difference.TotalSeconds, lastSegment.mediaSequenceNumber,
+                                qItem.segment.mediaSequenceNumber);
 
                             db.AddSkip(lastSegmentEnd, qItem.segment.programDate);
                         }
                     }
+
                     lastSegment = qItem.segment;
 
                     try
                     {
-                        spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length).GetAwaiter().GetResult();
+                        spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length)
+                            .GetAwaiter().GetResult();
                     }
                     catch (Exception exception)
                     {
@@ -322,6 +330,7 @@ namespace TwitchVor.Twitch.Downloader
         }
 
         #region Logs
+
         private void UnknownPlaylistLineFound(object? sender, LineEventArgs e)
         {
             _logger.LogWarning("Unknown line ({master}): \"{line}\"", e.Master, e.Line);
@@ -376,7 +385,8 @@ namespace TwitchVor.Twitch.Downloader
                     }
                     else
                     {
-                        _logger.LogError("{message} HttpRequestException.IOException: \"{ioMessage}\"", message, io.Message);
+                        _logger.LogError("{message} HttpRequestException.IOException: \"{ioMessage}\"", message,
+                            io.Message);
                     }
                 }
                 else
@@ -389,6 +399,7 @@ namespace TwitchVor.Twitch.Downloader
                 _logger.LogError(e, "{message}", message);
             }
         }
+
         #endregion
     }
 }
