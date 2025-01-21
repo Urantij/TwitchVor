@@ -7,6 +7,11 @@ namespace TwitchVor.Vvideo
         /// </summary>
         public readonly DateTime timestamp;
 
+        /// <summary>
+        /// Если фейк, то нужно писать в описании видео так, чтобы отметки на видео не было.
+        /// </summary>
+        public bool IsFakeStamp { get; protected set; }
+
         protected BaseTimestamp(DateTime timestamp)
         {
             this.timestamp = timestamp;

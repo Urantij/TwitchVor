@@ -155,7 +155,7 @@ namespace TwitchVor.Finisher
                     {
                         first = false;
 
-                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString());
+                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString(), timestamp.IsFakeStamp);
                     }
                     else
                     {
@@ -239,13 +239,16 @@ namespace TwitchVor.Finisher
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
-            return MakeTimestampStr(onVideoTime, timestamp.MakeString());
+            return MakeTimestampStr(onVideoTime, timestamp.MakeString(), timestamp.IsFakeStamp);
         }
 
-        private static string MakeTimestampStr(TimeSpan onVideoTime, string content)
+        private static string MakeTimestampStr(TimeSpan onVideoTime, string content, bool fake)
         {
             string timeStr = new DateTime(onVideoTime.Ticks).ToString("HH:mm:ss");
 
+            if (fake)
+                return $"-{timeStr} {content}";
+            
             return $"{timeStr} {content}";
         }
     }
