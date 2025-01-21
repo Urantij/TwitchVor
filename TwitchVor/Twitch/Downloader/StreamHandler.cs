@@ -178,9 +178,10 @@ namespace TwitchVor.Twitch.Downloader
             try
             {
                 // Временная мера, которая будет постоянной, потому что чатбота нормального у меня нет.
-                if (priv.mod && priv.text.StartsWith("=метка ", StringComparison.OrdinalIgnoreCase))
+                if ((priv.mod || priv.vip) && (priv.text.StartsWith("=метка ", StringComparison.OrdinalIgnoreCase) ||
+                                               priv.text.StartsWith("=м ", StringComparison.OrdinalIgnoreCase)))
                 {
-                    string text = priv.text["=метка ".Length..];
+                    string text = priv.text.Split(' ', 2)[1];
 
                     timestamper.AddTimestamp(new ChatCustomTimestamp(text, priv.displayName ?? priv.username,
                         DateTime.UtcNow));
