@@ -22,7 +22,7 @@ public class VkWaller
         this.appConfig = creds.WallRunner;
     }
 
-    public async Task MakePostAsync(IEnumerable<long> videoIds)
+    public async Task MakePostAsync(string? postText, IEnumerable<long> videoIds)
     {
         using VkNet.VkApi vkApi = new();
         await vkApi.AuthorizeAsync(new VkNet.Model.ApiAuthParams()
@@ -35,6 +35,8 @@ public class VkWaller
         await vkApi.Wall.PostAsync(new VkNet.Model.WallPostParams()
         {
             Guid = Guid.NewGuid().ToString(),
+            
+            Message = postText,
 
             Attachments = videoIds.Select(id => new VkNet.Model.Video()
             {

@@ -248,7 +248,12 @@ namespace TwitchVor.Upload.Kvk
 
                         await uploaderHandler.ProcessTask;
 
-                        await PostCringeAsync();
+                        // В теории, делать имя поста нужно из всех игр всех видиков
+                        // Но мне чета так впадлу это писать.
+                        // Ща проверил. Оно и так пишет все игры со стрима, а не на конкретном видике. хд
+                        string postText = DescriptionMaker.FormVideoName(uploaderHandler.processingHandler.handlerCreationDate,
+                            null, 200, uploaderHandler.processingHandler.timestamps);
+                        await PostCringeAsync(postText);
                     });
                 }
             }
@@ -305,7 +310,7 @@ namespace TwitchVor.Upload.Kvk
         /// Дождать загрузки и выложить пост на стену группы.
         /// </summary>
         /// <returns></returns>
-        async Task PostCringeAsync()
+        async Task PostCringeAsync(string? postText)
         {
             VkVideoInfo[] videoInfos = uploadedVideos.Where(v => v.video.success == true).ToArray();
 
@@ -318,7 +323,7 @@ namespace TwitchVor.Upload.Kvk
             VkWaller waller = new(_loggerFactory, creds);
             try
             {
-                await waller.MakePostAsync(videoInfos.Select(i => i.id).ToArray());
+                await waller.MakePostAsync(postText, videoInfos.Select(i => i.id).ToArray());
             }
             catch (Exception e)
             {
