@@ -183,8 +183,12 @@ namespace TwitchVor.Twitch.Downloader
                 {
                     string text = priv.text.Split(' ', 2)[1];
 
-                    timestamper.AddTimestamp(new ChatCustomTimestamp(text, priv.displayName ?? priv.username,
-                        DateTime.UtcNow));
+                    ChatCustomTimestamp stamp = new(text, priv.displayName ?? priv.username,
+                        DateTime.UtcNow);
+                    // В теории оно не может быть нулл, но чтобы иде не плакала
+                    stamp.SetOffset(Program.config.Chat?.TimestampOffset ?? TimeSpan.FromSeconds(-30));
+
+                    timestamper.AddTimestamp(stamp);
                 }
             }
             catch (Exception e)

@@ -135,7 +135,7 @@ namespace TwitchVor.Finisher
                     }
                 }
 
-                var resultTimestamps = timestamps.OrderBy(t => t.timestamp).ToArray();
+                var resultTimestamps = timestamps.OrderBy(t => t.GetTimeWithOffset()).ToArray();
 
                 processingHandler = new(streamHandler.handlerCreationDate, streamHandler.db,
                     streamHandler.streamDownloader.AdvertismentTime, totalLoss, bills.ToArray(), resultTimestamps,

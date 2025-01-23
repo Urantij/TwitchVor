@@ -7,6 +7,8 @@ namespace TwitchVor.Vvideo
         /// </summary>
         public readonly DateTime timestamp;
 
+        public TimeSpan? Offset { get; protected set; }
+
         /// <summary>
         /// Если фейк, то нужно писать в описании видео так, чтобы отметки на видео не было.
         /// </summary>
@@ -15,6 +17,19 @@ namespace TwitchVor.Vvideo
         protected BaseTimestamp(DateTime timestamp)
         {
             this.timestamp = timestamp;
+        }
+
+        public DateTime GetTimeWithOffset()
+        {
+            if (Offset == null)
+                return timestamp;
+
+            return timestamp + Offset.Value;
+        }
+
+        public void SetOffset(TimeSpan offset)
+        {
+            Offset = offset;
         }
 
         /// <summary>
