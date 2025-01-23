@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Conversion;
 using TwitchVor.Data;
 using TwitchVor.Data.Models;
-using TwitchVor.EventIds;
 using TwitchVor.Space;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Upload;

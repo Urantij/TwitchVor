@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Data.Models;
 using TwitchVor.Twitch;
-using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Money;
 using TwitchVor.Vvideo.Timestamps;

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
 {

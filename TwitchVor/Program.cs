@@ -1,9 +1,4 @@
-using System;
-using System.Drawing;
-using System.IO;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using TimeWebNet;
 using TwitchLib.Api;
 using TwitchVor.Communication.Email;
 using TwitchVor.Configuration;

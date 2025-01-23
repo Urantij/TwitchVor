@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using MimeKit;
-using TwitchVor.Configuration;
-using TwitchVor.Utility;
 
 namespace TwitchVor.Communication.Email
 {

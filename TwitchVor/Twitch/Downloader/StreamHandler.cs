@@ -1,21 +1,8 @@
-using System.Linq;
-using System.Net.Http;
-using ExtM3UPlaylistParser.Models;
 using Microsoft.Extensions.Logging;
-using TwitchLib.Api;
 using TwitchSimpleLib.Chat.Messages;
-using TwitchStreamDownloader.Download;
-using TwitchStreamDownloader.Exceptions;
-using TwitchStreamDownloader.Net;
-using TwitchStreamDownloader.Queues;
-using TwitchStreamDownloader.Resources;
 using TwitchVor.Data;
-using TwitchVor.Data.Models;
-using TwitchVor.Finisher;
 using TwitchVor.Space;
-using TwitchVor.Space.Local;
 using TwitchVor.Twitch.Chat;
-using TwitchVor.Twitch.Checker;
 using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 

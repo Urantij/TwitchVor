@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Logging;
 using TwitchVor.Finisher;
-using TwitchVor.Twitch.Checker;
-using TwitchVor.Utility;
 using TwitchVor.Vvideo;
 
 namespace TwitchVor.Twitch.Downloader

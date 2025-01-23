@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
-using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch
 {

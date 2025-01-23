@@ -1,9 +1,7 @@
 using System.Net.WebSockets;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using TwitchSimpleLib.Pubsub;
 using TwitchSimpleLib.Pubsub.Payloads.Playback;
-using TwitchVor.Utility;
 
 namespace TwitchVor.Twitch.Checker
 {

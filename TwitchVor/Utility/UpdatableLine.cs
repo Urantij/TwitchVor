@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace TwitchVor.Utility;
 
 // Проблема, что хоть методы консоли и зависают, токенов отмены там нет.
