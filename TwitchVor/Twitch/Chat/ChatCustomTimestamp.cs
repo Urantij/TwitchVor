@@ -15,7 +15,7 @@ class ChatCustomTimestamp : BaseTimestamp
     {
         this.text = text;
         this.author = author;
-        this.IsFakeStamp = true;
+        this.IsUnstructuredStamp = true;
     }
 
     public override string MakeString()

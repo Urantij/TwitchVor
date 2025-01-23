@@ -145,7 +145,7 @@ namespace TwitchVor.Finisher
                 builder.AppendLine();
 
                 bool first = true;
-                foreach (var timestamp in timestamps)
+                foreach (BaseTimestamp timestamp in timestamps.Where(t => !t.IsUnstructuredStamp))
                 {
                     if (timestamp is OfflineTimestamp)
                         continue;
@@ -155,7 +155,8 @@ namespace TwitchVor.Finisher
                     {
                         first = false;
 
-                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString(), timestamp.IsFakeStamp);
+                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString(),
+                            timestamp.IsUnstructuredStamp);
                     }
                     else
                     {
@@ -163,6 +164,19 @@ namespace TwitchVor.Finisher
                     }
 
                     builder.AppendLine(status);
+                }
+
+                BaseTimestamp[] unstructured = timestamps.Where(t => t.IsUnstructuredStamp).ToArray();
+                if (unstructured.Length > 0)
+                {
+                    builder.AppendLine();
+
+                    foreach (BaseTimestamp timestamp in unstructured)
+                    {
+                        string status = GetCheckStatusString(timestamp, videoStartDate, skips);
+
+                        builder.AppendLine(status);
+                    }
                 }
             }
 
@@ -239,7 +253,7 @@ namespace TwitchVor.Finisher
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
-            return MakeTimestampStr(onVideoTime, timestamp.MakeString(), timestamp.IsFakeStamp);
+            return MakeTimestampStr(onVideoTime, timestamp.MakeString(), timestamp.IsUnstructuredStamp);
         }
 
         private static string MakeTimestampStr(TimeSpan onVideoTime, string content, bool fake)
@@ -248,7 +262,7 @@ namespace TwitchVor.Finisher
 
             if (fake)
                 return $"-{timeStr} {content}";
-            
+
             return $"{timeStr} {content}";
         }
     }

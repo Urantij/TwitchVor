@@ -10,9 +10,9 @@ namespace TwitchVor.Vvideo
         public TimeSpan? Offset { get; protected set; }
 
         /// <summary>
-        /// Если фейк, то нужно писать в описании видео так, чтобы отметки на видео не было.
+        /// Если вне структуры, то пишется в описании видео отдельно после структурных стампов.
         /// </summary>
-        public bool IsFakeStamp { get; protected set; }
+        public bool IsUnstructuredStamp { get; protected set; }
 
         protected BaseTimestamp(DateTime timestamp)
         {
