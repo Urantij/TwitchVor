@@ -28,8 +28,8 @@ class ProcessingHandler
 
     public readonly Bill[] bills;
 
-    public readonly IEnumerable<BaseTimestamp> timestamps;
-    public readonly IEnumerable<SkipDb> skips;
+    public readonly IReadOnlyList<BaseTimestamp> timestamps;
+    public readonly IReadOnlyList<SkipDb> skips;
 
     public readonly List<ResultVideoSizeCache> videoSizeCaches = new();
 
@@ -40,7 +40,7 @@ class ProcessingHandler
     public Task ProcessTask => processTCS.Task;
 
     public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss,
-        TimeSpan totalLoss, Bill[] bills, IEnumerable<BaseTimestamp> timestamps, IEnumerable<SkipDb> skips,
+        TimeSpan totalLoss, Bill[] bills, IReadOnlyList<BaseTimestamp> timestamps, IReadOnlyList<SkipDb> skips,
         string[] subgifters, Dota2Dispenser.Shared.Models.MatchModel[]? dotaMatches)
     {
         this.handlerCreationDate = handlerCreationDate;

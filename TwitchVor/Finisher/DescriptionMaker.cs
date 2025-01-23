@@ -62,7 +62,7 @@ namespace TwitchVor.Finisher
         /// <param name="limit">Лимит буковок. У ютуба это 100, бтв</param>
         /// <returns></returns>
         public static string FormVideoName(DateTimeOffset date, int? videoNumber, int limit,
-            IEnumerable<BaseTimestamp> timestamps)
+            IReadOnlyList<BaseTimestamp> timestamps)
         {
             const string gamesSeparator = ", ";
             const string gamesMany = "...";
@@ -119,8 +119,8 @@ namespace TwitchVor.Finisher
             return builder.ToString();
         }
 
-        public static string FormDescription(DateTimeOffset videoStartDate, IEnumerable<BaseTimestamp> timestamps,
-            IEnumerable<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime,
+        public static string FormDescription(DateTimeOffset videoStartDate, IReadOnlyList<BaseTimestamp> timestamps,
+            IReadOnlyList<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime,
             Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
         {
             StringBuilder builder = new();
@@ -229,7 +229,7 @@ namespace TwitchVor.Finisher
         }
 
         private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate,
-            IEnumerable<SkipDb> skips)
+            IReadOnlyList<SkipDb> skips)
         {
             TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
 
