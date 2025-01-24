@@ -55,6 +55,7 @@ namespace TwitchVor.Finisher
         /// <param name="date">Дата стрима</param>
         /// <param name="videoNumber">Номер видоса (нулл, если видос один)</param>
         /// <param name="limit">Лимит буковок. У ютуба это 100, бтв</param>
+        /// <param name="timestamps">Таймстампы с <see cref="GameTimestamp"/>, которые попадут в название видео</param>
         /// <returns></returns>
         public static string FormVideoName(DateTimeOffset date, int? videoNumber, int limit,
             IReadOnlyList<BaseTimestamp> timestamps)
@@ -240,11 +241,11 @@ namespace TwitchVor.Finisher
         private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate,
             IReadOnlyList<SkipDb> skips)
         {
-            TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.timestamp, skips);
+            TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.GetTimeWithOffset(), skips);
 
             if (onVideoTime.Ticks < 0)
             {
-                _logger?.LogWarning("Ticks < 0 {timestamp}", timestamp.timestamp);
+                _logger?.LogWarning("Ticks < 0 {timestamp}", timestamp.GetTimeWithOffset());
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 

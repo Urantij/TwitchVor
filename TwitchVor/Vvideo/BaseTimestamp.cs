@@ -5,7 +5,7 @@ namespace TwitchVor.Vvideo
         /// <summary>
         /// Абсолютный. UTC пожалуйста.
         /// </summary>
-        public readonly DateTime timestamp;
+        private readonly DateTime _timestamp;
 
         public TimeSpan? Offset { get; protected set; }
 
@@ -14,17 +14,30 @@ namespace TwitchVor.Vvideo
         /// </summary>
         public bool IsUnstructuredStamp { get; protected set; }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="timestamp">Абсолютный. UTC пожалуйста.</param>
         protected BaseTimestamp(DateTime timestamp)
         {
-            this.timestamp = timestamp;
+            this._timestamp = timestamp;
+        }
+
+        /// <summary>
+        /// Без <see cref="Offset"/>
+        /// </summary>
+        /// <returns></returns>
+        public DateTime GetRawTime()
+        {
+            return _timestamp;
         }
 
         public DateTime GetTimeWithOffset()
         {
             if (Offset == null)
-                return timestamp;
+                return _timestamp;
 
-            return timestamp + Offset.Value;
+            return _timestamp + Offset.Value;
         }
 
         public void SetOffset(TimeSpan offset)
