@@ -31,7 +31,6 @@ public class ChatClipTimestamp : BaseTimestamp
         Created = created;
         Duration = duration;
         Url = url;
-        IsUnstructuredStamp = true;
     }
 
     public override string MakeString()

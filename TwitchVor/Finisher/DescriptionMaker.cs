@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using TwitchVor.Data.Models;
 using TwitchVor.Twitch;
+using TwitchVor.Twitch.Chat;
 using TwitchVor.Vvideo;
 using TwitchVor.Vvideo.Money;
 using TwitchVor.Vvideo.Timestamps;
@@ -141,7 +142,8 @@ namespace TwitchVor.Finisher
                 builder.AppendLine();
 
                 bool first = true;
-                foreach (BaseTimestamp timestamp in timestamps.Where(t => !t.IsUnstructuredStamp))
+                foreach (BaseTimestamp timestamp in timestamps.Where(t =>
+                             t is not ChatCustomTimestamp && t is not ChatClipTimestamp))
                 {
                     if (timestamp is OfflineTimestamp)
                         continue;
@@ -151,29 +153,33 @@ namespace TwitchVor.Finisher
                     {
                         first = false;
 
-                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString(),
-                            timestamp.IsUnstructuredStamp);
+                        status = MakeTimestampStr(TimeSpan.FromSeconds(0), timestamp.MakeString(), false);
                     }
                     else
                     {
-                        status = GetCheckStatusString(timestamp, videoStartDate, skips);
+                        status = GetCheckStatusString(timestamp, videoStartDate, skips, false);
                     }
 
                     builder.AppendLine(status);
                 }
 
-                BaseTimestamp[] unstructured = timestamps.Where(t => t.IsUnstructuredStamp).ToArray();
-                if (unstructured.Length > 0)
+                void DoStamps<T>() where T : BaseTimestamp
                 {
+                    T[] theseStamps = timestamps.OfType<T>().ToArray();
+                    if (theseStamps.Length == 0) return;
+
                     builder.AppendLine();
 
-                    foreach (BaseTimestamp timestamp in unstructured)
+                    foreach (T timestamp in theseStamps)
                     {
-                        string status = GetCheckStatusString(timestamp, videoStartDate, skips);
+                        string status = GetCheckStatusString(timestamp, videoStartDate, skips, true);
 
                         builder.AppendLine(status);
                     }
                 }
+
+                DoStamps<ChatCustomTimestamp>();
+                DoStamps<ChatClipTimestamp>();
             }
 
             string? uploadTimeSpentString = MakeTimeSpentString("Загрузка заняла:", videoUploadTime, totalUploadTime);
@@ -239,7 +245,7 @@ namespace TwitchVor.Finisher
         }
 
         private static string GetCheckStatusString(BaseTimestamp timestamp, DateTimeOffset videoStartDate,
-            IReadOnlyList<SkipDb> skips)
+            IReadOnlyList<SkipDb> skips, bool fake)
         {
             TimeSpan onVideoTime = ProcessingVideo.GetOnVideoTime(videoStartDate, timestamp.GetTimeWithOffset(), skips);
 
@@ -249,7 +255,7 @@ namespace TwitchVor.Finisher
                 onVideoTime = TimeSpan.FromSeconds(0);
             }
 
-            return MakeTimestampStr(onVideoTime, timestamp.MakeString(), timestamp.IsUnstructuredStamp);
+            return MakeTimestampStr(onVideoTime, timestamp.MakeString(), fake);
         }
 
         private static string MakeTimestampStr(TimeSpan onVideoTime, string content, bool fake)
@@ -257,7 +263,7 @@ namespace TwitchVor.Finisher
             string timeStr = new DateTime(onVideoTime.Ticks).ToString("HH:mm:ss");
 
             if (fake)
-                return $"-{timeStr} {content}";
+                return $"- {timeStr} {content}";
 
             return $"{timeStr} {content}";
         }

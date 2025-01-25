@@ -10,11 +10,6 @@ namespace TwitchVor.Vvideo
         public TimeSpan? Offset { get; protected set; }
 
         /// <summary>
-        /// Если вне структуры, то пишется в описании видео отдельно после структурных стампов.
-        /// </summary>
-        public bool IsUnstructuredStamp { get; protected set; }
-
-        /// <summary>
         /// 
         /// </summary>
         /// <param name="timestamp">Абсолютный. UTC пожалуйста.</param>
