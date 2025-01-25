@@ -27,6 +27,9 @@ namespace TwitchVor.Twitch.Downloader
         public readonly StreamDownloader streamDownloader;
 
         public readonly Timestamper timestamper;
+
+        public readonly StreamChatWorker chatWorker;
+
         internal SubCheck? subCheck;
 
         /// <summary>
@@ -49,6 +52,8 @@ namespace TwitchVor.Twitch.Downloader
             space = DependencyProvider.GetSpaceProvider(guid, loggerFactory);
 
             streamDownloader = new StreamDownloader(guid, db, space, loggerFactory);
+
+            chatWorker = new StreamChatWorker(this, loggerFactory);
         }
 
         internal async Task StartAsync()
@@ -59,7 +64,7 @@ namespace TwitchVor.Twitch.Downloader
 
             if (Program.chatBot != null)
             {
-                Program.chatBot.client.PrivateMessageReceived += PrivateMessageReceived;
+                Program.chatBot.client.PrivateMessageReceived += chatWorker.PrivateMessageReceived;
             }
 
             _ = space.InitAsync();
@@ -129,7 +134,7 @@ namespace TwitchVor.Twitch.Downloader
 
             if (Program.chatBot != null)
             {
-                Program.chatBot.client.PrivateMessageReceived -= PrivateMessageReceived;
+                Program.chatBot.client.PrivateMessageReceived -= chatWorker.PrivateMessageReceived;
             }
 
             await streamDownloader.CloseAsync();
@@ -145,42 +150,6 @@ namespace TwitchVor.Twitch.Downloader
             if (destroySegments)
             {
                 await space.DestroyAsync();
-            }
-        }
-
-        private async void PrivateMessageReceived(object? sender, TwitchPrivateMessage priv)
-        {
-            try
-            {
-                string? badges = priv.rawIrcMessage.tags?.GetValueOrDefault("badges");
-
-                await db.AddChatMessageAsync(priv.userId, priv.username, priv.displayName, priv.text, priv.color,
-                    badges, priv.tmiSentTs);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "PrivMsgReceived");
-            }
-
-            try
-            {
-                // Временная мера, которая будет постоянной, потому что чатбота нормального у меня нет.
-                if ((priv.mod || priv.vip) && (priv.text.StartsWith("=метка ", StringComparison.OrdinalIgnoreCase) ||
-                                               priv.text.StartsWith("=м ", StringComparison.OrdinalIgnoreCase)))
-                {
-                    string text = priv.text.Split(' ', 2)[1];
-
-                    ChatCustomTimestamp stamp = new(text, priv.displayName ?? priv.username,
-                        DateTime.UtcNow);
-                    // В теории оно не может быть нулл, но чтобы иде не плакала
-                    stamp.SetOffset(Program.config.Chat?.TimestampOffset ?? TimeSpan.FromSeconds(-30));
-
-                    timestamper.AddTimestamp(stamp);
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "PrivMsgReceived");
             }
         }
 

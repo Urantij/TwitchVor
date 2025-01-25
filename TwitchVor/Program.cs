@@ -204,6 +204,11 @@ namespace TwitchVor
                 logger.LogInformation("С чатом {name}", config.Chat.Username);
 
                 chatBot = new(config.Channel, config.Chat.Username, config.Chat.Token, loggerFactory);
+
+                if (config.Chat.FetchClips != null)
+                {
+                    logger.LogInformation("С клипами");
+                }
             }
             else
             {
