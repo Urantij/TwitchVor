@@ -18,5 +18,5 @@ public class ChatConfig
 
 public class ChatClipConfig
 {
-    public TimeSpan ClipOffset { get; set; } = TimeSpan.FromSeconds(-30);
+    public TimeSpan ClipOffset { get; set; } = TimeSpan.FromSeconds(-60);
 }
