@@ -19,10 +19,20 @@ internal partial class StreamChatWorker
     /// </summary>
     private readonly List<string> _notedClips = new();
 
+    private readonly List<Clip> _fetchedClips = new();
+
     public StreamChatWorker(StreamHandler handler, ILoggerFactory loggerFactory)
     {
         _handler = handler;
         _logger = loggerFactory.CreateLogger<StreamChatWorker>();
+    }
+
+    public Clip[] CloneFetchedClips()
+    {
+        lock (_fetchedClips)
+        {
+            return _fetchedClips.ToArray();
+        }
     }
 
     internal async void PrivateMessageReceived(object? sender, TwitchPrivateMessage priv)
@@ -112,27 +122,11 @@ internal partial class StreamChatWorker
                 startedAt: _handler.handlerCreationDate);
         }
 
-        ChatClipTimestamp[] stamps = clips.Clips.Select(clip =>
+        _logger.LogDebug("Нашли {count} клипов.", clips.Clips.Length);
+        lock (_fetchedClips)
         {
-            DateTime created = DateTime.Parse(clip.CreatedAt);
-
-            DateTime location = EstimateClipLocation(clip, created, config);
-
-            return new ChatClipTimestamp(clip.CreatorName, clip.CreatorId, clip.Title, created, clip.Duration,
-                clip.Url, location);
-        }).ToArray();
-
-        _logger.LogDebug("Нашли {count} клипов.", stamps.Length);
-        foreach (ChatClipTimestamp timestamp in stamps)
-        {
-            _handler.timestamper.AddTimestamp(timestamp);
+            _fetchedClips.AddRange(clips.Clips);
         }
-    }
-
-    // Бредик
-    private DateTime EstimateClipLocation(Clip clip, DateTime created, ChatClipConfig config)
-    {
-        return created - TimeSpan.FromSeconds(clip.Duration) + config.ClipOffset;
     }
 
     [GeneratedRegex(@"https:\/\/www\.twitch\.tv\/(?<broadcaster>[A-Za-z0-9_\-]+)\/clip\/(?<id>[A-Za-z0-9_\-]+)",
