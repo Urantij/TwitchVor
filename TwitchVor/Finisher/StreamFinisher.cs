@@ -385,70 +385,73 @@ namespace TwitchVor.Finisher
             List<ProcessingVideo> videos = new();
             int tookCount = 0;
             int videoNumber = 0;
+            // Один цикл = 1 видео
             while (true)
             {
                 SegmentDb? startSegment = null;
                 SegmentDb? endSegment = null;
 
                 int startTookIndex = tookCount;
-                int videoTook = 0;
+                int currentVideoTookCount = 0;
 
                 long currentSize = 0;
                 TimeSpan currentDuration = TimeSpan.Zero;
-                while (true)
+                // лупаем, пока не определим старт и енд сегменты видео
+                bool keepGoing = true;
+                while (keepGoing)
                 {
-                    var segments = await db.LoadSegmentsAsync(takeCount, tookCount);
+                    SegmentDb[] segments = await db.LoadSegmentsAsync(takeCount, tookCount);
 
                     if (segments.Length == 0)
                     {
-                        break;
+                        keepGoing = false;
+                        continue; // не break ради смеха
                     }
-                    else
-                    {
-                        foreach (var segment in segments)
-                        {
-                            TimeSpan duration = TimeSpan.FromSeconds(segment.Duration);
 
-                            if (currentSize + segment.Size > sizeLimit ||
-                                currentDuration + duration > durationLimit)
+                    foreach (SegmentDb segment in segments)
+                    {
+                        TimeSpan duration = TimeSpan.FromSeconds(segment.Duration);
+
+                        if (currentSize + segment.Size > sizeLimit ||
+                            currentDuration + duration > durationLimit)
+                        {
+                            // пора резать
+                            keepGoing = false;
+                            break;
+                        }
+
+                        if (nextFormat != null && segment.ProgramDate >= nextFormat.Date)
+                        {
+                            // Он не должен записывать формат, если он тот же, но я мб передумаю в будущем.
+                            bool changed = nextFormat.Format != currentFormat.Format;
+
+                            currentFormat = nextFormat;
+                            formats.TryDequeue(out nextFormat);
+
+                            if (changed)
                             {
-                                // пора резать
+                                // Сменился формат - нужно новое видео, туда же писать уже нельзя.
+                                keepGoing = false;
                                 break;
                             }
-
-                            if (nextFormat != null && segment.ProgramDate >= nextFormat.Date)
-                            {
-                                // Он не должен записывать формат, если он тот же, но я мб передумаю в будущем.
-                                bool changed = nextFormat.Format != currentFormat.Format;
-
-                                currentFormat = nextFormat;
-                                formats.TryDequeue(out nextFormat);
-
-                                if (changed)
-                                {
-                                    // Сменился формат - нужно новое видео, туда же писать уже нельзя.
-
-                                    break;
-                                }
-                            }
-
-                            if (startSegment == null)
-                            {
-                                startSegment = segment;
-                            }
-
-                            endSegment = segment;
-
-                            tookCount++;
-                            videoTook++;
-
-                            currentSize += segment.Size;
-                            currentDuration += duration;
                         }
+
+                        if (startSegment == null)
+                        {
+                            startSegment = segment;
+                        }
+
+                        endSegment = segment;
+
+                        tookCount++;
+                        currentVideoTookCount++;
+
+                        currentSize += segment.Size;
+                        currentDuration += duration;
                     }
                 }
 
-                if (videoTook != 0)
+                if (currentVideoTookCount != 0)
                 {
                     DateTimeOffset startDate = startSegment!.ProgramDate;
                     DateTimeOffset endDate = endSegment!.ProgramDate.AddSeconds(endSegment.Duration);
@@ -464,7 +467,7 @@ namespace TwitchVor.Finisher
                         return (end - start).Ticks;
                     }));
 
-                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, videoTook, currentSize, startDate,
+                    videos.Add(new ProcessingVideo(videoNumber, startTookIndex, currentVideoTookCount, currentSize, startDate,
                         endDate, loss));
 
                     videoNumber++;
