@@ -118,6 +118,7 @@ internal partial class StreamChatWorker
 
             _notedClips.AddRange(clipsIds);
 
+            // По какой то причине он всё равно возвращает старые клипы... TODO
             clips = await Program.twitchAPI.Helix.Clips.GetClipsAsync(clipIds: clipsIds,
                 startedAt: _handler.handlerCreationDate);
         }
