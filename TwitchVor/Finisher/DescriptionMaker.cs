@@ -71,7 +71,7 @@ namespace TwitchVor.Finisher
             if (videoNumber != null)
             {
                 builder.Append(" // ");
-                builder.Append(videoNumber.Value);
+                builder.Append(videoNumber.Value + 1);
             }
 
             string[] games = timestamps.Where(timestamp => timestamp is GameTimestamp)
