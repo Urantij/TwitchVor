@@ -15,6 +15,9 @@ class UploaderHandler
 
     public readonly IReadOnlyCollection<ProcessingVideo> videos;
 
+    /// <summary>
+    /// Завершается, когда закончил работать загрузчик.
+    /// </summary>
     public Task ProcessTask => processTCS.Task;
 
     public UploaderHandler(BaseUploader uploader, ProcessingHandler processingHandler,
@@ -36,7 +39,7 @@ class UploaderHandler
             videos.Count == 1 ? null : video.number, lengthLimit, processingHandler.timestamps);
     }
 
-    public string MakeVideoDescription(ProcessingVideo video)
+    public string MakeVideoDescription(ProcessingVideo video, string? nextVideoUrl = null, string? prevVideoUrl = null)
     {
         TimeSpan? videoUploadTime = video.uploadEnd - video.uploadStart;
         TimeSpan? totalUploadTime = SumTotalUploadTime();

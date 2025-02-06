@@ -12,7 +12,7 @@ namespace TwitchVor.Upload.TubeYou;
 
 class YoutubeUploader : BaseUploader
 {
-    private readonly YoutubeCreds creds;
+    private readonly YoutubeCreds _creds;
 
     // TODO сделать нормально
     private const string mimeType = "video/mp4";
@@ -21,13 +21,13 @@ class YoutubeUploader : BaseUploader
 
     public override TimeSpan DurationLimit => TimeSpan.FromHours(12);
 
-    readonly List<YoutubeVideoInfo> uploadedVideos = new();
+    private readonly List<YoutubeVideoInfo> _uploadedVideos = new();
 
-    Task? postUploadTask = null;
+    private Task? _postUploadTask = null;
 
     public YoutubeUploader(Guid guid, ILoggerFactory loggerFactory, YoutubeCreds creds) : base(guid, loggerFactory)
     {
-        this.creds = creds;
+        this._creds = creds;
     }
 
     public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo processingVideo,
@@ -35,16 +35,16 @@ class YoutubeUploader : BaseUploader
     {
         var secrets = new ClientSecrets()
         {
-            ClientId = creds.ClientId,
-            ClientSecret = creds.ClientSecret
+            ClientId = _creds.ClientId,
+            ClientSecret = _creds.ClientSecret
         };
 
-        var token = new TokenResponse { RefreshToken = creds.RefreshToken };
+        var token = new TokenResponse { RefreshToken = _creds.RefreshToken };
         var credentials = new UserCredential(new GoogleAuthorizationCodeFlow(
             new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = secrets
-            }), creds.UserId, token);
+            }), _creds.UserId, token);
 
         var youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
@@ -58,7 +58,7 @@ class YoutubeUploader : BaseUploader
             {
                 Title = name,
                 Description = description,
-                Tags = creds.VideoTags,
+                Tags = _creds.VideoTags,
                 DefaultLanguage = "ru",
                 DefaultAudioLanguage = "ru",
                 CategoryId = "22" // See https://developers.google.com/youtube/v3/docs/videoCategories/list
@@ -103,10 +103,10 @@ class YoutubeUploader : BaseUploader
             if (videoId != null)
             {
                 YoutubeVideoInfo youtubeVideoInfo = new(processingVideo, videoId);
-                uploadedVideos.Add(youtubeVideoInfo);
+                _uploadedVideos.Add(youtubeVideoInfo);
 
-                if (postUploadTask == null)
-                    postUploadTask = PostProcessWorkAsync(uploaderHandler);
+                if (_postUploadTask == null)
+                    _postUploadTask = PostProcessWorkAsync(uploaderHandler);
             }
             else
             {
@@ -121,24 +121,26 @@ class YoutubeUploader : BaseUploader
         return progress.Status == UploadStatus.Completed;
     }
 
-    async Task PostProcessWorkAsync(UploaderHandler uploaderHandler)
+    private async Task PostProcessWorkAsync(UploaderHandler uploaderHandler)
     {
         await uploaderHandler.processingHandler.ProcessTask;
 
         await Task.Delay(TimeSpan.FromSeconds(10));
 
-        var secrets = new ClientSecrets()
+        _logger.LogInformation("Запущен постобработчик.");
+
+        ClientSecrets secrets = new()
         {
-            ClientId = creds.ClientId,
-            ClientSecret = creds.ClientSecret
+            ClientId = _creds.ClientId,
+            ClientSecret = _creds.ClientSecret
         };
 
-        var token = new TokenResponse { RefreshToken = creds.RefreshToken };
+        var token = new TokenResponse { RefreshToken = _creds.RefreshToken };
         var credentials = new UserCredential(new GoogleAuthorizationCodeFlow(
             new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = secrets
-            }), creds.UserId, token);
+            }), _creds.UserId, token);
 
         var youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
@@ -146,38 +148,48 @@ class YoutubeUploader : BaseUploader
             ApplicationName = "Who read this will die"
         });
 
-        var listRequest = youtubeService.Videos.List(new string[]
+        VideosResource.ListRequest listRequest = youtubeService.Videos.List(new string[]
             { "id", "snippet", "status", "processingDetails", "suggestions" });
-        listRequest.Id = uploadedVideos.Select(v => v.videoId).ToArray();
+        listRequest.Id = _uploadedVideos.Select(v => v.videoId).ToArray();
 
-        var listResponse = await listRequest.ExecuteAsync();
+        VideoListResponse listResponse = await listRequest.ExecuteAsync();
 
-        foreach (var video in uploadedVideos)
+        foreach (YoutubeVideoInfo video in _uploadedVideos)
         {
-            var response = listResponse.Items.FirstOrDefault(i => i.Id == video.videoId);
+            Video? response = listResponse.Items.FirstOrDefault(i => i.Id == video.videoId);
             if (response == null)
             {
                 _logger.LogError("Не удалось найти ответ на {id}", video.videoId);
                 continue;
             }
 
-            var videoUpdate = new Video()
+            Video videoUpdate = new()
             {
                 Id = video.videoId,
                 Snippet = response.Snippet
             };
+
+            // Видео всегда должно там лежать
+            int videoIndex = uploaderHandler.videos.Index().First(v => v.Item == video.processingVideo).Index;
+
+            string? nextVideoUrl =
+                FindRelatedVideo(uploaderHandler, videoIndex + 1, _uploadedVideos, v => v.processingVideo)?.ToLink();
+            string? prevVideoUrl =
+                FindRelatedVideo(uploaderHandler, videoIndex - 1, _uploadedVideos, v => v.processingVideo)?.ToLink();
 
             // А мне вот не дало загрузить видео, потому что стрелочка в описании была.
             // В названии тоже нельзя.
             // Было бы здорово, если бы эта информация была более общедоступна, но увы, ютуб контора          .
             videoUpdate.Snippet.Title =
                 uploaderHandler.MakeVideoName(video.processingVideo).Replace(">", "").Replace("<", "");
-            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo)
+            videoUpdate.Snippet.Description = uploaderHandler.MakeVideoDescription(video.processingVideo,
+                    nextVideoUrl: nextVideoUrl, prevVideoUrl: prevVideoUrl)
                 .Replace(">", "").Replace("<", "");
 
             try
             {
-                var updateRequest = youtubeService.Videos.Update(videoUpdate, new string[] { "snippet" });
+                VideosResource.UpdateRequest updateRequest =
+                    youtubeService.Videos.Update(videoUpdate, new string[] { "snippet" });
                 await updateRequest.ExecuteAsync();
             }
             catch (Exception e)

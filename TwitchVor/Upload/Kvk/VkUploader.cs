@@ -10,20 +10,22 @@ namespace TwitchVor.Upload.Kvk
 {
     class VkUploader : BaseUploader
     {
-        readonly ILoggerFactory _loggerFactory;
+        private readonly ILoggerFactory _loggerFactory;
 
-        readonly VkCreds creds;
+        private readonly VkCreds _creds;
 
         public override long SizeLimit => 256L * 1024L * 1024L * 1024L;
         public override TimeSpan DurationLimit => TimeSpan.MaxValue;
 
-        readonly List<VkVideoInfo> uploadedVideos = new();
+        private readonly List<VkVideoInfo> _uploadedVideos = new();
+
+        private Task? _postUploadTask = null;
 
         public VkUploader(Guid guid, ILoggerFactory loggerFactory, VkCreds creds)
             : base(guid, loggerFactory)
         {
             _loggerFactory = loggerFactory;
-            this.creds = creds;
+            this._creds = creds;
         }
 
         /// <summary>
@@ -33,7 +35,7 @@ namespace TwitchVor.Upload.Kvk
         public async Task TestAsync()
         {
             await TestUploaderAsync();
-            if (creds.WallRunner != null)
+            if (_creds.WallRunner != null)
                 await TestWallRunnerAsync();
         }
 
@@ -44,8 +46,8 @@ namespace TwitchVor.Upload.Kvk
             using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.Uploader.ApplicationId,
-                AccessToken = creds.Uploader.ApiToken,
+                ApplicationId = _creds.Uploader.ApplicationId,
+                AccessToken = _creds.Uploader.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
@@ -56,7 +58,7 @@ namespace TwitchVor.Upload.Kvk
 
         async Task TestWallRunnerAsync()
         {
-            if (creds.WallRunner == null)
+            if (_creds.WallRunner == null)
             {
                 throw new NullReferenceException();
             }
@@ -66,14 +68,14 @@ namespace TwitchVor.Upload.Kvk
             using VkApi vkApi = new();
             await vkApi.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.WallRunner.ApplicationId,
-                AccessToken = creds.WallRunner.ApiToken,
+                ApplicationId = _creds.WallRunner.ApplicationId,
+                AccessToken = _creds.WallRunner.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.Wall
             });
 
             await vkApi.Wall.GetAsync(new VkNet.Model.WallGetParams()
             {
-                OwnerId = -creds.GroupId,
+                OwnerId = -_creds.GroupId,
                 Count = 1,
             });
 
@@ -90,19 +92,19 @@ namespace TwitchVor.Upload.Kvk
             using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.Uploader.ApplicationId,
-                AccessToken = creds.Uploader.ApiToken,
+                ApplicationId = _creds.Uploader.ApplicationId,
+                AccessToken = _creds.Uploader.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
             _logger.LogInformation("Просим...");
 
-            var saveResult = await api.Video.SaveAsync(new VkNet.Model.VideoSaveParams()
+            Video saveResult = await api.Video.SaveAsync(new VkNet.Model.VideoSaveParams()
             {
                 Name = name,
                 Description = description,
 
-                GroupId = creds.GroupId,
+                GroupId = _creds.GroupId,
             });
 
             using HttpClient client = new();
@@ -118,11 +120,11 @@ namespace TwitchVor.Upload.Kvk
 
             _logger.LogInformation("Начинаем загрузку...");
 
-            var response = await client.PostAsync(saveResult.UploadUrl, httpContent);
+            HttpResponseMessage response = await client.PostAsync(saveResult.UploadUrl, httpContent);
 
             if (!response.IsSuccessStatusCode)
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
+                string responseContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Не удалось завершить загрузку. {content}", responseContent);
                 return false;
             }
@@ -145,8 +147,8 @@ namespace TwitchVor.Upload.Kvk
             using VkApi api = new();
             await api.AuthorizeAsync(new ApiAuthParams()
             {
-                ApplicationId = creds.Uploader.ApplicationId,
-                AccessToken = creds.Uploader.ApiToken,
+                ApplicationId = _creds.Uploader.ApplicationId,
+                AccessToken = _creds.Uploader.ApiToken,
                 Settings = VkNet.Enums.Filters.Settings.All
             });
 
@@ -157,7 +159,7 @@ namespace TwitchVor.Upload.Kvk
                 Name = name,
                 Description = description,
 
-                GroupId = creds.GroupId,
+                GroupId = _creds.GroupId,
             });
 
             // Сюда пишем то, что будет читать аплоадер.
@@ -224,38 +226,15 @@ namespace TwitchVor.Upload.Kvk
             return true;
         }
 
-        void PostUpload(UploaderHandler uploaderHandler, ProcessingVideo video, VkNet.Model.Video saveResult)
+        private void PostUpload(UploaderHandler uploaderHandler, ProcessingVideo video, VkNet.Model.Video saveResult)
         {
             if (saveResult.Id != null)
             {
                 VkVideoInfo vkVideo = new(video, saveResult.Id.Value);
-                uploadedVideos.Add(vkVideo);
+                _uploadedVideos.Add(vkVideo);
 
-                _ = Task.Run(async () =>
-                {
-                    await uploaderHandler.processingHandler.ProcessTask;
-
-                    await PostProcessDescriptionUpdate(uploaderHandler, vkVideo);
-                });
-
-                if (creds.WallRunner != null && uploaderHandler.videos.FirstOrDefault() == video)
-                {
-                    // Пусть только первый видос запускает постобработку.
-                    // И всё видосы одним постом выложатся.
-                    _ = Task.Run(async () =>
-                    {
-                        _logger.LogInformation("Запущен постобработчик.");
-
-                        await uploaderHandler.ProcessTask;
-
-                        // В теории, делать имя поста нужно из всех игр всех видиков
-                        // Но мне чета так впадлу это писать.
-                        // Ща проверил. Оно и так пишет все игры со стрима, а не на конкретном видике. хд
-                        string postText = DescriptionMaker.FormVideoName(uploaderHandler.processingHandler.handlerCreationDate,
-                            null, 200, uploaderHandler.processingHandler.timestamps);
-                        await PostCringeAsync(postText);
-                    });
-                }
+                if (_postUploadTask == null)
+                    _postUploadTask = PostProcessWorkAsync(uploaderHandler);
             }
             else
             {
@@ -263,33 +242,68 @@ namespace TwitchVor.Upload.Kvk
             }
         }
 
-        async Task PostProcessDescriptionUpdate(UploaderHandler uploaderHandler, VkVideoInfo vkVideoInfo)
+        private async Task PostProcessWorkAsync(UploaderHandler uploaderHandler)
+        {
+            await uploaderHandler.ProcessTask;
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            _logger.LogInformation("Запущен первый постобработчик.");
+
+            // В теории, делать имя поста нужно из всех игр всех видиков
+            // Но мне чета так впадлу это писать.
+            // Ща проверил. Оно и так пишет все игры со стрима, а не на конкретном видике. хд
+            string postText = DescriptionMaker.FormVideoName(
+                uploaderHandler.processingHandler.handlerCreationDate,
+                null, 200, uploaderHandler.processingHandler.timestamps);
+            await PostCringeAsync(postText);
+
+            // Описание меняем после полного завершения.
+
+            await uploaderHandler.processingHandler.ProcessTask;
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            _logger.LogInformation("Запущен второй постобработчик.");
+
+            foreach (VkVideoInfo vkVideo in _uploadedVideos)
+            {
+                await PostProcessDescriptionUpdate(uploaderHandler, vkVideo);
+            }
+        }
+
+        private async Task PostProcessDescriptionUpdate(UploaderHandler uploaderHandler, VkVideoInfo vkVideoInfo)
         {
             if (vkVideoInfo.video.success != true)
                 return;
 
-            await Task.Delay(TimeSpan.FromSeconds(10));
-
-            _logger.LogInformation("Авторизуемся...");
-
-            using VkApi api = new();
-            await api.AuthorizeAsync(new ApiAuthParams()
-            {
-                ApplicationId = creds.Uploader.ApplicationId,
-                AccessToken = creds.Uploader.ApiToken,
-                Settings = VkNet.Enums.Filters.Settings.All
-            });
-
-            _logger.LogInformation("Меняем описание ({id})...", vkVideoInfo.id);
-
-            string name = uploaderHandler.MakeVideoName(vkVideoInfo.video);
-            string description = uploaderHandler.MakeVideoDescription(vkVideoInfo.video);
-
             try
             {
+                _logger.LogInformation("Авторизуемся...");
+
+                using VkApi api = new();
+                await api.AuthorizeAsync(new ApiAuthParams()
+                {
+                    ApplicationId = _creds.Uploader.ApplicationId,
+                    AccessToken = _creds.Uploader.ApiToken,
+                    Settings = VkNet.Enums.Filters.Settings.All
+                });
+
+                _logger.LogInformation("Меняем описание ({id})...", vkVideoInfo.id);
+
+                // Видео всегда должно там лежать
+                int videoIndex = uploaderHandler.videos.Index().First(v => v.Item == vkVideoInfo.video).Index;
+
+                string? nextVideoUrl = FindRelatedVideo(uploaderHandler, videoIndex + 1, _uploadedVideos, v => v.video)
+                    ?.ToLink(_creds.GroupId);
+                string? prevVideoUrl = FindRelatedVideo(uploaderHandler, videoIndex - 1, _uploadedVideos, v => v.video)
+                    ?.ToLink(_creds.GroupId);
+
+                string name = uploaderHandler.MakeVideoName(vkVideoInfo.video);
+                string description = uploaderHandler.MakeVideoDescription(vkVideoInfo.video, nextVideoUrl: nextVideoUrl,
+                    prevVideoUrl: prevVideoUrl);
+
                 await api.Video.EditAsync(new VkNet.Model.VideoEditParams()
                 {
-                    OwnerId = -creds.GroupId,
+                    OwnerId = -_creds.GroupId,
 
                     VideoId = vkVideoInfo.id,
 
@@ -307,12 +321,12 @@ namespace TwitchVor.Upload.Kvk
         }
 
         /// <summary>
-        /// Дождать загрузки и выложить пост на стену группы.
+        /// Выложить пост на стену группы.
         /// </summary>
         /// <returns></returns>
-        async Task PostCringeAsync(string? postText)
+        private async Task PostCringeAsync(string? postText)
         {
-            VkVideoInfo[] videoInfos = uploadedVideos.Where(v => v.video.success == true).ToArray();
+            VkVideoInfo[] videoInfos = _uploadedVideos.Where(v => v.video.success == true).ToArray();
 
             if (videoInfos.Length == 0)
             {
@@ -320,7 +334,7 @@ namespace TwitchVor.Upload.Kvk
                 return;
             }
 
-            VkWaller waller = new(_loggerFactory, creds);
+            VkWaller waller = new(_loggerFactory, _creds);
             try
             {
                 await waller.MakePostAsync(postText, videoInfos.Select(i => i.id).ToArray());

@@ -118,7 +118,8 @@ namespace TwitchVor.Finisher
 
         public static string FormDescription(DateTimeOffset videoStartDate, IReadOnlyList<BaseTimestamp> timestamps,
             IReadOnlyList<SkipDb> skips, string[] subgifters, TimeSpan advertismentTime, TimeSpan totalLostTime,
-            Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime)
+            Bill[] bills, TimeSpan? videoUploadTime, TimeSpan? totalUploadTime, string? nextVideoUrl = null,
+            string? prevVideoUrl = null)
         {
             StringBuilder builder = new();
             builder.AppendLine("Здесь ничего нет, в будущем я стану человеком");
@@ -180,6 +181,20 @@ namespace TwitchVor.Finisher
 
                 DoStamps<ChatCustomTimestamp>();
                 DoStamps<ChatClipTimestamp>();
+            }
+
+            if (nextVideoUrl != null || prevVideoUrl != null)
+            {
+                builder.AppendLine();
+                if (nextVideoUrl != null)
+                {
+                    builder.AppendLine($"Следующая часть: {nextVideoUrl}");
+                }
+
+                if (prevVideoUrl != null)
+                {
+                    builder.AppendLine($"Предыдущая часть: {prevVideoUrl}");
+                }
             }
 
             string? uploadTimeSpentString = MakeTimeSpentString("Загрузка заняла:", videoUploadTime, totalUploadTime);

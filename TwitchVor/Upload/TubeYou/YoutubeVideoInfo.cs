@@ -12,4 +12,9 @@ public class YoutubeVideoInfo
         this.processingVideo = processingVideo;
         this.videoId = videoId;
     }
+
+    public string ToLink()
+    {
+        return $"https://youtu.be/{videoId}";
+    }
 }

@@ -33,6 +33,9 @@ class ProcessingHandler
 
     public readonly string[] subgifters;
 
+    /// <summary>
+    /// Завершается, когда закончили работать все загрузчики.
+    /// </summary>
     public Task ProcessTask => processTCS.Task;
 
     public ProcessingHandler(DateTime handlerCreationDate, StreamDatabase db, TimeSpan advertismentLoss,

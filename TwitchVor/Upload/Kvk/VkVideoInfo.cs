@@ -12,4 +12,10 @@ public class VkVideoInfo
         this.video = video;
         this.id = id;
     }
+
+    // https://vk.com/video-216880923_456239411
+    public string ToLink(long groupId)
+    {
+        return $"https://vk.com/video-{groupId}_{id}";
+    }
 }

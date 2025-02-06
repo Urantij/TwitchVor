@@ -27,5 +27,18 @@ namespace TwitchVor.Upload
 
         public abstract Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video, string name,
             string description, string fileName, long size, Stream content);
+
+        protected static T? FindRelatedVideo<T>(UploaderHandler uploaderHandler, int index, IReadOnlyList<T> list,
+            Func<T, ProcessingVideo> extractor) where T : class
+        {
+            ProcessingVideo? processingVideo = uploaderHandler.videos.ElementAtOrDefault(index);
+
+            if (processingVideo == null) return null;
+
+            T? video =
+                list.FirstOrDefault(v => extractor(v) == processingVideo);
+
+            return video;
+        }
     }
 }
