@@ -5,7 +5,7 @@ namespace TwitchVor.Twitch.Chat;
 
 public class ChatBot
 {
-    readonly ILogger _logger;
+    private readonly ILogger _logger;
 
     public readonly TwitchChatClient client;
 

@@ -5,9 +5,9 @@ namespace TwitchVor.Finisher;
 /// <summary>
 /// Следит за процессом обработки стрима одним из загрузчиков.
 /// </summary>
-class UploaderHandler
+internal class UploaderHandler
 {
-    readonly TaskCompletionSource processTCS = new();
+    private readonly TaskCompletionSource processTCS = new();
 
     public readonly BaseUploader uploader;
 
@@ -49,7 +49,7 @@ class UploaderHandler
             processingHandler.bills, videoUploadTime, totalUploadTime);
     }
 
-    TimeSpan? SumTotalUploadTime()
+    private TimeSpan? SumTotalUploadTime()
     {
         var uploads = videos.Where(v => v.uploadStart != null && v.uploadEnd != null)
             .Select(v => (v.uploadEnd!.Value - v.uploadStart!.Value).Ticks)

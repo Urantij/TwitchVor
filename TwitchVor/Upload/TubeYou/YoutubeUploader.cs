@@ -10,7 +10,7 @@ using TwitchVor.Finisher;
 
 namespace TwitchVor.Upload.TubeYou;
 
-class YoutubeUploader : BaseUploader
+internal class YoutubeUploader : BaseUploader
 {
     private readonly YoutubeCreds _creds;
 

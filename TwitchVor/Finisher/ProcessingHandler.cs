@@ -8,9 +8,9 @@ namespace TwitchVor.Finisher;
 /// <summary>
 /// Хранит необходимую для обработки стрима информацию.
 /// </summary>
-class ProcessingHandler
+internal class ProcessingHandler
 {
-    readonly TaskCompletionSource processTCS = new();
+    private readonly TaskCompletionSource processTCS = new();
 
     /// <summary>
     /// UTC

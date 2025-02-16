@@ -2,8 +2,8 @@ namespace TwitchVor.Vvideo.Money;
 
 public class TimeBasedPricer : IPricer
 {
-    readonly DateTimeOffset creationDate;
-    readonly Bill perHourBill;
+    private readonly DateTimeOffset creationDate;
+    private readonly Bill perHourBill;
 
     public TimeBasedPricer(DateTimeOffset creationDate, Bill perHourBill)
     {

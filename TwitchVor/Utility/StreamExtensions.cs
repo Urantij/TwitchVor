@@ -1,47 +1,46 @@
-namespace TwitchVor.Utility
+namespace TwitchVor.Utility;
+
+public static class StreamExtensions
 {
-    public static class StreamExtensions
+    /// <summary>
+    /// Позволяет передать определённое количество байт.
+    /// </summary>
+    /// <param name="input"></param>
+    /// <param name="output">Туда пишет</param>
+    /// <param name="length">Скока байт передать</param>
+    /// <returns></returns>
+    public static async Task CopyStreamAsync(this Stream input, Stream output, long length,
+        CancellationToken cancellationToken = default)
     {
-        /// <summary>
-        /// Позволяет передать определённое количество байт.
-        /// </summary>
-        /// <param name="input"></param>
-        /// <param name="output">Туда пишет</param>
-        /// <param name="length">Скока байт передать</param>
-        /// <returns></returns>
-        public static async Task CopyStreamAsync(this Stream input, Stream output, long length,
-            CancellationToken cancellationToken = default)
+        //https://stackoverflow.com/a/13022108
+
+        const long bufferSize = 81920; //Дефолтный размер при Stream.CopyTo
+
+        byte[] buffer = new byte[bufferSize];
+
+        long read;
+        while (length > 0)
         {
-            //https://stackoverflow.com/a/13022108
+            Memory<byte> memory = buffer.AsMemory(0, (int)Math.Min(bufferSize, length));
 
-            const long bufferSize = 81920; //Дефолтный размер при Stream.CopyTo
+            read = await input.ReadAsync(memory, cancellationToken);
 
-            byte[] buffer = new byte[bufferSize];
+            if (read == 0)
+                return;
 
-            long read;
-            while (length > 0)
-            {
-                Memory<byte> memory = buffer.AsMemory(0, (int)Math.Min(bufferSize, length));
-
-                read = await input.ReadAsync(memory, cancellationToken);
-
-                if (read == 0)
-                    return;
-
-                await output.WriteAsync(memory, cancellationToken);
-                length -= read;
-            }
+            await output.WriteAsync(memory, cancellationToken);
+            length -= read;
         }
+    }
 
-        //https://stackoverflow.com/a/9958101
-        /// <summary>
-        /// "Очищает" содержимое, оставляя прежний размер.
-        /// </summary>
-        /// <param name="source"></param>
-        public static void Reset(this MemoryStream source)
-        {
-            source.Position = 0;
-            source.SetLength(0);
-        }
+    //https://stackoverflow.com/a/9958101
+    /// <summary>
+    /// "Очищает" содержимое, оставляя прежний размер.
+    /// </summary>
+    /// <param name="source"></param>
+    public static void Reset(this MemoryStream source)
+    {
+        source.Position = 0;
+        source.SetLength(0);
     }
 }

@@ -10,7 +10,7 @@ public class DotaInVideo
 {
     private readonly ILogger logger;
 
-    readonly HttpClient httpClient;
+    private readonly HttpClient httpClient;
     public readonly DotaInVideoConfig config;
 
     public DotaInVideo(DotaInVideoConfig config, ILoggerFactory loggerFactory)

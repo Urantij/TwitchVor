@@ -1,40 +1,39 @@
 using System.Diagnostics;
 
-namespace TwitchVor.Conversion
+namespace TwitchVor.Conversion;
+
+public class ConversionHandler : IDisposable
 {
-    public class ConversionHandler : IDisposable
+    private readonly Process process;
+
+    // public int ExitCode => process.ExitCode;
+
+    /// <summary>
+    /// Ето читаем
+    /// </summary>
+    public Stream OutputStream => process.StandardOutput.BaseStream;
+
+    /// <summary>
+    /// Его пишем
+    /// </summary>
+    public Stream InputStream => process.StandardInput.BaseStream;
+
+    public StreamReader TextStream => process.StandardError;
+
+    public ConversionHandler(Process process)
     {
-        readonly Process process;
+        this.process = process;
+    }
 
-        // public int ExitCode => process.ExitCode;
+    public async Task<int> WaitAsync()
+    {
+        await process.WaitForExitAsync();
 
-        /// <summary>
-        /// Ето читаем
-        /// </summary>
-        public Stream OutputStream => process.StandardOutput.BaseStream;
+        return process.ExitCode;
+    }
 
-        /// <summary>
-        /// Его пишем
-        /// </summary>
-        public Stream InputStream => process.StandardInput.BaseStream;
-
-        public StreamReader TextStream => process.StandardError;
-
-        public ConversionHandler(Process process)
-        {
-            this.process = process;
-        }
-
-        public async Task<int> WaitAsync()
-        {
-            await process.WaitForExitAsync();
-
-            return process.ExitCode;
-        }
-
-        public void Dispose()
-        {
-            process.Dispose();
-        }
+    public void Dispose()
+    {
+        process.Dispose();
     }
 }

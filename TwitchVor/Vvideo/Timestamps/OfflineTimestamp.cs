@@ -1,14 +1,13 @@
-namespace TwitchVor.Vvideo.Timestamps
-{
-    class OfflineTimestamp : BaseTimestamp
-    {
-        public OfflineTimestamp(DateTime timestamp) : base(timestamp)
-        {
-        }
+namespace TwitchVor.Vvideo.Timestamps;
 
-        public override string MakeString()
-        {
-            return "Offline";
-        }
+internal class OfflineTimestamp : BaseTimestamp
+{
+    public OfflineTimestamp(DateTime timestamp) : base(timestamp)
+    {
+    }
+
+    public override string MakeString()
+    {
+        return "Offline";
     }
 }

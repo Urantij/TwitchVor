@@ -4,8 +4,8 @@ namespace TwitchVor.Utility;
 // Так что в теории эти строки будут висеть до конца жизни программы, если с инпутом чето не так.
 public class UpdatableLine
 {
-    readonly int left;
-    readonly int top;
+    private readonly int left;
+    private readonly int top;
 
     private readonly CancellationToken cancellationToken;
     private bool stopped = false;

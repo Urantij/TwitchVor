@@ -4,10 +4,10 @@ namespace TwitchVor.Upload.Kvk;
 
 public class VkWaller
 {
-    readonly ILogger _logger;
+    private readonly ILogger _logger;
 
-    readonly VkCreds creds;
-    readonly VkAppConfig appConfig;
+    private readonly VkCreds creds;
+    private readonly VkAppConfig appConfig;
 
     public VkWaller(ILoggerFactory loggerFactory, VkCreds creds)
     {

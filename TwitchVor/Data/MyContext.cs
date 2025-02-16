@@ -2,40 +2,39 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TwitchVor.Data.Models;
 
-namespace TwitchVor.Data
+namespace TwitchVor.Data;
+
+public class MyContext : DbContext
 {
-    public class MyContext : DbContext
-    {
-        readonly string path;
+    private readonly string path;
 
 #nullable disable
 
-        public DbSet<SegmentDb> Segments { get; set; }
-        public DbSet<VideoFormatDb> VideoFormats { get; set; }
-        public DbSet<SkipDb> Skips { get; set; }
-        public DbSet<ChatMessageDb> ChatMessages { get; set; }
+    public DbSet<SegmentDb> Segments { get; set; }
+    public DbSet<VideoFormatDb> VideoFormats { get; set; }
+    public DbSet<SkipDb> Skips { get; set; }
+    public DbSet<ChatMessageDb> ChatMessages { get; set; }
 
 #nullable restore
 
-        public MyContext(string path)
-        {
-            this.path = path;
-        }
+    public MyContext(string path)
+    {
+        this.path = path;
+    }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseSqlite($"Data Source={path};");
-        }
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlite($"Data Source={path};");
+    }
 
-        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-        {
-            base.ConfigureConventions(configurationBuilder);
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
 
-            configurationBuilder.Properties<DateTimeOffset>()
-                .HaveConversion<DateTimeOffsetToBinaryConverter>();
+        configurationBuilder.Properties<DateTimeOffset>()
+            .HaveConversion<DateTimeOffsetToBinaryConverter>();
 
-            configurationBuilder.Properties<DateTimeOffset?>()
-                .HaveConversion<DateTimeOffsetToBinaryConverter>();
-        }
+        configurationBuilder.Properties<DateTimeOffset?>()
+            .HaveConversion<DateTimeOffsetToBinaryConverter>();
     }
 }

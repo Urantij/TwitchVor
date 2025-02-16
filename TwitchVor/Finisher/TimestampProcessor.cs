@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using TwitchLib.Api.Helix.Models.Videos.GetVideos;
+using TwitchVor.Main;
 using TwitchVor.Twitch.Chat;
 using TwitchVor.Twitch.Downloader;
 using TwitchVor.Vvideo;

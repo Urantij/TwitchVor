@@ -2,57 +2,56 @@ using Microsoft.Extensions.Logging;
 using TwitchVor.Twitch.Checker;
 using TwitchVor.Vvideo.Timestamps;
 
-namespace TwitchVor.Vvideo
+namespace TwitchVor.Vvideo;
+
+/// <summary>
+/// Под видеороликом нужно писать, когда меняется категория/тайтл
+/// Мб ещё что-нибудь в будущем
+/// </summary>
+internal class Timestamper
 {
-    /// <summary>
-    /// Под видеороликом нужно писать, когда меняется категория/тайтл
-    /// Мб ещё что-нибудь в будущем
-    /// </summary>
-    class Timestamper
+    private readonly ILogger _logger;
+
+    public readonly List<BaseTimestamp> timestamps = new();
+
+    private HelixCheck? lastHelixCheck;
+
+    public Timestamper(ILoggerFactory loggerFactory)
     {
-        readonly ILogger _logger;
+        _logger = loggerFactory.CreateLogger(this.GetType());
+    }
 
-        public readonly List<BaseTimestamp> timestamps = new();
-
-        HelixCheck? lastHelixCheck;
-
-        public Timestamper(ILoggerFactory loggerFactory)
+    public void AddTimestamp(BaseTimestamp timestamp)
+    {
+        lock (timestamps)
         {
-            _logger = loggerFactory.CreateLogger(this.GetType());
+            timestamps.Add(timestamp);
         }
 
-        public void AddTimestamp(BaseTimestamp timestamp)
+        _logger.LogInformation("Добавлен таймстамп \"{content}\"", timestamp.ToString());
+    }
+
+    public void HelixChecker_ChannelChecked(object? sender, TwitchCheckInfo twitchCheck)
+    {
+        // Если не хеликс чекс, то он должен быть всегда !онлайн, ну да ладно
+        if (twitchCheck is not HelixCheck helixCheck || !twitchCheck.online)
         {
-            lock (timestamps)
-            {
-                timestamps.Add(timestamp);
-            }
-
-            _logger.LogInformation("Добавлен таймстамп \"{content}\"", timestamp.ToString());
-        }
-
-        public void HelixChecker_ChannelChecked(object? sender, TwitchCheckInfo twitchCheck)
-        {
-            // Если не хеликс чекс, то он должен быть всегда !онлайн, ну да ладно
-            if (twitchCheck is not HelixCheck helixCheck || !twitchCheck.online)
-            {
-                if (lastHelixCheck == null)
-                    return;
-
-                AddTimestamp(new OfflineTimestamp(twitchCheck.checkTime));
-
-                lastHelixCheck = null;
+            if (lastHelixCheck == null)
                 return;
-            }
 
-            if (lastHelixCheck?.online != true || lastHelixCheck.info.title != helixCheck.info.title ||
-                lastHelixCheck.info.gameId != helixCheck.info.gameId)
-            {
-                AddTimestamp(new GameTimestamp(helixCheck.info.title, helixCheck.info.gameName, helixCheck.info.gameId,
-                    helixCheck.checkTime));
-            }
+            AddTimestamp(new OfflineTimestamp(twitchCheck.checkTime));
 
-            lastHelixCheck = helixCheck;
+            lastHelixCheck = null;
+            return;
         }
+
+        if (lastHelixCheck?.online != true || lastHelixCheck.info.title != helixCheck.info.title ||
+            lastHelixCheck.info.gameId != helixCheck.info.gameId)
+        {
+            AddTimestamp(new GameTimestamp(helixCheck.info.title, helixCheck.info.gameName, helixCheck.info.gameId,
+                helixCheck.checkTime));
+        }
+
+        lastHelixCheck = helixCheck;
     }
 }

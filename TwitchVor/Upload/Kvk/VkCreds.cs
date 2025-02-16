@@ -1,38 +1,37 @@
 using Newtonsoft.Json;
 
-namespace TwitchVor.Upload.Kvk
+namespace TwitchVor.Upload.Kvk;
+
+public class VkAppConfig
 {
-    public class VkAppConfig
+    [JsonProperty(Required = Required.Always)]
+    public string ApiToken { get; set; } = "";
+
+    [JsonProperty(Required = Required.Always)]
+    public ulong ApplicationId { get; set; }
+
+    public VkAppConfig(string apiToken, ulong applicationId)
     {
-        [JsonProperty(Required = Required.Always)]
-        public string ApiToken { get; set; } = "";
-
-        [JsonProperty(Required = Required.Always)]
-        public ulong ApplicationId { get; set; }
-
-        public VkAppConfig(string apiToken, ulong applicationId)
-        {
-            ApiToken = apiToken;
-            ApplicationId = applicationId;
-        }
+        ApiToken = apiToken;
+        ApplicationId = applicationId;
     }
+}
 
-    public class VkCreds
+public class VkCreds
+{
+    [JsonProperty(Required = Required.Always)]
+    public long GroupId { get; set; }
+
+    [JsonProperty(Required = Required.Always)]
+    public VkAppConfig Uploader { get; set; }
+
+    [JsonProperty(Required = Required.Default)]
+    public VkAppConfig? WallRunner { get; set; }
+
+    public VkCreds(long groupId, VkAppConfig uploader, VkAppConfig? wallRunner)
     {
-        [JsonProperty(Required = Required.Always)]
-        public long GroupId { get; set; }
-
-        [JsonProperty(Required = Required.Always)]
-        public VkAppConfig Uploader { get; set; }
-
-        [JsonProperty(Required = Required.Default)]
-        public VkAppConfig? WallRunner { get; set; }
-
-        public VkCreds(long groupId, VkAppConfig uploader, VkAppConfig? wallRunner)
-        {
-            GroupId = groupId;
-            Uploader = uploader;
-            WallRunner = wallRunner;
-        }
+        GroupId = groupId;
+        Uploader = uploader;
+        WallRunner = wallRunner;
     }
 }

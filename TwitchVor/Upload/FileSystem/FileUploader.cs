@@ -4,148 +4,147 @@ using Microsoft.Extensions.Logging;
 using TwitchVor.Data.Models;
 using TwitchVor.Finisher;
 
-namespace TwitchVor.Upload.FileSystem
+namespace TwitchVor.Upload.FileSystem;
+
+internal class FileUploader : BaseUploader
 {
-    class FileUploader : BaseUploader
+    private readonly string path;
+
+    public override long SizeLimit => long.MaxValue;
+    public override TimeSpan DurationLimit => TimeSpan.MaxValue;
+
+    public override bool NeedsExactVideoSize => false;
+
+    public FileUploader(Guid guid, ILoggerFactory loggerFactory, string path)
+        : base(guid, loggerFactory)
     {
-        private readonly string path;
+        this.path = path;
+    }
 
-        public override long SizeLimit => long.MaxValue;
-        public override TimeSpan DurationLimit => TimeSpan.MaxValue;
+    public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video,
+        string name, string description, string fileName, long size, Stream content)
+    {
+        _logger.LogInformation("Пишем...");
 
-        public override bool NeedsExactVideoSize => false;
+        Task extraTask = WriteExtras(uploaderHandler.processingHandler, video, name, description);
 
-        public FileUploader(Guid guid, ILoggerFactory loggerFactory, string path)
-            : base(guid, loggerFactory)
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+
+        await content.CopyToAsync(fs);
+
+        await extraTask;
+
+        _logger.LogInformation("Записали видево в {path}", path);
+
+        return true;
+    }
+
+    private async Task WriteExtras(ProcessingHandler processingHandler, ProcessingVideo video, string name,
+        string description)
+    {
         {
-            this.path = path;
+            string descriptionPath = Path.ChangeExtension(path, "txt");
+            await File.WriteAllTextAsync(descriptionPath, $"{name}\n\n\n{description}");
+
+            _logger.LogInformation("Записали описание в {path}", descriptionPath);
         }
 
-        public override async Task<bool> UploadAsync(UploaderHandler uploaderHandler, ProcessingVideo video,
-            string name, string description, string fileName, long size, Stream content)
+        using var context = processingHandler.db.CreateContext();
+
+        string chatPath = Path.ChangeExtension(path, "chat.txt");
+        using var chatFs = new FileStream(chatPath, FileMode.Create);
+
+        string marksPath = Path.ChangeExtension(path, "marks.txt");
+        int marksCount = 0;
+
+        const int batchSize = 1000;
+        int msgsCount = await context.ChatMessages.CountAsync();
+        _logger.LogInformation("Пишем {count} сообщений из чата.", msgsCount);
+
+        for (int msgIndex = 0; msgIndex < msgsCount; msgIndex += batchSize)
         {
-            _logger.LogInformation("Пишем...");
+            var messages = context.ChatMessages.OrderBy(c => c.Id)
+                .Skip(msgIndex)
+                .Take(batchSize)
+                .ToArray();
 
-            Task extraTask = WriteExtras(uploaderHandler.processingHandler, video, name, description);
-
-            using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
-
-            await content.CopyToAsync(fs);
-
-            await extraTask;
-
-            _logger.LogInformation("Записали видево в {path}", path);
-
-            return true;
-        }
-
-        async Task WriteExtras(ProcessingHandler processingHandler, ProcessingVideo video, string name,
-            string description)
-        {
+            StringBuilder sb = new();
+            foreach (var message in messages)
             {
-                string descriptionPath = Path.ChangeExtension(path, "txt");
-                await File.WriteAllTextAsync(descriptionPath, $"{name}\n\n\n{description}");
+                sb.Clear();
+                CreateFileMessage(processingHandler, video, message, sb);
 
-                _logger.LogInformation("Записали описание в {path}", descriptionPath);
+                await chatFs.WriteAsync(Encoding.UTF8.GetBytes(sb.ToString()));
             }
 
-            using var context = processingHandler.db.CreateContext();
-
-            string chatPath = Path.ChangeExtension(path, "chat.txt");
-            using var chatFs = new FileStream(chatPath, FileMode.Create);
-
-            string marksPath = Path.ChangeExtension(path, "marks.txt");
-            int marksCount = 0;
-
-            const int batchSize = 1000;
-            int msgsCount = await context.ChatMessages.CountAsync();
-            _logger.LogInformation("Пишем {count} сообщений из чата.", msgsCount);
-
-            for (int msgIndex = 0; msgIndex < msgsCount; msgIndex += batchSize)
-            {
-                var messages = context.ChatMessages.OrderBy(c => c.Id)
-                    .Skip(msgIndex)
-                    .Take(batchSize)
-                    .ToArray();
-
-                StringBuilder sb = new();
-                foreach (var message in messages)
+            var commands = messages
+                .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
+                .Select(a =>
                 {
-                    sb.Clear();
-                    CreateFileMessage(processingHandler, video, message, sb);
+                    string message = a.Message["=метка".Length..].TrimStart();
 
-                    await chatFs.WriteAsync(Encoding.UTF8.GetBytes(sb.ToString()));
-                }
+                    TimeSpan time = video.GetOnVideoTime(a.PostTime, processingHandler.skips);
 
-                var commands = messages
-                    .Where(m => m.Message.StartsWith("=метка", StringComparison.OrdinalIgnoreCase))
-                    .Select(a =>
+                    if (message.Length > 0)
                     {
-                        string message = a.Message["=метка".Length..].TrimStart();
+                        return $"[{time}] {message} ({a.Username})";
+                    }
 
-                        TimeSpan time = video.GetOnVideoTime(a.PostTime, processingHandler.skips);
+                    return $"[{time}] ({a.Username})";
+                }).ToArray();
 
-                        if (message.Length > 0)
-                        {
-                            return $"[{time}] {message} ({a.Username})";
-                        }
-
-                        return $"[{time}] ({a.Username})";
-                    }).ToArray();
-
-                if (commands.Length > 0)
-                {
-                    marksCount += commands.Length;
-                    await File.AppendAllLinesAsync(marksPath, commands);
-                }
-            }
-
-            if (marksCount > 0)
+            if (commands.Length > 0)
             {
-                _logger.LogInformation("Записали {count} отметок.", marksCount);
+                marksCount += commands.Length;
+                await File.AppendAllLinesAsync(marksPath, commands);
             }
         }
 
-        void CreateFileMessage(ProcessingHandler processingHandler, ProcessingVideo video, ChatMessageDb message,
-            StringBuilder sb)
+        if (marksCount > 0)
         {
-            TimeSpan time = video.GetOnVideoTime(message.PostTime, processingHandler.skips);
+            _logger.LogInformation("Записали {count} отметок.", marksCount);
+        }
+    }
 
-            sb.Append('[').Append(time.ToString()).Append(']');
+    private void CreateFileMessage(ProcessingHandler processingHandler, ProcessingVideo video, ChatMessageDb message,
+        StringBuilder sb)
+    {
+        TimeSpan time = video.GetOnVideoTime(message.PostTime, processingHandler.skips);
 
-            if (message.Badges != null)
+        sb.Append('[').Append(time.ToString()).Append(']');
+
+        if (message.Badges != null)
+        {
+            sb.Append(":b").Append(message.Badges);
+        }
+
+        if (message.Color != null)
+        {
+            sb.Append(":c").Append(message.Color);
+        }
+
+        sb.Append(' ');
+
+        if (message.DisplayName != null)
+        {
+            if (message.DisplayName.Equals(message.Username, StringComparison.OrdinalIgnoreCase))
             {
-                sb.Append(":b").Append(message.Badges);
-            }
-
-            if (message.Color != null)
-            {
-                sb.Append(":c").Append(message.Color);
-            }
-
-            sb.Append(' ');
-
-            if (message.DisplayName != null)
-            {
-                if (message.DisplayName.Equals(message.Username, StringComparison.OrdinalIgnoreCase))
-                {
-                    sb.Append(message.DisplayName);
-                }
-                else
-                {
-                    sb.Append(message.Username).Append('/').Append(message.DisplayName);
-                }
+                sb.Append(message.DisplayName);
             }
             else
             {
-                sb.Append(message.Username);
+                sb.Append(message.Username).Append('/').Append(message.DisplayName);
             }
-
-            sb.Append(" (").Append(message.UserId).Append(')');
-
-            sb.Append(' ').Append(message.Message);
-
-            sb.Append('\n');
         }
+        else
+        {
+            sb.Append(message.Username);
+        }
+
+        sb.Append(" (").Append(message.UserId).Append(')');
+
+        sb.Append(' ').Append(message.Message);
+
+        sb.Append('\n');
     }
 }

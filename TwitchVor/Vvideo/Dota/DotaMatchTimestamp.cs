@@ -2,7 +2,7 @@ using System.Text;
 
 namespace TwitchVor.Vvideo.Dota;
 
-class DotaMatchTimestamp : BaseTimestamp
+internal class DotaMatchTimestamp : BaseTimestamp
 {
     public readonly string heroName;
     public readonly int partyCount;

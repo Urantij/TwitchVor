@@ -2,7 +2,7 @@ using TwitchVor.Vvideo;
 
 namespace TwitchVor.Twitch.Chat;
 
-class ChatCustomTimestamp : BaseTimestamp
+internal class ChatCustomTimestamp : BaseTimestamp
 {
     public readonly string text;
     public readonly string author;

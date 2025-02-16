@@ -4,7 +4,7 @@ using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using TwitchSimpleLib.Chat.Messages;
 using TwitchVor.Twitch.Chat;
 
-namespace TwitchVor.Twitch.Downloader;
+namespace TwitchVor.Main;
 
 internal partial class StreamChatWorker
 {

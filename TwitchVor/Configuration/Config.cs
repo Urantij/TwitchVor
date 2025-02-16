@@ -12,7 +12,7 @@ using TwitchVor.Vvideo.Pubg;
 
 namespace TwitchVor.Configuration;
 
-class Config
+internal class Config
 {
     [JsonIgnore] private string path;
 
