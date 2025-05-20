@@ -19,7 +19,10 @@ internal class YoutubeUploader : BaseUploader
 
     public override long SizeLimit => 1000L * 1000L * 1000L * 256L;
 
-    public override TimeSpan DurationLimit => TimeSpan.FromHours(12);
+    // Ютуб разрешает 12 часов, но ща был смешной момент, когда видео откинулось из-за слишком большой продолжительности.
+    // Длительность кусочков берётся со слов твича, и она не гигаточная. За 12 часов может небольшая разница убить видево
+    // 0.05 от часа это 180 секунд, довольно безопасный буфер.
+    public override TimeSpan DurationLimit => TimeSpan.FromHours(11.95);
 
     private readonly List<YoutubeVideoInfo> _uploadedVideos = new();
 
