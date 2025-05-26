@@ -58,7 +58,11 @@ internal class Config
     [JsonProperty(Required = Required.AllowNull)]
     public string? TwitchAPISecret { get; set; } = null;
 
-    public string PreferedVideoResolution { get; set; } = "1280x720";
+    /// <summary>
+    /// 1920x1080 Source
+    /// Если сурс, фпс игнорируется
+    /// </summary>
+    public string PreferedVideoResolution { get; set; } = "Source";
     public float PreferedVideoFps { get; set; } = 60;
     public bool TakeOnlyPrefered { get; set; } = false;
 

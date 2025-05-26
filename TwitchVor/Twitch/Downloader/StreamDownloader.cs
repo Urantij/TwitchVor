@@ -57,10 +57,23 @@ public class StreamDownloader
             UseProxy = false
         });
 
+        float? fps;
+        Resolution? res;
+        if (Program.config.PreferedVideoResolution.Equals("Source", StringComparison.OrdinalIgnoreCase))
+        {
+            fps = null;
+            res = null;
+        }
+        else
+        {
+            fps = Program.config.PreferedVideoFps;
+            res = Resolution.Parse(Program.config.PreferedVideoResolution);
+        }
+        
         var settings = new SegmentsDownloaderSettings()
         {
-            preferredFps = Program.config.PreferedVideoFps,
-            preferredResolution = Resolution.Parse(Program.config.PreferedVideoResolution),
+            preferredFps = fps,
+            preferredResolution = res,
 
             takeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
         };
