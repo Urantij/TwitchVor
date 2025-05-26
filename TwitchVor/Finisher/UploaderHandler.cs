@@ -46,7 +46,7 @@ internal class UploaderHandler
 
         return DescriptionMaker.FormDescription(video.startDate, processingHandler.timestamps, processingHandler.skips,
             processingHandler.subgifters, processingHandler.advertismentLoss, processingHandler.totalLoss,
-            processingHandler.bills, videoUploadTime, totalUploadTime);
+            processingHandler.bills, videoUploadTime, totalUploadTime, nextVideoUrl: nextVideoUrl, prevVideoUrl: prevVideoUrl);
     }
 
     private TimeSpan? SumTotalUploadTime()
