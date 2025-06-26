@@ -33,6 +33,8 @@ public class StreamDownloader
     private readonly BaseSpaceProvider space;
     private readonly ILoggerFactory _loggerFactory;
 
+    private readonly MapContainer _mapContainer;
+
     public bool Working { get; private set; }
 
     private StreamSegment? lastSegment = null;
@@ -57,6 +59,8 @@ public class StreamDownloader
             UseProxy = false
         });
 
+        _mapContainer = new MapContainer(httpClient, loggerFactory.CreateLogger<MapContainer>());
+
         float? fps;
         Resolution? res;
         if (Program.config.PreferedVideoResolution.Equals("Source", StringComparison.OrdinalIgnoreCase))
@@ -72,10 +76,10 @@ public class StreamDownloader
         
         var settings = new SegmentsDownloaderSettings()
         {
-            preferredFps = fps,
-            preferredResolution = res,
+            PreferredFps = fps,
+            PreferredResolution = res,
 
-            takeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
+            TakeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
         };
 
         segmentsDownloader = new SegmentsDownloader(httpClient, settings, Program.config.Channel!,
@@ -168,9 +172,9 @@ public class StreamDownloader
 
     private async void SegmentArrived(object? sender, StreamSegment segment)
     {
-        if (!segment.IsLive)
+        if (!segment.IsLive())
         {
-            AdvertismentTime += TimeSpan.FromSeconds(segment.duration);
+            AdvertismentTime += TimeSpan.FromSeconds(segment.Duration);
             return;
         }
 
@@ -206,7 +210,7 @@ public class StreamDownloader
                         // Значит, нам нужно прочитать из базы сегменты, читать их из файла и перенаправить
                         _logger.LogInformation("Space created, moving file to new home");
 
-                        TransferSpaceContentAsync(space).GetAwaiter().GetResult();
+                        await TransferSpaceContentAsync(space);
 
                         spaceToWrite = space;
                     }
@@ -217,30 +221,52 @@ public class StreamDownloader
                     {
                         tempSpace = new LocalSpaceProvider(guid, _loggerFactory,
                             DependencyProvider.MakeLocalSpacePath(guid, true));
-                        tempSpace.InitAsync().GetAwaiter().GetResult();
+                        await tempSpace.InitAsync();
                     }
 
                     spaceToWrite = tempSpace;
                 }
+                
+                // TODO Наверное по хорошему тут нужно делать пайп стрим, закачивать мап + дату
+                // Но я чесно говоря ЕБАЛ это всё делать.
 
-                int id = db.AddSegment(qItem.segment.mediaSequenceNumber, qItem.segment.programDate,
-                    qItem.bufferWriteStream.Length, qItem.segment.duration);
-                qItem.bufferWriteStream.Position = 0;
+                Stream segmentStream;
+                if (qItem.segment.MapValue != null)
+                {
+                    byte[] mapContent = await _mapContainer.GetMappedAsync(qItem.segment.MapValue);
+                    
+                    segmentStream = new MemoryStream((int)(mapContent.Length + qItem.bufferWriteStream.Length));
+
+                    MemoryStream ms = new(mapContent);
+                    await ms.CopyToAsync(segmentStream);
+                    
+                    qItem.bufferWriteStream.Position = 0;
+                    await qItem.bufferWriteStream.CopyToAsync(segmentStream);
+                }
+                else
+                {
+                    segmentStream = qItem.bufferWriteStream;
+                }
+
+                segmentStream.Position = 0;
+                
+                int id = db.AddSegment(qItem.segment.MediaSequenceNumber, qItem.segment.ProgramDate,
+                    segmentStream.Length, qItem.segment.Duration);
 
                 if (lastSegment != null)
                 {
-                    var lastSegmentEnd = lastSegment.programDate.AddSeconds(lastSegment.duration);
+                    var lastSegmentEnd = lastSegment.ProgramDate.AddSeconds(lastSegment.Duration);
 
-                    var difference = qItem.segment.programDate - lastSegmentEnd;
+                    var difference = qItem.segment.ProgramDate - lastSegmentEnd;
 
                     if (difference >= Program.config.MinimumSegmentSkipDelay)
                     {
                         _logger.LogWarning(
                             "Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(",
-                            difference.TotalSeconds, lastSegment.mediaSequenceNumber,
-                            qItem.segment.mediaSequenceNumber);
+                            difference.TotalSeconds, lastSegment.MediaSequenceNumber,
+                            qItem.segment.MediaSequenceNumber);
 
-                        db.AddSkip(lastSegmentEnd, qItem.segment.programDate);
+                        await db.AddSkipAsync(lastSegmentEnd, qItem.segment.ProgramDate);
                     }
                 }
 
@@ -248,7 +274,7 @@ public class StreamDownloader
 
                 try
                 {
-                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length)
+                    spaceToWrite.PutDataAsync(id, segmentStream, segmentStream.Length)
                         .GetAwaiter().GetResult();
                 }
                 catch (Exception exception)
@@ -260,7 +286,7 @@ public class StreamDownloader
             {
                 // пропущен сегмент
 
-                _logger.LogWarning("Missing downloading segment {title}", qItem.segment.title);
+                _logger.LogWarning("Missing downloading segment {title}", qItem.segment.Title);
             }
         }
         finally

@@ -21,9 +21,9 @@ public static class SomeUtis
 
     public static string MakeFormat(Quality quality)
     {
-        if (quality.resolution == null)
-            return $"{quality.fps}";
+        if (quality.Resolution == null)
+            return $"{quality.Fps}";
 
-        return $"{quality.resolution.width}x{quality.resolution.height}:{quality.fps}";
+        return $"{quality.Resolution.width}x{quality.Resolution.height}:{quality.Fps}";
     }
 }
