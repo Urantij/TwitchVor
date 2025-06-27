@@ -190,7 +190,7 @@ public class StreamDownloader
         }
     }
 
-    private async void ItemDequeued(object? sender, QueueItem qItem)
+    private void ItemDequeued(object? sender, QueueItem qItem)
     {
         try
         {
@@ -210,7 +210,7 @@ public class StreamDownloader
                         // Значит, нам нужно прочитать из базы сегменты, читать их из файла и перенаправить
                         _logger.LogInformation("Space created, moving file to new home");
 
-                        await TransferSpaceContentAsync(space);
+                        TransferSpaceContentAsync(space).GetAwaiter().GetResult();
 
                         spaceToWrite = space;
                     }
@@ -221,7 +221,7 @@ public class StreamDownloader
                     {
                         tempSpace = new LocalSpaceProvider(guid, _loggerFactory,
                             DependencyProvider.MakeLocalSpacePath(guid, true));
-                        await tempSpace.InitAsync();
+                        tempSpace.InitAsync().GetAwaiter().GetResult();
                     }
 
                     spaceToWrite = tempSpace;
@@ -233,15 +233,15 @@ public class StreamDownloader
                 Stream segmentStream;
                 if (qItem.segment.MapValue != null)
                 {
-                    byte[] mapContent = await _mapContainer.GetMappedAsync(qItem.segment.MapValue);
+                    byte[] mapContent = _mapContainer.GetMappedAsync(qItem.segment.MapValue).GetAwaiter().GetResult();
                     
                     segmentStream = new MemoryStream((int)(mapContent.Length + qItem.bufferWriteStream.Length));
 
                     MemoryStream ms = new(mapContent);
-                    await ms.CopyToAsync(segmentStream);
+                    ms.CopyToAsync(segmentStream).GetAwaiter().GetResult();
                     
                     qItem.bufferWriteStream.Position = 0;
-                    await qItem.bufferWriteStream.CopyToAsync(segmentStream);
+                    qItem.bufferWriteStream.CopyToAsync(segmentStream).GetAwaiter().GetResult();
                 }
                 else
                 {
@@ -266,7 +266,7 @@ public class StreamDownloader
                             difference.TotalSeconds, lastSegment.MediaSequenceNumber,
                             qItem.segment.MediaSequenceNumber);
 
-                        await db.AddSkipAsync(lastSegmentEnd, qItem.segment.ProgramDate);
+                        db.AddSkipAsync(lastSegmentEnd, qItem.segment.ProgramDate).GetAwaiter().GetResult();
                     }
                 }
 
@@ -291,7 +291,7 @@ public class StreamDownloader
         }
         finally
         {
-            await qItem.bufferWriteStream.DisposeAsync();
+            qItem.bufferWriteStream.DisposeAsync();
         }
     }
 
