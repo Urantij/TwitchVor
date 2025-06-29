@@ -169,6 +169,21 @@ public class StreamDatabase
             .ToArrayAsync();
     }
 
+    /// <summary>
+    /// инклузив 
+    /// </summary>
+    /// <returns></returns>
+    public async Task<SegmentDb[]> LoadSegmentsRangeAsync(int start, int end)
+    {
+        using var context = CreateContext();
+
+        return await context.Segments
+            .OrderBy(s => s.Id)
+            .Where(s => s.Id >= start && s.Id <= end)
+            .Include(s => s.Map)
+            .ToArrayAsync();
+    }
+
     public async Task<SkipDb[]> LoadSkipsAsync()
     {
         using var context = CreateContext();

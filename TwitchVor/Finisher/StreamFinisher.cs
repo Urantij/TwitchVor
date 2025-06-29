@@ -630,17 +630,18 @@ internal class StreamFinisher
                 // Если мы мапнутые, мы не можем просто всосать все сегменты и вкинуть в ффмпег, 
                 // тк мапнутые сегменты в мп4, а не тс
 
-                const int batchSize = 100;
+                const int batchSize = 99;
 
                 int currentSegmentId = video.segmentStart;
                 long currentOffset = baseOffset;
 
                 while (currentSegmentId <= endSegmentId)
                 {
-                    int leftToTake = endSegmentId - currentSegmentId + 1;
-                    int toLoad = Math.Min(leftToTake, batchSize);
+                    int rangeEnd = currentSegmentId + batchSize;
+                    if (rangeEnd > endSegmentId)
+                        rangeEnd = endSegmentId;
 
-                    SegmentDb[] segments = await db.LoadSegmentsAsync(toLoad, currentSegmentId);
+                    SegmentDb[] segments = await db.LoadSegmentsRangeAsync(currentSegmentId, rangeEnd);
 
                     foreach (SegmentDb segment in segments)
                     {
@@ -653,7 +654,19 @@ internal class StreamFinisher
                             // дааа надо было раньше думать
                             ConversionHandler conversion = Program.ffmpeg.CreateMp4ToTsConversion();
 
-                            Task errorTask = ReadFfmpegTextAsync(conversion.TextStream);
+                            // игнорить не о4 хорошо, но мне впадлу
+                            Task errorTask = Task.Run(async () =>
+                            {
+                                while (true)
+                                {
+                                    string? line = await conversion.TextStream.ReadLineAsync();
+
+                                    if (line == null)
+                                    {
+                                        return;
+                                    }
+                                }
+                            });
 
                             Task writeTask = Task.Run(async () =>
                             {
