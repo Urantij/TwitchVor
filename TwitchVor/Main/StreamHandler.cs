@@ -30,12 +30,16 @@ internal class StreamHandler
 
     public readonly StreamChatWorker chatWorker;
 
+    public readonly MapContainer mapContainer;
+
     internal SubCheck? subCheck;
 
     /// <summary>
     /// UTC
     /// </summary>
     internal readonly DateTime handlerCreationDate;
+
+    private readonly HttpClient httpClient;
 
     public StreamHandler(Timestamper timestamper, ILoggerFactory loggerFactory)
     {
@@ -51,7 +55,15 @@ internal class StreamHandler
 
         space = DependencyProvider.GetSpaceProvider(guid, loggerFactory);
 
-        streamDownloader = new StreamDownloader(guid, db, space, loggerFactory);
+        httpClient = new HttpClient(new HttpClientHandler()
+        {
+            Proxy = null,
+            UseProxy = false
+        });
+
+        mapContainer = new MapContainer(httpClient, db, loggerFactory.CreateLogger<MapContainer>());
+
+        streamDownloader = new StreamDownloader(guid, db, space, httpClient, mapContainer, loggerFactory);
 
         chatWorker = new StreamChatWorker(this, loggerFactory);
     }
@@ -149,6 +161,8 @@ internal class StreamHandler
         {
             await space.DestroyAsync();
         }
+        
+        httpClient.Dispose();
     }
 
     private static string MakeDbPath(Guid guid)

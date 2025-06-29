@@ -45,7 +45,7 @@ public class StreamDownloader
     /// </summary>
     internal TimeSpan AdvertismentTime { get; private set; } = TimeSpan.Zero;
 
-    public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, ILoggerFactory loggerFactory)
+    public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, HttpClient httpClient, MapContainer mapContainer, ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(this.GetType());
 
@@ -53,13 +53,8 @@ public class StreamDownloader
         this.db = db;
         this.space = space;
         this._loggerFactory = loggerFactory;
-        httpClient = new HttpClient(new HttpClientHandler()
-        {
-            Proxy = null,
-            UseProxy = false
-        });
-
-        _mapContainer = new MapContainer(httpClient, loggerFactory.CreateLogger<MapContainer>());
+        this.httpClient = httpClient;
+        _mapContainer = mapContainer;
 
         float? fps;
         Resolution? res;
@@ -73,7 +68,7 @@ public class StreamDownloader
             fps = Program.config.PreferedVideoFps;
             res = Resolution.Parse(Program.config.PreferedVideoResolution);
         }
-        
+
         var settings = new SegmentsDownloaderSettings()
         {
             PreferredFps = fps,
@@ -82,7 +77,7 @@ public class StreamDownloader
             TakeOnlyPreferredQuality = Program.config.TakeOnlyPrefered,
         };
 
-        segmentsDownloader = new SegmentsDownloader(httpClient, settings, Program.config.Channel!,
+        segmentsDownloader = new SegmentsDownloader(this.httpClient, settings, Program.config.Channel!,
             Program.config.Downloader.ClientId, Program.config.Downloader.OAuth);
         segmentsDownloader.UnknownPlaylistLineFound += UnknownPlaylistLineFound;
         segmentsDownloader.CommentPlaylistLineFound += CommentPlaylistLineFound;
@@ -226,32 +221,20 @@ public class StreamDownloader
 
                     spaceToWrite = tempSpace;
                 }
-                
+
                 // TODO Наверное по хорошему тут нужно делать пайп стрим, закачивать мап + дату
                 // Но я чесно говоря ЕБАЛ это всё делать.
 
-                Stream segmentStream;
+                MapInfo? mapInfo = null;
                 if (qItem.segment.MapValue != null)
                 {
-                    byte[] mapContent = _mapContainer.GetMappedAsync(qItem.segment.MapValue).GetAwaiter().GetResult();
-                    
-                    segmentStream = new MemoryStream((int)(mapContent.Length + qItem.bufferWriteStream.Length));
-
-                    MemoryStream ms = new(mapContent);
-                    ms.CopyToAsync(segmentStream).GetAwaiter().GetResult();
-                    
-                    qItem.bufferWriteStream.Position = 0;
-                    qItem.bufferWriteStream.CopyToAsync(segmentStream).GetAwaiter().GetResult();
-                }
-                else
-                {
-                    segmentStream = qItem.bufferWriteStream;
+                    mapInfo = _mapContainer.GetMappedAsync(qItem.segment.MapValue).GetAwaiter().GetResult();
                 }
 
-                segmentStream.Position = 0;
-                
+                qItem.bufferWriteStream.Position = 0;
+
                 int id = db.AddSegment(qItem.segment.MediaSequenceNumber, qItem.segment.ProgramDate,
-                    segmentStream.Length, qItem.segment.Duration);
+                    qItem.bufferWriteStream.Length, qItem.segment.Duration, mapInfo?.DbId);
 
                 if (lastSegment != null)
                 {
@@ -274,7 +257,7 @@ public class StreamDownloader
 
                 try
                 {
-                    spaceToWrite.PutDataAsync(id, segmentStream, segmentStream.Length)
+                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length)
                         .GetAwaiter().GetResult();
                 }
                 catch (Exception exception)

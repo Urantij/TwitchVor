@@ -1,10 +1,19 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using TwitchVor.Data;
 
 namespace TwitchVor.Twitch.Downloader;
 
+public class MapInfo(string url, int dbId, byte[] bytes)
+{
+    public string Url { get; } = url;
+    public int DbId { get; } = dbId;
+    public byte[] Bytes { get; } = bytes;
+}
+
 /// <summary>
 /// Хранит начальные сегменты из map тегов. Качает их, если нужно, но всё хранит в памяти.
+/// И пишет их в бд кстати.
 /// Ну они маленькие, несколько килобайт всего.
 /// </summary>
 public class MapContainer
@@ -13,17 +22,24 @@ public class MapContainer
     private static readonly Regex Regex = new("URI=\"(?<url>.+)\"", RegexOptions.Compiled);
 
     private readonly HttpClient _client;
+    private readonly StreamDatabase _database;
     private readonly ILogger _logger;
 
-    private readonly Dictionary<string, byte[]> _dict = new();
+    private readonly List<MapInfo> _list = new();
 
-    public MapContainer(HttpClient client, ILogger logger)
+    public MapContainer(HttpClient client, StreamDatabase database, ILogger logger)
     {
         _client = client;
+        _database = database;
         _logger = logger;
     }
-    
-    public async Task<byte[]> GetMappedAsync(string tagValue, CancellationToken cancellationToken = default)
+
+    public MapInfo FirstMapByDbId(int dbId)
+    {
+        return _list.First(m => m.DbId == dbId);
+    }
+
+    public async Task<MapInfo> GetMappedAsync(string tagValue, CancellationToken cancellationToken = default)
     {
         Match match = Regex.Match(tagValue);
 
@@ -34,16 +50,22 @@ public class MapContainer
 
         string url = match.Groups["url"].Value;
 
-        if (_dict.TryGetValue(url, out byte[]? value))
+        MapInfo? value = _list.FirstOrDefault(m => m.Url == url);
+
+        if (value != null)
         {
             return value;
         }
-        
+
         _logger.LogInformation("Грузим мапу... {url}", url);
 
-        value = await _client.GetByteArrayAsync(url, cancellationToken);
+        byte[] mapContent = await _client.GetByteArrayAsync(url, cancellationToken);
 
-        _dict[url] = value;
+        int dbId = await _database.AddMapAsync(mapContent.Length);
+
+        value = new MapInfo(url, dbId, mapContent);
+
+        _list.Add(value);
 
         return value;
     }

@@ -18,8 +18,28 @@ public partial class Ffmpeg
 
         this.config = config;
     }
+    
+    public ConversionHandler CreateMp4ToTsConversion()
+    {
+        Process process = new();
 
-    public ConversionHandler CreateConversion()
+        process.StartInfo.FileName = config.FfmpegPath;
+
+        process.StartInfo.Arguments = "-f mp4 -i pipe:0 -c copy -f mpegts pipe:1";
+
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.RedirectStandardInput = true;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.WindowStyle =
+            ProcessWindowStyle.Hidden; //написано, что должно быть че то тру, а оно фолс. ну похуй, работает и ладно
+        process.StartInfo.CreateNoWindow = true;
+        process.Start();
+
+        return new ConversionHandler(process);
+    }
+
+    public ConversionHandler CreateTsToMp4Conversion()
     {
         Process process = new();
 

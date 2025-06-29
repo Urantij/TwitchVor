@@ -326,7 +326,12 @@ internal class StreamFinisher
                 {
                     TimeSpan duration = TimeSpan.FromSeconds(segment.Duration);
 
-                    if (currentSize + segment.Size > sizeLimit ||
+                    // вообще забавно, как я считаю хедер мп4+сам сегмент,
+                    // при этом в конверсии оно станет тс, который весит ещё больше, 
+                    // но потом ужмётся обратно в мп4
+                    long segmentKindaSize = segment.Size + segment.Map?.Size ?? 0;
+
+                    if (currentSize + segmentKindaSize > sizeLimit ||
                         currentDuration + duration > durationLimit)
                     {
                         // пора резать
@@ -360,7 +365,7 @@ internal class StreamFinisher
                     tookCount++;
                     currentVideoTookCount++;
 
-                    currentSize += segment.Size;
+                    currentSize += segmentKindaSize;
                     currentDuration += duration;
                 }
             }
@@ -381,7 +386,8 @@ internal class StreamFinisher
                     return (end - start).Ticks;
                 }));
 
-                videos.Add(new ProcessingVideo(videoNumber, startTookIndex, currentVideoTookCount, currentSize, startDate,
+                videos.Add(new ProcessingVideo(videoNumber, startTookIndex, currentVideoTookCount, currentSize,
+                    startDate,
                     endDate, loss));
 
                 videoNumber++;
@@ -456,7 +462,7 @@ internal class StreamFinisher
 
             _logger.LogInformation("Итоговый размер видео {size} vs {oldSize}", resultVideoSize, video.size);
 
-            conversionHandler = ffmpeg.CreateConversion();
+            conversionHandler = ffmpeg.CreateTsToMp4Conversion();
 
             inputStream = conversionHandler.InputStream;
 
@@ -591,95 +597,133 @@ internal class StreamFinisher
         return success;
     }
 
+    /// <summary>
+    /// Пишет в <see cref="inputStream"/> байты видео.
+    /// </summary>
+    /// <param name="video"></param>
+    /// <param name="inputStream"></param>
     private async Task WriteVideoAsync(ProcessingVideo video, Stream inputStream)
     {
+        int endSegmentId = video.segmentStart + video.segmentsCount;
+
         long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
-        long baseSize = await db.CalculateSizeAsync(video.segmentStart, video.segmentStart + video.segmentsCount);
+        long segmentsSize = await db.CalculateSizeAsync(video.segmentStart, endSegmentId);
 
-        _logger.LogDebug("Примерный размер видео {size}", baseSize);
+        bool mapped = await db.CheckForMappedSegments(video.segmentStart, endSegmentId);
 
-        long written = 0;
+        _logger.LogDebug("Общий размер сегментов {size}, мапа? {mapped}", segmentsSize, mapped);
 
-        const int attemptsLimit = 5;
-        int attempt = 1;
-        int attemptsLeft = attemptsLimit;
+        // TODO раньше тут были попытки загрузки, тк с3 ведро сосало, но ща я тока файлы юзаю
+        // Но потанцевально тут это нужно будет... хотя нужно будет думать для мп4
 
-        Exception lastEx = new();
-        while (attemptsLeft > 0)
+        using var cts = new CancellationTokenSource();
+
+        ByteCountingStream inputCountyStream = new(inputStream);
+        _ = Task.Run(() =>
+            PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), segmentsSize, _logger,
+                cts.Token));
+
+        try
         {
-            int clientAttempt = attempt;
-
-            long offset = baseOffset + written;
-            long size = baseSize - written;
-
-            _logger.LogDebug("Попытка {attempt}, осталось {size}", clientAttempt, size);
-
-            if (size == 0)
+            if (mapped)
             {
-                _logger.LogWarning("Size 0");
+                // Если мы мапнутые, мы не можем просто всосать все сегменты и вкинуть в ффмпег, 
+                // тк мапнутые сегменты в мп4, а не тс
 
-                await inputStream.FlushAsync();
-                await inputStream.DisposeAsync();
-                break;
-            }
+                const int batchSize = 100;
 
-            using var cts = new CancellationTokenSource();
+                int currentSegmentId = video.segmentStart;
+                long currentOffset = baseOffset;
 
-            ByteCountingStream inputCountyStream = new(inputStream);
-            _ = Task.Run(() =>
-                PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), baseSize, _logger,
-                    cts.Token));
-
-            try
-            {
-                await space.ReadAllDataAsync(inputCountyStream, size, offset, cts.Token);
-                await inputCountyStream.FlushAsync();
-
-                await inputStream.FlushAsync();
-                await inputStream.DisposeAsync();
-
-                await inputCountyStream.DisposeAsync();
-
-                _logger.LogInformation("Всё прочитали. {written} написано.", written);
-                return;
-            }
-            catch (Exception totalE)
-            {
-                lastEx = totalE;
-
-                _logger.LogWarning(
-                    "Перенаправление сегментов в ффмпег обернулось ошибкой. ({attempt}/{attemptsLimit}) ({bytes}) {message}",
-                    attempt, attemptsLimit, inputCountyStream.TotalBytesWritten, totalE.Message);
-            }
-            finally
-            {
-                try
+                while (currentSegmentId <= endSegmentId)
                 {
-                    cts.Cancel();
-                }
-                catch
-                {
-                }
-            }
+                    int leftToTake = endSegmentId - currentSegmentId + 1;
+                    int toLoad = Math.Min(leftToTake, batchSize);
 
-            if (inputCountyStream.TotalBytesWritten > 0)
-            {
-                written += inputCountyStream.TotalBytesWritten;
-                attemptsLeft = attemptsLimit;
+                    SegmentDb[] segments = await db.LoadSegmentsAsync(toLoad, currentSegmentId);
+
+                    foreach (SegmentDb segment in segments)
+                    {
+                        if (segment.Map != null)
+                        {
+                            MapInfo map = streamHandler.mapContainer.FirstMapByDbId(segment.Map.Id);
+
+                            // И тут начинается рак. Составной мп4 нужно превратить в тс)
+
+                            // дааа надо было раньше думать
+                            ConversionHandler conversion = Program.ffmpeg.CreateMp4ToTsConversion();
+
+                            Task errorTask = ReadFfmpegTextAsync(conversion.TextStream);
+
+                            Task writeTask = Task.Run(async () =>
+                            {
+                                MemoryStream mapMs = new(map.Bytes);
+                                await mapMs.CopyToAsync(conversion.InputStream, cts.Token);
+
+                                await space.ReadAllDataAsync(conversion.InputStream, segment.Size, currentOffset,
+                                    cts.Token);
+
+                                await conversion.InputStream.FlushAsync(cts.Token);
+                                await conversion.InputStream.DisposeAsync();
+                            }, cts.Token);
+
+                            await conversion.OutputStream.CopyToAsync(inputCountyStream, cts.Token);
+                            await writeTask;
+                            await errorTask;
+
+                            await conversion.WaitAsync();
+                            conversion.Dispose();
+                        }
+                        else
+                        {
+                            await space.ReadAllDataAsync(inputCountyStream, segment.Size, currentOffset, cts.Token);
+                        }
+
+                        currentSegmentId++;
+                        currentOffset += segment.Size;
+                    }
+                }
             }
             else
             {
-                attemptsLeft--;
+                await space.ReadAllDataAsync(inputCountyStream, segmentsSize, baseOffset, cts.Token);
             }
 
-            attempt++;
+            await inputCountyStream.FlushAsync(cts.Token);
+
+            await inputStream.FlushAsync(cts.Token);
+            await inputStream.DisposeAsync();
+
+            await inputCountyStream.DisposeAsync();
+
+            _logger.LogInformation("Всё прочитали. {written} написано.", inputCountyStream.TotalBytesWritten);
         }
+        catch (Exception totalE)
+        {
+            _logger.LogCritical(totalE, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
 
-        _logger.LogCritical(lastEx, "Перенаправление сегментов в ффмпег обернулось ошибкой.");
-
-        await inputStream.DisposeAsync();
+            // не уверен зачем
+            await inputStream.DisposeAsync();
+        }
+        finally
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+            }
+        }
     }
 
+    /// <summary>
+    /// Читает текстовый вывод ффмпега.
+    /// Возвращает последнюю написанную им строку.
+    /// Возвращает нулл, если чтение закончилось ошибкой.
+    /// </summary>
+    /// <param name="outputStream"></param>
+    /// <returns></returns>
     private async Task<string?> ReadFfmpegTextAsync(StreamReader outputStream)
     {
         string? lastConversionLine = null;
@@ -713,7 +757,7 @@ internal class StreamFinisher
 
         long resultSize = 0;
 
-        var conversionHandler = ffmpeg.CreateConversion();
+        var conversionHandler = ffmpeg.CreateTsToMp4Conversion();
 
         var errorTask = Task.Run(() => ReadFfmpegTextAsync(conversionHandler.TextStream));
 

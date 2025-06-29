@@ -61,7 +61,7 @@ public class StreamDatabase
         context.SaveChanges();
     }
 
-    public int AddSegment(int mediaSegmentNumber, DateTimeOffset programDate, long size, float duration)
+    public int AddSegment(int mediaSegmentNumber, DateTimeOffset programDate, long size, float duration, int? mapId)
     {
         using var context = CreateContext();
 
@@ -70,7 +70,8 @@ public class StreamDatabase
             MediaSegmentNumber = mediaSegmentNumber,
             ProgramDate = programDate,
             Size = size,
-            Duration = duration
+            Duration = duration,
+            MapId = mapId
         };
 
         context.Segments.Add(segment);
@@ -122,6 +123,24 @@ public class StreamDatabase
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="size"></param>
+    /// <returns>Айди мапы в бд</returns>
+    public async Task<int> AddMapAsync(long size)
+    {
+        await using var context = CreateContext();
+
+        MapDb map = new(size);
+
+        context.Maps.Add(map);
+
+        await context.SaveChangesAsync();
+
+        return map.Id;
+    }
+
     public Task<VideoFormatDb[]> LoadAllVideoFormatsAsync()
     {
         using var context = CreateContext();
@@ -133,7 +152,10 @@ public class StreamDatabase
     {
         using var context = CreateContext();
 
-        return context.Segments.OrderBy(s => s.Id).ToArray();
+        return context.Segments
+            .OrderBy(s => s.Id)
+            .Include(s => s.Map)
+            .ToArray();
     }
 
     public async Task<SegmentDb[]> LoadSegmentsAsync(int take, int skip)
@@ -143,6 +165,7 @@ public class StreamDatabase
         return await context.Segments.OrderBy(s => s.Id)
             .Skip(skip)
             .Take(take)
+            .Include(s => s.Map)
             .ToArrayAsync();
     }
 
@@ -151,6 +174,21 @@ public class StreamDatabase
         using var context = CreateContext();
 
         return await context.Skips.OrderBy(s => s.Id).ToArrayAsync();
+    }
+
+    /// <summary>
+    /// Проверяет, есть ли в рендже сегментов мапнутые сегменты.
+    /// <see cref="start"/> <see cref="end"/> иклузив
+    /// </summary>
+    /// <param name="start"></param>
+    /// <param name="end"></param>
+    public async Task<bool> CheckForMappedSegments(int start, int end)
+    {
+        await using var context = CreateContext();
+
+        return await context.Segments
+            .Where(s => s.Id >= start && s.Id <= end)
+            .AnyAsync(s => s.MapId != null);
     }
 
     /// <summary>

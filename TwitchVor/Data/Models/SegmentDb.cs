@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TwitchVor.Data.Models;
 
@@ -28,4 +29,7 @@ public class SegmentDb
     /// </summary>
     [Required]
     public float Duration { get; set; }
+
+    [ForeignKey(nameof(Map))] public int? MapId { get; set; }
+    public MapDb? Map { get; set; }
 }

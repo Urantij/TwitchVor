@@ -14,6 +14,7 @@ public class MyContext : DbContext
     public DbSet<VideoFormatDb> VideoFormats { get; set; }
     public DbSet<SkipDb> Skips { get; set; }
     public DbSet<ChatMessageDb> ChatMessages { get; set; }
+    public DbSet<MapDb> Maps { get; set; }
 
 #nullable restore
 
