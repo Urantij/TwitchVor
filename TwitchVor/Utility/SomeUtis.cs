@@ -24,6 +24,6 @@ public static class SomeUtis
         if (quality.Resolution == null)
             return $"{quality.Fps}";
 
-        return $"{quality.Resolution.width}x{quality.Resolution.height}:{quality.Fps}";
+        return $"{quality.Resolution.Width}x{quality.Resolution.Height}:{quality.Fps}";
     }
 }
