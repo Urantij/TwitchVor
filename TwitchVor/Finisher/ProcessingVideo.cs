@@ -6,9 +6,10 @@ public class ProcessingVideo
 {
     public readonly int number;
 
-    public readonly int segmentStart;
+    public readonly int startingSegmentId;
+    public readonly int endingSegmentId;
 
-    // TODO Подумать, насколько это хорошая идея, не хранить последний индекс сегмента, а надеяться, что ни одного айди пропущено не будет.
+    // В теории их может быть не енд минус старт, если мы часть сегментов не берём (если сохраняю рекламные, но не записываю)
     public readonly int segmentsCount;
 
     public readonly long size;
@@ -31,12 +32,13 @@ public class ProcessingVideo
     public DateTimeOffset? uploadStart;
     public DateTimeOffset? uploadEnd;
 
-    public ProcessingVideo(int number, int segmentStart, int segmentsLength, long size, DateTimeOffset startDate,
+    public ProcessingVideo(int number, int startingSegmentId, int endingSegmentId, int segmentsCount, long size, DateTimeOffset startDate,
         DateTimeOffset endDate, TimeSpan loss)
     {
         this.number = number;
-        this.segmentStart = segmentStart;
-        this.segmentsCount = segmentsLength;
+        this.startingSegmentId = startingSegmentId;
+        this.endingSegmentId = endingSegmentId;
+        this.segmentsCount = segmentsCount;
         this.size = size;
         this.startDate = startDate;
         this.endDate = endDate;

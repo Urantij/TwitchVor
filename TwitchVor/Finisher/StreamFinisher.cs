@@ -287,7 +287,7 @@ internal class StreamFinisher
         return uploaderHandler.videos.All(vid => vid.success == true);
     }
 
-    private async Task<List<ProcessingVideo>> CutToVideosAsync(IEnumerable<SkipDb> skips, long sizeLimit,
+    private async Task<List<ProcessingVideo>> CutToVideosAsync(IReadOnlyList<SkipDb> skips, long sizeLimit,
         TimeSpan durationLimit)
     {
         Queue<VideoFormatDb> formats = new(await db.LoadAllVideoFormatsAsync());
@@ -305,7 +305,6 @@ internal class StreamFinisher
             SegmentDb? startSegment = null;
             SegmentDb? endSegment = null;
 
-            int startTookIndex = tookCount;
             int currentVideoTookCount = 0;
 
             long currentSize = 0;
@@ -386,7 +385,7 @@ internal class StreamFinisher
                     return (end - start).Ticks;
                 }));
 
-                videos.Add(new ProcessingVideo(videoNumber, startTookIndex, currentVideoTookCount, currentSize,
+                videos.Add(new ProcessingVideo(videoNumber, startSegment.Id, endSegment.Id, currentVideoTookCount, currentSize,
                     startDate,
                     endDate, loss));
 
@@ -403,10 +402,8 @@ internal class StreamFinisher
 
     private async Task<bool> DoVideoAsync(UploaderHandler uploaderHandler, ProcessingVideo video)
     {
-        _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startIndex}", video.number,
-            video.segmentsCount, video.segmentStart);
-
-        int limitIndex = video.segmentStart + video.segmentsCount;
+        _logger.LogInformation("Новый видос ({number}). {videoTook} сегментов, старт {startId}", video.number,
+            video.segmentsCount, video.startingSegmentId);
 
         string filename = $"result{video.number}." + (ffmpeg != null ? "mp4" : "ts");
 
@@ -431,9 +428,9 @@ internal class StreamFinisher
         {
             _logger.LogInformation("Используется конверсия, необходимо вычислить итоговый размер видео.");
 
-            var cachedInfo = uploaderHandler.processingHandler.videoSizeCaches.FirstOrDefault(c =>
-                c.startSegmentId == video.segmentStart &&
-                c.endSegmentId == (video.segmentStart + video.segmentsCount));
+            ResultVideoSizeCache? cachedInfo = uploaderHandler.processingHandler.videoSizeCaches.FirstOrDefault(c =>
+                c.startSegmentId == video.startingSegmentId &&
+                c.endSegmentId == video.endingSegmentId);
 
             if (cachedInfo != null)
             {
@@ -449,7 +446,7 @@ internal class StreamFinisher
                 {
                     resultVideoSize = await CalculateResultVideoSizeAsync(video);
 
-                    cachedInfo = new(video.segmentStart, video.segmentStart + video.segmentsCount, resultVideoSize);
+                    cachedInfo = new ResultVideoSizeCache(video.startingSegmentId, video.endingSegmentId, resultVideoSize);
                     uploaderHandler.processingHandler.videoSizeCaches.Add(cachedInfo);
                 }
                 else
@@ -604,12 +601,10 @@ internal class StreamFinisher
     /// <param name="inputStream"></param>
     private async Task WriteVideoAsync(ProcessingVideo video, Stream inputStream)
     {
-        int endSegmentId = video.segmentStart + video.segmentsCount;
+        long baseOffset = await db.CalculateOffsetAsync(video.startingSegmentId);
+        long segmentsSize = await db.CalculateSizeAsync(video.startingSegmentId, video.endingSegmentId);
 
-        long baseOffset = await db.CalculateOffsetAsync(video.segmentStart);
-        long segmentsSize = await db.CalculateSizeAsync(video.segmentStart, endSegmentId);
-
-        bool mapped = await db.CheckForMappedSegments(video.segmentStart, endSegmentId);
+        bool mapped = await db.CheckForMappedSegments(video.startingSegmentId, video.endingSegmentId);
 
         _logger.LogDebug("Общий размер сегментов {size}, мапа? {mapped}", segmentsSize, mapped);
 
@@ -630,18 +625,18 @@ internal class StreamFinisher
                 // Если мы мапнутые, мы не можем просто всосать все сегменты и вкинуть в ффмпег, 
                 // тк мапнутые сегменты в мп4, а не тс
 
-                const int batchSize = 99;
+                const int addedToBatchSize = 99;
 
-                int currentSegmentId = video.segmentStart;
+                int rangeStart = video.startingSegmentId;
                 long currentOffset = baseOffset;
 
-                while (currentSegmentId <= endSegmentId)
+                while (rangeStart <= video.endingSegmentId)
                 {
-                    int rangeEnd = currentSegmentId + batchSize;
-                    if (rangeEnd > endSegmentId)
-                        rangeEnd = endSegmentId;
+                    int rangeEnd = rangeStart + addedToBatchSize;
+                    if (rangeEnd > video.endingSegmentId)
+                        rangeEnd = video.endingSegmentId;
 
-                    SegmentDb[] segments = await db.LoadSegmentsRangeAsync(currentSegmentId, rangeEnd);
+                    SegmentDb[] segments = await db.LoadSegmentsRangeAsync(rangeStart, rangeEnd);
 
                     foreach (SegmentDb segment in segments)
                     {
@@ -668,10 +663,13 @@ internal class StreamFinisher
                                 }
                             });
 
+                            // возможно тут много лишних вызовов flush. но я не хочу проверять.
                             Task writeTask = Task.Run(async () =>
                             {
                                 MemoryStream mapMs = new(map.Bytes);
                                 await mapMs.CopyToAsync(conversion.InputStream, cts.Token);
+                                await mapMs.FlushAsync(cts.Token);
+                                await mapMs.DisposeAsync();
 
                                 await space.ReadAllDataAsync(conversion.InputStream, segment.Size, currentOffset,
                                     cts.Token);
@@ -681,6 +679,7 @@ internal class StreamFinisher
                             }, cts.Token);
 
                             await conversion.OutputStream.CopyToAsync(inputCountyStream, cts.Token);
+                            await conversion.OutputStream.FlushAsync(cts.Token);
                             await writeTask;
                             await errorTask;
 
@@ -692,9 +691,13 @@ internal class StreamFinisher
                             await space.ReadAllDataAsync(inputCountyStream, segment.Size, currentOffset, cts.Token);
                         }
 
-                        currentSegmentId++;
+                        // currentSegmentId++ тут было это, а потом я три дня дебажил, почему у меня видео не конвертится
+                        // помушо айди сегментов идут с 1, а не с 0. и оно грузило 0-99 сегменты включительно. а их 99.
+                        // и следующий батч был 99-... и всё ломалось.
                         currentOffset += segment.Size;
                     }
+
+                    rangeStart = segments.Last().Id + 1;
                 }
             }
             else
