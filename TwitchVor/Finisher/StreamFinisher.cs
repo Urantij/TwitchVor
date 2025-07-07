@@ -385,7 +385,8 @@ internal class StreamFinisher
                     return (end - start).Ticks;
                 }));
 
-                videos.Add(new ProcessingVideo(videoNumber, startSegment.Id, endSegment.Id, currentVideoTookCount, currentSize,
+                videos.Add(new ProcessingVideo(videoNumber, startSegment.Id, endSegment.Id, currentVideoTookCount,
+                    currentSize,
                     startDate,
                     endDate, loss));
 
@@ -446,7 +447,8 @@ internal class StreamFinisher
                 {
                     resultVideoSize = await CalculateResultVideoSizeAsync(video);
 
-                    cachedInfo = new ResultVideoSizeCache(video.startingSegmentId, video.endingSegmentId, resultVideoSize);
+                    cachedInfo =
+                        new ResultVideoSizeCache(video.startingSegmentId, video.endingSegmentId, resultVideoSize);
                     uploaderHandler.processingHandler.videoSizeCaches.Add(cachedInfo);
                 }
                 else
@@ -625,6 +627,14 @@ internal class StreamFinisher
                 // Если мы мапнутые, мы не можем просто всосать все сегменты и вкинуть в ффмпег, 
                 // тк мапнутые сегменты в мп4, а не тс
 
+                FfmpegPreheater<ConversionHandler> conversionsPreheater = new(10, video.segmentsCount, () =>
+                {
+                    // дааа надо было раньше думать
+                    return Task.Run(() => Program.ffmpeg.CreateMp4ToTsConversion());
+                });
+                conversionsPreheater.Heat();
+                int coldHeats = 0;
+
                 const int addedToBatchSize = 99;
 
                 int rangeStart = video.startingSegmentId;
@@ -646,8 +656,13 @@ internal class StreamFinisher
 
                             // И тут начинается рак. Составной мп4 нужно превратить в тс)
 
-                            // дааа надо было раньше думать
-                            ConversionHandler conversion = Program.ffmpeg.CreateMp4ToTsConversion();
+                            Task<ConversionHandler> a = conversionsPreheater.GetAsync();
+                            if (!a.IsCompleted)
+                            {
+                                coldHeats++;
+                            }
+
+                            ConversionHandler conversion = await a;
 
                             // игнорить не о4 хорошо, но мне впадлу
                             Task errorTask = Task.Run(async () =>
@@ -698,6 +713,13 @@ internal class StreamFinisher
                     }
 
                     rangeStart = segments.Last().Id + 1;
+                }
+
+                _logger.LogInformation("Холодные хиты: {cold}", coldHeats);
+                // 3 случайное число из головы
+                if (coldHeats > 3)
+                {
+                    _logger.LogWarning("Прехитер плохо греет нашу еду");
                 }
             }
             else
