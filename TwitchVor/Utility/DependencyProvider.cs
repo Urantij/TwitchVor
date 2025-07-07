@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using TwitchVor.Space;
 using TwitchVor.Space.Local;
-using TwitchVor.Space.TimeWeb;
 using TwitchVor.Upload;
 using TwitchVor.Upload.FileSystem;
 using TwitchVor.Upload.Kvk;
@@ -13,11 +12,6 @@ internal static class DependencyProvider
 {
     public static BaseSpaceProvider GetSpaceProvider(Guid guid, ILoggerFactory loggerFactory)
     {
-        if (Program.config.Timeweb != null)
-        {
-            return new TimewebSpaceProvider(guid, loggerFactory, Program.config.Timeweb);
-        }
-
         return new LocalSpaceProvider(guid, loggerFactory, MakeLocalSpacePath(guid, false));
     }
 

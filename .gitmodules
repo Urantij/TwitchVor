@@ -1,10 +1,6 @@
 [submodule "TwitchStreamDownloader"]
 	path = TwitchStreamDownloader
 	url = https://github.com/Urantij/TwitchStreamDownloader.git
-[submodule "minio-dotnet"]
-	path = minio-dotnet
-	url = https://github.com/Urantij/minio-dotnet.git
-	branch = multipart
 [submodule "Dota2Dispenser.Shared"]
 	path = Dota2Dispenser.Shared
 	url = https://github.com/Urantij/Dota2Dispenser.Shared.git

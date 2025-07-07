@@ -1,7 +1,6 @@
 using Newtonsoft.Json;
 using TwitchVor.Communication.Email;
 using TwitchVor.Conversion;
-using TwitchVor.Space.TimeWeb;
 using TwitchVor.Twitch;
 using TwitchVor.Twitch.Chat;
 using TwitchVor.Upload.Kvk;
@@ -79,9 +78,6 @@ internal class Config
 
     [JsonProperty(Required = Required.Default)]
     public PubgInVideoConfig? Pubg { get; set; } = null;
-
-    [JsonProperty(Required = Required.Default)]
-    public TimewebConfig? Timeweb { get; set; } = null;
 
     [JsonProperty(Required = Required.Default)]
     public VkCreds? Vk { get; set; } = null;
