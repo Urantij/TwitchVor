@@ -79,8 +79,6 @@ internal class Program
                         ConsoleColor.DarkRed),
 
                     new ColoredCategory(typeof(Space.Local.LocalSpaceProvider), ConsoleColor.DarkGreen),
-                    new ColoredCategory(typeof(Space.TimeWeb.TimewebSpaceProvider), ConsoleColor.DarkMagenta,
-                        ConsoleColor.Gray),
 
                     new ColoredCategory(typeof(StreamDownloader), ConsoleColor.Magenta),
                 };
@@ -175,24 +173,6 @@ internal class Program
         else
         {
             logger.LogInformation("Без ютуба");
-        }
-
-        //timeweb
-        if (config.Timeweb != null)
-        {
-            logger.LogInformation("Таймвеб добавлен");
-            logger.LogInformation("Таймвеб таймаут {uploadTimeout} / {downloadTimeout}",
-                config.Timeweb.UploadRequestTimeout, config.Timeweb.DownloadRequestTimeout);
-
-            if (config.Timeweb.ValidateTokenOnStart)
-            {
-                Space.TimeWeb.TimewebSpaceProvider timeWeb = new(Guid.Empty, loggerFactory, config.Timeweb);
-                await timeWeb.TestAsync();
-            }
-        }
-        else
-        {
-            logger.LogInformation("Без таймвеба");
         }
 
         if (config.SaveTheVideo)
