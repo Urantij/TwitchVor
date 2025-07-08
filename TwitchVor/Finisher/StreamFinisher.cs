@@ -615,6 +615,9 @@ internal class StreamFinisher
 
         using var cts = new CancellationTokenSource();
 
+        // TODO Он сейчас считает, сколько байт вышло из ффмпега в инпут. при этом ожидаемый результат это размер всех сегментов
+        // Из-за мап ожидаемый размер видео, который написано в стрим, будет заметно больше размера всех сегментов
+        // Нужно считать количество байт, сколько прочитано из спейса,и сколько ещё осталось прочитать
         ByteCountingStream inputCountyStream = new(inputStream);
         _ = Task.Run(() =>
             PrintCountingWriteDataAsync(inputCountyStream, TimeSpan.FromSeconds(5), segmentsSize, _logger,
