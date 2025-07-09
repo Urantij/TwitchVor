@@ -643,13 +643,29 @@ internal class StreamFinisher
                 int rangeStart = video.startingSegmentId;
                 long currentOffset = baseOffset;
 
-                while (rangeStart <= video.endingSegmentId)
+                Task<SegmentDb[]>? MakeLoadTask()
                 {
+                    if (rangeStart > video.endingSegmentId)
+                        return null;
+
                     int rangeEnd = rangeStart + addedToBatchSize;
                     if (rangeEnd > video.endingSegmentId)
                         rangeEnd = video.endingSegmentId;
 
-                    SegmentDb[] segments = await db.LoadSegmentsRangeAsync(rangeStart, rangeEnd);
+                    Task<SegmentDb[]> result = db.LoadSegmentsRangeAsync(rangeStart, rangeEnd);
+
+                    rangeStart = rangeEnd + 1;
+
+                    return result;
+                }
+
+                Task<SegmentDb[]>? nextSegmentsTask = MakeLoadTask();
+
+                while (nextSegmentsTask != null)
+                {
+                    SegmentDb[] segments = await nextSegmentsTask;
+
+                    nextSegmentsTask = MakeLoadTask();
 
                     foreach (SegmentDb segment in segments)
                     {
@@ -714,8 +730,6 @@ internal class StreamFinisher
                         // и следующий батч был 99-... и всё ломалось.
                         currentOffset += segment.Size;
                     }
-
-                    rangeStart = segments.Last().Id + 1;
                 }
 
                 _logger.LogInformation("Холодные хиты: {cold}", coldHeats);
