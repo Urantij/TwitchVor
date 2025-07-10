@@ -142,4 +142,6 @@ internal class Config
     public int UnstableSpaceAttempsLimit { get; set; } = 3;
 
     public bool Manual { get; set; } = false;
+
+    public bool MapOnTheFly { get; set; } = true;
 }

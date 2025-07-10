@@ -40,6 +40,8 @@ internal class Program
 
     public static Emailer? emailer;
 
+    public static bool MapOnTheFly = true;
+
     public static bool debug = false;
     public static bool shutdown = false;
 
@@ -275,6 +277,12 @@ internal class Program
             }
         }
 
+        MapOnTheFly = config.MapOnTheFly;
+        if (MapOnTheFly)
+        {
+            logger.LogInformation("Мапаем на лету");
+        }
+
         {
             var db = new StreamDatabase($"./test{Guid.NewGuid():N}.sqlite");
 
@@ -333,6 +341,19 @@ internal class Program
             {
                 shutdown = true;
                 logger.LogInformation("ок");
+            }
+            else if (line == "map")
+            {
+                MapOnTheFly = !MapOnTheFly;
+
+                if (MapOnTheFly)
+                {
+                    logger.LogInformation("ок, мапаем");
+                }
+                else
+                {
+                    logger.LogInformation("ок, не мапаем");
+                }
             }
         }
     }

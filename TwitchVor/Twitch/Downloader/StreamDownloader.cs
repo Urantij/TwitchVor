@@ -5,6 +5,7 @@ using TwitchStreamDownloader.Exceptions;
 using TwitchStreamDownloader.Net;
 using TwitchStreamDownloader.Queues;
 using TwitchStreamDownloader.Resources;
+using TwitchVor.Conversion;
 using TwitchVor.Data;
 using TwitchVor.Data.Models;
 using TwitchVor.Space;
@@ -45,7 +46,10 @@ public class StreamDownloader
     /// </summary>
     internal TimeSpan AdvertismentTime { get; private set; } = TimeSpan.Zero;
 
-    public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, HttpClient httpClient, MapContainer mapContainer, ILoggerFactory loggerFactory)
+    private FfmpegPreheater<ConversionHandler>? _ffmpegPreheater = null;
+
+    public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, HttpClient httpClient,
+        MapContainer mapContainer, ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(this.GetType());
 
@@ -128,6 +132,17 @@ public class StreamDownloader
         downloadQueue.Dispose();
 
         httpClient.Dispose();
+
+        if (_ffmpegPreheater != null)
+        {
+            Task<ConversionHandler>[] ffmpegs = _ffmpegPreheater.Rest();
+
+            foreach (Task<ConversionHandler> task in ffmpegs)
+            {
+                ConversionHandler handler = await task;
+                handler.Dispose();
+            }
+        }
     }
 
     /// <summary>
@@ -233,8 +248,45 @@ public class StreamDownloader
 
                 qItem.bufferWriteStream.Position = 0;
 
+                bool flying = Program.MapOnTheFly;
+                Stream resultContentStream;
+
+                if (flying && mapInfo != null)
+                {
+                    _ffmpegPreheater ??= new FfmpegPreheater<ConversionHandler>(2, null,
+                        () => { return Task.Run(() => Program.ffmpeg.CreateMp4ToTsConversion()); });
+
+                    ConversionHandler conversion = _ffmpegPreheater.GetAsync().GetAwaiter().GetResult();
+
+                    resultContentStream = new MemoryStream();
+
+                    Task processingTask = ConversionHandler.CreateAsyncProcessing(conversion, resultContentStream);
+
+                    MemoryStream mapStream = new(mapInfo.Bytes);
+                    mapStream.CopyTo(conversion.InputStream);
+                    mapStream.Flush();
+                    mapStream.Dispose();
+
+                    qItem.bufferWriteStream.CopyTo(conversion.InputStream);
+                    qItem.bufferWriteStream.Flush();
+
+                    conversion.InputStream.Flush();
+                    conversion.InputStream.Dispose();
+
+                    processingTask.GetAwaiter().GetResult();
+
+                    conversion.WaitAsync().GetAwaiter().GetResult();
+                    conversion.Dispose();
+
+                    mapInfo = null;
+                }
+                else
+                {
+                    resultContentStream = qItem.bufferWriteStream;
+                }
+
                 int id = db.AddSegment(qItem.segment.MediaSequenceNumber, qItem.segment.ProgramDate,
-                    qItem.bufferWriteStream.Length, qItem.segment.Duration, mapInfo?.DbId);
+                    resultContentStream.Length, qItem.segment.Duration, mapInfo?.DbId);
 
                 if (lastSegment != null)
                 {
@@ -257,7 +309,7 @@ public class StreamDownloader
 
                 try
                 {
-                    spaceToWrite.PutDataAsync(id, qItem.bufferWriteStream, qItem.bufferWriteStream.Length)
+                    spaceToWrite.PutDataAsync(id, resultContentStream, resultContentStream.Length)
                         .GetAwaiter().GetResult();
                 }
                 catch (Exception exception)
