@@ -6,14 +6,14 @@ namespace TwitchVor.Conversion;
 public class FfmpegPreheater<T>
 {
     private readonly int _size;
-    private readonly int _expectedCalls;
+    private readonly int? _expectedCalls;
     private readonly Func<Task<T>> _factory;
 
     private int _called = 0;
 
     private readonly Queue<Task<T>> _container;
 
-    public FfmpegPreheater(int size, int expectedCalls, Func<Task<T>> factory)
+    public FfmpegPreheater(int size, int? expectedCalls, Func<Task<T>> factory)
     {
         _size = size;
         _expectedCalls = expectedCalls;
@@ -24,14 +24,34 @@ public class FfmpegPreheater<T>
 
     public void Heat()
     {
-        int left = _expectedCalls - _called;
+        int toFill;
+        if (_expectedCalls != null)
+        {
+            int left = _expectedCalls.Value - _called;
 
-        int toFill = Math.Min(_size, left);
+            toFill = Math.Min(_size, left);
+        }
+        else
+        {
+            toFill = _size;
+        }
 
         for (int i = 0; i < toFill; i++)
         {
             _container.Enqueue(_factory());
         }
+    }
+
+    /// <summary>
+    /// Возвращает копию текущей коллекции и клирит.
+    /// </summary>
+    public Task<T>[] Rest()
+    {
+        Task<T>[] result = _container.ToArray();
+
+        _container.Clear();
+
+        return result;
     }
 
     public Task<T> GetAsync()
@@ -44,7 +64,7 @@ public class FfmpegPreheater<T>
 
             _called++;
 
-            if (_called < _expectedCalls)
+            if (_expectedCalls == null || _called < _expectedCalls)
             {
                 _container.Enqueue(_factory());
             }

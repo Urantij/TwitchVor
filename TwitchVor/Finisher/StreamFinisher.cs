@@ -738,6 +738,13 @@ internal class StreamFinisher
                 {
                     _logger.LogWarning("Прехитер плохо греет нашу еду");
                 }
+
+                Task<ConversionHandler>[] ffmpegs = conversionsPreheater.Rest();
+                foreach (Task<ConversionHandler> task in ffmpegs)
+                {
+                    ConversionHandler handler = await task;
+                    handler.Dispose();
+                }
             }
             else
             {
