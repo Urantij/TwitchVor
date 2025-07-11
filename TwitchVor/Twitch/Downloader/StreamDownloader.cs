@@ -246,8 +246,6 @@ public class StreamDownloader
                     mapInfo = _mapContainer.GetMappedAsync(qItem.segment.MapValue).GetAwaiter().GetResult();
                 }
 
-                qItem.bufferWriteStream.Position = 0;
-
                 bool flying = Program.MapOnTheFly;
                 Stream resultContentStream;
 
@@ -267,6 +265,7 @@ public class StreamDownloader
                     mapStream.Flush();
                     mapStream.Dispose();
 
+                    qItem.bufferWriteStream.Position = 0;
                     qItem.bufferWriteStream.CopyTo(conversion.InputStream);
                     qItem.bufferWriteStream.Flush();
 
@@ -284,6 +283,8 @@ public class StreamDownloader
                 {
                     resultContentStream = qItem.bufferWriteStream;
                 }
+
+                resultContentStream.Position = 0;
 
                 int id = db.AddSegment(qItem.segment.MediaSequenceNumber, qItem.segment.ProgramDate,
                     resultContentStream.Length, qItem.segment.Duration, mapInfo?.DbId);
