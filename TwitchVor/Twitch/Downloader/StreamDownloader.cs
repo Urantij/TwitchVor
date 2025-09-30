@@ -82,7 +82,7 @@ public class StreamDownloader
         };
 
         segmentsDownloader = new SegmentsDownloader(this.httpClient, settings, Program.config.Channel!,
-            Program.config.Downloader.ClientId, Program.config.Downloader.OAuth);
+            Program.config.Downloader.ClientId, Program.config.Downloader.OAuth, null);
         segmentsDownloader.UnknownPlaylistLineFound += UnknownPlaylistLineFound;
         segmentsDownloader.CommentPlaylistLineFound += CommentPlaylistLineFound;
 
@@ -241,9 +241,9 @@ public class StreamDownloader
                 // Но я чесно говоря ЕБАЛ это всё делать.
 
                 MapInfo? mapInfo = null;
-                if (qItem.segment.MapValue != null)
+                if (qItem.Segment.MapValue != null)
                 {
-                    mapInfo = _mapContainer.GetMappedAsync(qItem.segment.MapValue).GetAwaiter().GetResult();
+                    mapInfo = _mapContainer.GetMappedAsync(qItem.Segment.MapValue).GetAwaiter().GetResult();
                 }
 
                 bool flying = Program.MapOnTheFly;
@@ -265,9 +265,9 @@ public class StreamDownloader
                     mapStream.Flush();
                     mapStream.Dispose();
 
-                    qItem.bufferWriteStream.Position = 0;
-                    qItem.bufferWriteStream.CopyTo(conversion.InputStream);
-                    qItem.bufferWriteStream.Flush();
+                    qItem.BufferWriteStream.Position = 0;
+                    qItem.BufferWriteStream.CopyTo(conversion.InputStream);
+                    qItem.BufferWriteStream.Flush();
 
                     conversion.InputStream.Flush();
                     conversion.InputStream.Dispose();
@@ -281,32 +281,32 @@ public class StreamDownloader
                 }
                 else
                 {
-                    resultContentStream = qItem.bufferWriteStream;
+                    resultContentStream = qItem.BufferWriteStream;
                 }
 
                 resultContentStream.Position = 0;
 
-                int id = db.AddSegment(qItem.segment.MediaSequenceNumber, qItem.segment.ProgramDate,
-                    resultContentStream.Length, qItem.segment.Duration, mapInfo?.DbId);
+                int id = db.AddSegment(qItem.Segment.MediaSequenceNumber, qItem.Segment.ProgramDate,
+                    resultContentStream.Length, qItem.Segment.Duration, mapInfo?.DbId);
 
                 if (lastSegment != null)
                 {
                     var lastSegmentEnd = lastSegment.ProgramDate.AddSeconds(lastSegment.Duration);
 
-                    var difference = qItem.segment.ProgramDate - lastSegmentEnd;
+                    var difference = qItem.Segment.ProgramDate - lastSegmentEnd;
 
                     if (difference >= Program.config.MinimumSegmentSkipDelay)
                     {
                         _logger.LogWarning(
                             "Skip Detected! Skipped {TotalSeconds:N0} seconds ({lastSegmentId} -> {segmentId}) :(",
                             difference.TotalSeconds, lastSegment.MediaSequenceNumber,
-                            qItem.segment.MediaSequenceNumber);
+                            qItem.Segment.MediaSequenceNumber);
 
-                        db.AddSkipAsync(lastSegmentEnd, qItem.segment.ProgramDate).GetAwaiter().GetResult();
+                        db.AddSkipAsync(lastSegmentEnd, qItem.Segment.ProgramDate).GetAwaiter().GetResult();
                     }
                 }
 
-                lastSegment = qItem.segment;
+                lastSegment = qItem.Segment;
 
                 try
                 {
@@ -322,12 +322,12 @@ public class StreamDownloader
             {
                 // пропущен сегмент
 
-                _logger.LogWarning("Missing downloading segment {title}", qItem.segment.Title);
+                _logger.LogWarning("Missing downloading segment {title}", qItem.Segment.Title);
             }
         }
         finally
         {
-            qItem.bufferWriteStream.DisposeAsync();
+            qItem.BufferWriteStream.DisposeAsync();
         }
     }
 
@@ -336,7 +336,7 @@ public class StreamDownloader
         //да не может он быть нулл.
         var downloader = (SegmentsDownloader)sender!;
 
-        if (e.parsedValue.expires == null)
+        if (e.ParsedValue.Expires == null)
         {
             if (Program.config.DownloaderForceTokenChange)
             {
@@ -350,7 +350,7 @@ public class StreamDownloader
             return;
         }
 
-        var left = DateTimeOffset.FromUnixTimeSeconds(e.parsedValue.expires.Value) - DateTimeOffset.UtcNow;
+        var left = DateTimeOffset.FromUnixTimeSeconds(e.ParsedValue.Expires.Value) - DateTimeOffset.UtcNow;
 
         _logger.LogInformation("Got playback token! left {TotalMinutes:N1} minutes", left.TotalMinutes);
 
@@ -444,7 +444,7 @@ public class StreamDownloader
     {
         if (e is BadCodeException be)
         {
-            _logger.LogError("{message} Bad Code ({statusCode})", message, be.statusCode);
+            _logger.LogError("{message} Bad Code ({statusCode})", message, be.StatusCode);
         }
         else if (e is HttpRequestException re)
         {
