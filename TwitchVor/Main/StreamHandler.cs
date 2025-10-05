@@ -32,6 +32,8 @@ internal class StreamHandler
 
     public readonly MapContainer mapContainer;
 
+    public readonly FormatContainer FormatContainer;
+
     internal SubCheck? subCheck;
 
     /// <summary>
@@ -63,7 +65,9 @@ internal class StreamHandler
 
         mapContainer = new MapContainer(httpClient, db, loggerFactory.CreateLogger<MapContainer>());
 
-        streamDownloader = new StreamDownloader(guid, db, space, httpClient, mapContainer, loggerFactory);
+        FormatContainer = new FormatContainer(db, loggerFactory.CreateLogger<FormatContainer>());
+
+        streamDownloader = new StreamDownloader(guid, db, space, httpClient, mapContainer, FormatContainer, loggerFactory);
 
         chatWorker = new StreamChatWorker(this, loggerFactory);
     }

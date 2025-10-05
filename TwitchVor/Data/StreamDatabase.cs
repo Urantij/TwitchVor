@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using TwitchStreamDownloader.Download;
 using TwitchVor.Data.Models;
 
 namespace TwitchVor.Data;
@@ -46,22 +47,23 @@ public class StreamDatabase
         return await context.Segments.CountAsync();
     }
 
-    public void AddVideoFormat(string format, DateTimeOffset date)
+    public async Task<VideoFormatDb> AddVideoFormatAsync(Quality quality)
     {
-        using var context = CreateContext();
+        await using var context = CreateContext();
 
-        VideoFormatDb videoFormat = new()
-        {
-            Format = format,
-            Date = date
-        };
+        // я верю в лучшее
+        VideoFormatDb videoFormat =
+            new(quality.Resolution.Width, quality.Resolution.Height, (int)Math.Round(quality.Fps));
 
         context.VideoFormats.Add(videoFormat);
 
-        context.SaveChanges();
+        await context.SaveChangesAsync();
+
+        return videoFormat;
     }
 
-    public int AddSegment(int mediaSegmentNumber, DateTimeOffset programDate, long size, float duration, int? mapId)
+    public int AddSegment(int mediaSegmentNumber, DateTimeOffset programDate, long size, float duration, int formatId,
+        int? mapId)
     {
         using var context = CreateContext();
 
@@ -71,6 +73,7 @@ public class StreamDatabase
             ProgramDate = programDate,
             Size = size,
             Duration = duration,
+            FormatId = formatId,
             MapId = mapId
         };
 
@@ -155,6 +158,7 @@ public class StreamDatabase
         return context.Segments
             .OrderBy(s => s.Id)
             .Include(s => s.Map)
+            .Include(s => s.Format)
             .ToArray();
     }
 
@@ -166,6 +170,7 @@ public class StreamDatabase
             .Skip(skip)
             .Take(take)
             .Include(s => s.Map)
+            .Include(s => s.Format)
             .ToArrayAsync();
     }
 
@@ -181,6 +186,7 @@ public class StreamDatabase
             .OrderBy(s => s.Id)
             .Where(s => s.Id >= start && s.Id <= end)
             .Include(s => s.Map)
+            .Include(s => s.Format)
             .ToArrayAsync();
     }
 

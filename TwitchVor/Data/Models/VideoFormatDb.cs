@@ -6,11 +6,22 @@ public class VideoFormatDb
 {
     [Key] public int Id { get; set; }
 
-    /// <summary>
-    /// 1280x720:60
-    /// </summary>
-    [Required]
-    public string Format { get; set; }
+    [Required] public int Width { get; set; }
+    [Required] public int Height { get; set; }
 
-    [Required] public DateTimeOffset Date { get; set; }
+    // TODO а вот это я не уверен, но надеюсь, всё нормально будет
+    [Required] public int Fps { get; set; }
+
+    public VideoFormatDb()
+    {
+    }
+
+    public VideoFormatDb(int width, int height, int fps)
+    {
+        Width = width;
+        Height = height;
+        Fps = fps;
+    }
+
+    public IList<SegmentDb> Segments { get; set; }
 }

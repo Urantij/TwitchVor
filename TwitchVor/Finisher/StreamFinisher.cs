@@ -290,11 +290,7 @@ internal class StreamFinisher
     private async Task<List<ProcessingVideo>> CutToVideosAsync(IReadOnlyList<SkipDb> skips, long sizeLimit,
         TimeSpan durationLimit)
     {
-        Queue<VideoFormatDb> formats = new(await db.LoadAllVideoFormatsAsync());
-
-        VideoFormatDb currentFormat = formats.Dequeue();
-
-        formats.TryDequeue(out VideoFormatDb? nextFormat);
+        VideoFormatDb? currentFormat = null;
 
         List<ProcessingVideo> videos = new();
         int tookCount = 0;
@@ -338,21 +334,33 @@ internal class StreamFinisher
                         break;
                     }
 
-                    if (nextFormat != null && segment.ProgramDate >= nextFormat.Date)
+                    if (currentFormat == null)
                     {
-                        // Он не должен записывать формат, если он тот же, но я мб передумаю в будущем.
-                        bool changed = nextFormat.Format != currentFormat.Format;
-
-                        currentFormat = nextFormat;
-                        formats.TryDequeue(out nextFormat);
-
-                        if (changed)
-                        {
-                            // Сменился формат - нужно новое видео, туда же писать уже нельзя.
-                            keepGoing = false;
-                            break;
-                        }
+                        currentFormat = segment.Format;
                     }
+                    else if (segment.FormatId != currentFormat.Id)
+                    {
+                        currentFormat = segment.Format;
+                        
+                        keepGoing = false;
+                        break;
+                    }
+
+                    // if (nextFormat != null && segment.ProgramDate >= nextFormat.Date)
+                    // {
+                    //     // Он не должен записывать формат, если он тот же, но я мб передумаю в будущем.
+                    //     bool changed = nextFormat.Format != currentFormat.Format;
+                    //
+                    //     currentFormat = nextFormat;
+                    //     formats.TryDequeue(out nextFormat);
+                    //
+                    //     if (changed)
+                    //     {
+                    //         // Сменился формат - нужно новое видео, туда же писать уже нельзя.
+                    //         keepGoing = false;
+                    //         break;
+                    //     }
+                    // }
 
                     if (startSegment == null)
                     {

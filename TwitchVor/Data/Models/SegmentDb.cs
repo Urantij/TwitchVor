@@ -30,6 +30,9 @@ public class SegmentDb
     [Required]
     public float Duration { get; set; }
 
+    [ForeignKey(nameof(Format))] public int FormatId { get; set; }
+    public VideoFormatDb Format { get; set; }
+
     [ForeignKey(nameof(Map))] public int? MapId { get; set; }
     public MapDb? Map { get; set; }
 }

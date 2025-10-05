@@ -35,6 +35,7 @@ public class StreamDownloader
     private readonly ILoggerFactory _loggerFactory;
 
     private readonly MapContainer _mapContainer;
+    private readonly FormatContainer _formatContainer;
 
     public bool Working { get; private set; }
 
@@ -49,7 +50,7 @@ public class StreamDownloader
     private FfmpegPreheater<ConversionHandler>? _ffmpegPreheater = null;
 
     public StreamDownloader(Guid guid, StreamDatabase db, BaseSpaceProvider space, HttpClient httpClient,
-        MapContainer mapContainer, ILoggerFactory loggerFactory)
+        MapContainer mapContainer, FormatContainer formatContainer, ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(this.GetType());
 
@@ -59,6 +60,7 @@ public class StreamDownloader
         this._loggerFactory = loggerFactory;
         this.httpClient = httpClient;
         _mapContainer = mapContainer;
+        _formatContainer = formatContainer;
 
         float? fps;
         Resolution? res;
@@ -286,8 +288,10 @@ public class StreamDownloader
 
                 resultContentStream.Position = 0;
 
+                VideoFormatDb formatDb = _formatContainer.GetVideoFormatByQuality(qItem.Segment.Quality);
+
                 int id = db.AddSegment(qItem.Segment.MediaSequenceNumber, qItem.Segment.ProgramDate,
-                    resultContentStream.Length, qItem.Segment.Duration, mapInfo?.DbId);
+                    resultContentStream.Length, qItem.Segment.Duration, formatDb.Id, mapInfo?.DbId);
 
                 if (lastSegment != null)
                 {
@@ -386,7 +390,7 @@ public class StreamDownloader
 
         string format = SomeUtis.MakeFormat(args.Quality);
 
-        db.AddVideoFormat(format, DateTimeOffset.UtcNow);
+        _formatContainer.GetVideoFormatByQuality(args.Quality);
 
         if (downloader.LastStreamQuality == null)
         {
