@@ -37,10 +37,10 @@ public class FormatContainer
                 result = _database.AddVideoFormatAsync(quality).GetAwaiter().GetResult();
 
                 _formats.Add(result);
-            }
 
-            _logger.LogInformation("Добавили формат {width}:{height} {fps}", quality.Resolution.Width,
-                quality.Resolution.Height, fps);
+                _logger.LogInformation("Добавили формат {width}:{height} {fps}", quality.Resolution.Width,
+                    quality.Resolution.Height, fps);
+            }
         }
 
         return result;
