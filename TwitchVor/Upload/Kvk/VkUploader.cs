@@ -36,7 +36,15 @@ internal class VkUploader : BaseUploader
     {
         await TestUploaderAsync();
         if (_creds.WallRunner != null)
-            await TestWallRunnerAsync();
+            // Да, библиотека настолько всратая
+            try
+            {
+                await TestWallRunnerAsync();
+            }
+            catch (Newtonsoft.Json.JsonSerializationException e) when (e.Message.StartsWith("Error converting value \"base\" to type"))
+            {
+                _logger.LogWarning("Клоунаду так и не исправили.");
+            }
     }
 
     private async Task TestUploaderAsync()
